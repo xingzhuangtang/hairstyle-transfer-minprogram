@@ -62,3 +62,7 @@ backend/logs/
 miniprogram/.claude/
 miniprogram/project.private.config.json
 .claude/
+
+# AI 索引文件
+.ai-files
+.ai-index
