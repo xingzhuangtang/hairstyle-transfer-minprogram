@@ -1,0 +1,97 @@
+<!--pages/result/result.wxml-->
+<view class="result-container">
+  <!-- 成功标识 -->
+  <view class="success-header">
+    <image class="success-icon" src="/images/icons/success.png"></image>
+    <text class="success-text">{{mode === 'sketch' ? '素描优化成功' : '处理成功'}}</text>
+  </view>
+
+  <!-- 对比模式：显示原图和素描 -->
+  <view class="comparison-view" wx:if="{{mode === 'sketch' && originalUrl}}">
+    <view class="comparison-item">
+      <text class="comparison-label">原图</text>
+      <image
+        class="comparison-image"
+        src="{{originalUrl}}"
+        mode="aspectFit"
+        show-menu-by-longpress
+        bindtap="enlargeImage"
+        data-src="{{originalUrl}}"
+      ></image>
+    </view>
+    <view class="comparison-item">
+      <text class="comparison-label">素描</text>
+      <image
+        class="comparison-image"
+        src="{{resultUrl}}"
+        mode="aspectFit"
+        show-menu-by-longpress
+        bindtap="enlargeImage"
+        data-src="{{resultUrl}}"
+      ></image>
+    </view>
+  </view>
+
+  <!-- 单图模式：只显示结果 -->
+  <view class="result-image-wrapper" wx:else>
+    <image
+      class="result-image"
+      src="{{resultUrl}}"
+      mode="aspectFit"
+      show-menu-by-longpress
+      bindtap="enlargeImage"
+      data-src="{{resultUrl}}"
+    ></image>
+  </view>
+
+  <!-- 消耗明细 -->
+  <view class="cost-detail">
+    <view class="cost-item">
+      <text class="cost-label">梳子槽</text>
+      <text class="cost-value">-{{combCost}}</text>
+    </view>
+    <view class="cost-item">
+      <text class="cost-label">剪刀槽</text>
+      <text class="cost-value">-{{scissorCost}}</text>
+    </view>
+    <view class="divider"></view>
+    <view class="cost-item total">
+      <text class="cost-label">剩余发丝</text>
+      <text class="cost-value">{{remainingHairs}}</text>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-buttons">
+    <!-- 素描模式：显示两个保存按钮 -->
+    <button
+      wx:if="{{mode === 'sketch' && originalUrl}}"
+      class="action-btn secondary"
+      bindtap="saveOriginalToAlbum">
+      <image class="btn-icon" src="/images/icons/download.png"></image>
+      <text>保存原图</text>
+    </button>
+    <button class="action-btn secondary" bindtap="saveToAlbum">
+      <image class="btn-icon" src="/images/icons/download.png"></image>
+      <text>{{mode === 'sketch' ? '保存素描' : '保存相册'}}</text>
+    </button>
+    <button class="action-btn primary" bindtap="goHome">
+      <image class="btn-icon" src="/images/icons/home.png"></image>
+      <text>返回首页</text>
+    </button>
+  </view>
+
+  <!-- 提示 -->
+  <view class="tips">
+    <text class="tip-text">• 点击图片可放大查看</text>
+    <text class="tip-text">• 历史记录可在"我的"中查看（会员专享）</text>
+  </view>
+</view>
+
+<!-- 保存成功提示 -->
+<view class="save-success-modal" wx:if="{{showSaveSuccess}}">
+  <view class="modal-content">
+    <image class="check-icon" src="/images/icons/check.png"></image>
+    <text class="modal-text">保存成功</text>
+  </view>
+</view>

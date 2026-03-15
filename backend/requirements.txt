@@ -1,0 +1,57 @@
+# Web框架
+flask==2.3.3
+werkzeug==2.3.7
+flask-sqlalchemy==3.0.5
+
+# 图像处理
+opencv-python==4.8.1.78
+pillow>=10.0.0
+numpy>=1.23.0,<2.0.0
+
+# 网络请求
+requests==2.31.0
+
+# 环境变量管理
+python-dotenv==1.0.0
+
+# 阿里云SDK - 核心
+alibabacloud-tea-openapi>=0.3.9
+alibabacloud-tea-util>=0.3.12,<1.0.0
+
+# 阿里云SDK - 人脸融合
+alibabacloud-facebody20191230>=2.0.2
+
+# 阿里云SDK - 图像分割
+alibabacloud-imageseg20191230>=2.0.2
+
+# 阿里云SDK - 百炼AI
+dashscope==1.14.1
+
+# 阿里云SDK - OSS对象存储
+oss2==2.18.4
+
+# 其他工具
+typing-extensions==4.8.0
+
+# 数据库
+flask-sqlalchemy==3.0.5
+pymysql==1.1.0
+
+# JWT认证
+pyjwt==2.8.0
+
+# Redis缓存
+redis==5.0.1
+
+# 定时任务
+celery==5.3.4
+
+# 阿里云SDK - 短信服务
+alibabacloud-dysmsapi20170525>=2.0.1
+
+# 支付宝SDK
+alipay-sdk-python>=3.6.0
+
+# 云闪付SDK
+# python-acp>=1.0.0  # 暂不安装，此包不支持 Python 3.14
+flask-cors==4.0.0

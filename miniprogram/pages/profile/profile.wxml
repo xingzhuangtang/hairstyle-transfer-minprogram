@@ -1,0 +1,110 @@
+<!--pages/profile/profile.wxml-->
+<view class="profile-container">
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <view class="user-info">
+      <image class="avatar" src="{{userInfo.avatar_url || '/images/icons/default-avatar.png'}}" mode="aspectFill"></image>
+      <view class="info">
+        <view class="name-row">
+          <text class="nickname">{{userInfo.nickname || '未设置昵称'}}</text>
+          <image wx:if="{{isPremium}}" class="vip-badge" src="/images/icons/vip.png"></image>
+        </view>
+        <text class="phone">{{userInfo.phone || '未绑定手机'}}</text>
+      </view>
+    </view>
+
+    <!-- 会员信息 -->
+    <view class="member-info">
+      <view class="member-level {{isPremium ? 'premium' : 'normal'}}">
+        <text class="level-text">{{memberLevelName}}</text>
+      </view>
+      <text wx:if="{{isPremium && daysRemaining > 0}}" class="expire-text">
+        还剩{{daysRemaining}}天
+      </text>
+    </view>
+  </view>
+
+  <!-- 余额卡片 -->
+  <view class="balance-card">
+    <view class="balance-item">
+      <text class="balance-value">{{userInfo.scissor_hairs || 0}}</text>
+      <text class="balance-label">剪刀发丝</text>
+    </view>
+    <view class="divider"></view>
+    <view class="balance-item">
+      <text class="balance-value">{{userInfo.comb_hairs || 0}}</text>
+      <text class="balance-label">梳子发丝</text>
+    </view>
+    <view class="divider"></view>
+    <view class="balance-item">
+      <text class="balance-value total">{{totalHairs}}</text>
+      <text class="balance-label">总计</text>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-list">
+    <!-- 历史记录（会员专属） -->
+    <view class="menu-item" bindtap="goToHistory">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/history.png"></image>
+        <text class="menu-text">历史记录</text>
+        <text wx:if="{{!isPremium}}" class="vip-tag">VIP</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+
+    <!-- 消费记录 -->
+    <view class="menu-item" bindtap="goToConsumption">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/consumption.png"></image>
+        <text class="menu-text">消费记录</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+
+    <!-- 充值中心 -->
+    <view class="menu-item" bindtap="goToBalance">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/recharge.png"></image>
+        <text class="menu-text">充值中心</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+
+    <!-- 会员中心 -->
+    <view class="menu-item" bindtap="goToMember">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/member.png"></image>
+        <text class="menu-text">会员中心</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+  </view>
+
+  <!-- 其他设置 -->
+  <view class="menu-list settings">
+    <!-- 关于我们 -->
+    <view class="menu-item" bindtap="goToAbout">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/about.png"></image>
+        <text class="menu-text">关于我们</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+
+    <!-- 设置 -->
+    <view class="menu-item" bindtap="goToSettings">
+      <view class="menu-left">
+        <image class="menu-icon" src="/images/icons/settings.png"></image>
+        <text class="menu-text">设置</text>
+      </view>
+      <image class="arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+  </view>
+
+  <!-- 退出登录按钮 -->
+  <view class="logout-btn" bindtap="handleLogout">
+    <text>退出登录</text>
+  </view>
+</view>

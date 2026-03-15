@@ -1,0 +1,7 @@
+<!--pages/member/member.wxml-->
+<view class="member-container">
+  <view class="content">
+    <text class="title">会员中心</text>
+    <text class="desc">功能开发中，敬请期待...</text>
+  </view>
+</view>

@@ -1,0 +1,315 @@
+/**
+ * 全局样式
+ */
+
+/* 重置样式 */
+page {
+  background-color: #f8f8f8;
+  font-family: -apple-system-font, Helvetica Neue, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* 通用容器 */
+.container {
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background-color: #1aad19;
+  color: #ffffff;
+  border: none;
+  border-radius: 8rpx;
+  padding: 24rpx 48rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.btn-primary:active {
+  background-color: #179b16;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: #1aad19;
+  border: 2rpx solid #1aad19;
+  border-radius: 8rpx;
+  padding: 24rpx 48rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.btn-disabled {
+  background-color: #cccccc;
+  color: #ffffff;
+  border: none;
+  border-radius: 8rpx;
+  padding: 24rpx 48rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+/* 文本样式 */
+.text-primary {
+  color: #1aad19;
+}
+
+.text-secondary {
+  color: #888888;
+}
+
+.text-danger {
+  color: #e64340;
+}
+
+.text-warning {
+  color: #ff9900;
+}
+
+.text-success {
+  color: #1aad19;
+}
+
+.text-large {
+  font-size: 36rpx;
+  font-weight: 500;
+}
+
+.text-small {
+  font-size: 24rpx;
+}
+
+/* 间距 */
+.mt-10 {
+  margin-top: 10rpx;
+}
+
+.mt-20 {
+  margin-top: 20rpx;
+}
+
+.mt-30 {
+  margin-top: 30rpx;
+}
+
+.mb-10 {
+  margin-bottom: 10rpx;
+}
+
+.mb-20 {
+  margin-bottom: 20rpx;
+}
+
+.mb-30 {
+  margin-bottom: 30rpx;
+}
+
+.ml-10 {
+  margin-left: 10rpx;
+}
+
+.mr-10 {
+  margin-right: 10rpx;
+}
+
+/* Flex布局 */
+.flex {
+  display: flex;
+}
+
+.flex-row {
+  flex-direction: row;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.align-center {
+  align-items: center;
+}
+
+/* 分割线 */
+.divider {
+  height: 1rpx;
+  background-color: #eeeeee;
+  margin: 30rpx 0;
+}
+
+/* 加载中 */
+.loading {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999999;
+}
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999999;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+}
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: 4rpx;
+  font-size: 24rpx;
+}
+
+.tag-primary {
+  background-color: #e8f5e9;
+  color: #1aad19;
+}
+
+.tag-warning {
+  background-color: #fff3e0;
+  color: #ff9900;
+}
+
+.tag-danger {
+  background-color: #ffebee;
+  color: #e64340;
+}
+
+.tag-info {
+  background-color: #e3f2fd;
+  color: #2196f3;
+}
+
+/* 徽章 */
+.badge {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  font-size: 20rpx;
+  color: #ffffff;
+}
+
+.badge-vip {
+  background: linear-gradient(135deg, #ff9900, #ff6600);
+}
+
+/* 列表项 */
+.list-item {
+  background-color: #ffffff;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eeeeee;
+  display: flex;
+  align-items: center;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* 输入框 */
+.input {
+  background-color: #f8f8f8;
+  border-radius: 8rpx;
+  padding: 24rpx;
+  font-size: 28rpx;
+}
+
+/* 头像 */
+.avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+}
+
+.avatar-large {
+  width: 120rpx;
+  height: 120rpx;
+}
+
+/* 遮罩层 */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+/* 弹窗 */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  padding: 40rpx;
+  width: 600rpx;
+  z-index: 1001;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.modal-content {
+  font-size: 28rpx;
+  color: #666666;
+  margin-bottom: 40rpx;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 24rpx;
+  text-align: center;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+.modal-btn-cancel {
+  background-color: #f8f8f8;
+  color: #666666;
+  margin-right: 20rpx;
+}
+
+.modal-btn-confirm {
+  background-color: #1aad19;
+  color: #ffffff;
+}

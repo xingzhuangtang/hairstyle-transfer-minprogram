@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>千人千面发型迁移系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #1a2332 0%, #2c3e50 50%, #34495e 100%);
+            min-height: 100vh;
+            color: #2c3e50;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        
+        .workflow {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            padding: 15px;
+            background: #f5f5f5;
+            margin: 5px;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .step.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #333;
+            color: white;
+            border-radius: 50%;
+            line-height: 30px;
+            margin-bottom: 10px;
+        }
+        
+        .step.active .step-number {
+            background: white;
+            color: #667eea;
+        }
+        
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .upload-box {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+        
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        
+        .upload-box.has-image {
+            border-color: #4caf50;
+            background: #f0fff0;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-top: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+        }
+        
+        .btn-success:hover {
+            background: #45a049;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .options {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .option-group {
+            margin: 15px 0;
+        }
+        
+        .option-group 
+        
+        
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-section {
+            display: none;
+            margin-top: 30px;
+            padding: 30px;
+            background: #f0fff0;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .result-section.show {
+            display: block;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .hair-preview {
+            background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGElEQVQYlWNgYGCQwoKxgqGgcJA5h3yFAAs8BRWVSwooAAAAAElFTkSuQmCC') repeat;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        
+        /* 图片放大模态框 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            cursor: zoom-out;
+        }
+        
+        .image-modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        
+        .image-modal .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .preview-image {
+            cursor: zoom-in;
+        }
+    
+        .btn {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6348 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(255,71,87,0.3);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(255,71,87,0.5);
+        }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+    
+        .upload-section, .params-section, .result-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .upload-section h2, .params-section h2, .result-section h2 {
+            color: #ff6348;
+            margin-bottom: 20px;
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 10px rgba(255,99,72,0.3);
+        }
+
+    
+        
+        
+        p {
+            color: #d0d0d0;
+            line-height: 1.6;
+        }
+        
+        .info-text {
+            color: #c0c0c0;
+            font-size: 14px;
+        }
+        
+        input[type="range"] + span {
+            color: #ffffff !important;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+    
+        h2, h3, h4 {
+            color: #ffffff !important;
+        }
+        
+        .result-section p,
+        .upload-section p,
+        .params-section p {
+            color: #e0e0e0;
+        }
+
+    
+        
+        
+        p {
+            color: #d0d0d0;
+            line-height: 1.6;
+        }
+        
+        .info-text {
+            color: #c0c0c0;
+            font-size: 14px;
+        }
+        
+        input[type="range"] + span {
+            color: #ffffff !important;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+    
+        h2, h3, h4 {
+            color: #ffffff !important;
+        }
+        
+        .result-section p,
+        .upload-section p,
+        .params-section p {
+            color: #e0e0e0;
+        }
+
+    
+        /* 图片缩放功能 */
+        .image-zoom-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .zoomable-image {
+            max-width: 100%;
+            height: auto;
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .zoomable-image.zoomed {
+            cursor: zoom-out;
+            transform: scale(1.5);
+            z-index: 1000;
+        }
+        
+        .zoom-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #ffffff;
+            width: 32px;
+            height: 32px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        
+        .zoom-level {
+            color: #ffffff;
+            font-size: 12px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+        }
+
+    
+        /* 深色文字确保可读性 */
+        body {
+            color: #2c3e50;
+        }
+        
+        
+        
+        p {
+            color: #2c3e50 !important;
+            line-height: 1.6;
+        }
+        
+        h2, h3, h4, h5, h6 {
+            color: #1a1a1a !important;
+        }
+        
+        .info-text {
+            color: #34495e !important;
+            font-size: 14px;
+        }
+        
+        input[type="range"] + span {
+            color: #1a1a1a !important;
+            font-weight: 700 !important;
+            font-size: 18px;
+        }
+        
+        .result-section p,
+        .upload-section p,
+        .params-section p {
+            color: #2c3e50 !important;
+        }
+        
+        .result-section h2,
+        .upload-section h2,
+        .params-section h2 {
+            color: #1a1a1a !important;
+        }
+        
+        /* 确保所有文字都是深色 */
+        * {
+            color: inherit;
+        }
+        
+        input, select, textarea {
+            color: #2c3e50 !important;
+        }
+
+    
+        /* 深色文字确保可读性 */
+        body {
+            color: #2c3e50 !important;
+        }
+        
+        label {
+            color: #1a1a1a !important;
+            font-weight: 600 !important;
+            margin-bottom: 8px;
+            display: block;
+            font-size: 16px;
+        }
+        
+        p {
+            color: #2c3e50 !important;
+            line-height: 1.6;
+        }
+        
+        h2, h3, h4, h5, h6 {
+            color: #1a1a1a !important;
+        }
+        
+        .info-text {
+            color: #34495e !important;
+            font-size: 14px;
+        }
+        
+        input[type="range"] + span {
+            color: #1a1a1a !important;
+            font-weight: 700 !important;
+            font-size: 18px;
+        }
+        
+        .result-section p,
+        .upload-section p,
+        .params-section p {
+            color: #2c3e50 !important;
+        }
+        
+        .result-section h2,
+        .upload-section h2,
+        .params-section h2 {
+            color: #1a1a1a !important;
+        }
+        
+        /* 确保所有文字都是深色 */
+        * {
+            color: inherit;
+        }
+        
+        input, select, textarea {
+            color: #2c3e50 !important;
+        }
+
+    
+        
+
+    
+        
+
+    
+        /* 标题容器 */
+        .title-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        /* 中文主标题 */
+        .chinese-title {
+            font-size: 48px !important;
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+            margin: 0 0 15px 0 !important;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 英文副标题（1/3大小） */
+        .english-subtitle {
+            font-size: 16px !important;
+            font-weight: 400 !important;
+            color: #555555 !important;
+            margin: 0 !important;
+            letter-spacing: 1px;
+        }
+        
+        /* 删除旧的main-title样式 */
+        .main-title {
+            display: none;
+        }
+
+    
+        /* 标题容器 */
+        .title-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        /* 中文主标题 */
+        .chinese-title {
+            font-size: 48px !important;
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+            margin: 0 0 15px 0 !important;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 英文副标题（1/3大小） */
+        .english-subtitle {
+            font-size: 16px !important;
+            font-weight: 400 !important;
+            color: #555555 !important;
+            margin: 0 !important;
+            letter-spacing: 1px;
+        }
+        
+        /* 删除旧的main-title样式 */
+        .main-title {
+            display: none;
+        }
+
+    
+        /* 加载动画默认隐藏 */
+        
+        
+        .loading.show {
+            display: flex !important;
+        }
+
+    
+        /* 加载动画默认隐藏 */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loading.show {
+            display: flex !important;
+        }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+
+    <!-- Hero Section -->
+    <div style="text-align: center; margin-bottom: 40px; position: relative;">
+        <div style="max-width: 600px; margin: 0 auto; position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <img src="/static/hero-image.jpg" alt="千人千面" style="width: 100%; height: auto; display: block;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(26,35,50,0.3) 0%, rgba(26,35,50,0.8) 100%);"></div>
+        </div>
+        
+        <div class="title-container">
+            <h1 class="chinese-title">千人千面发型迁移系统</h1>
+            <p class="english-subtitle">AI-Powered Hairstyle Transfer System</p>
+        </div>
+    </div>
+
+        
+        <p class="subtitle">专业版 - 带发型提取预览功能</p>
+        
+        <!-- 工作流程指示 -->
+        <div class="workflow">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div>上传发型参考图</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div>提取发型预览</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <div>上传客户照片</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-number">4</div>
+                <div>选择参数</div>
+            </div>
+            <div class="step" id="step5">
+                <div class="step-number">5</div>
+                <div>开始迁移</div>
+            </div>
+            <div class="step" id="step6">
+                <div class="step-number">6</div>
+                <div>查看结果</div>
+            </div>
+        </div>
+        
+        <!-- 上传区域 -->
+        <div class="upload-section">
+            <!-- 步骤1: 上传发型参考图 -->
+            <div class="upload-box" id="hairstyleBox" onclick="document.getElementById('hairstyleInput').click()">
+                <h3>📸 步骤1: 发型参考图</h3>
+                <p>点击上传发型参考图</p>
+                <input type="file" id="hairstyleInput" accept="image/*" style="display:none" onchange="handleHairstyleUpload(event)">
+                <img id="hairstylePreview" class="preview-image" style="display:none">
+            </div>
+            
+            <!-- 步骤2: 提取的发型预览 -->
+            <div class="upload-box" id="hairExtractedBox">
+                <h3>✂️ 步骤2: 提取的发型</h3>
+                <p id="extractStatus">等待提取...</p>
+                <div class="hair-preview" style="display:none" id="hairPreviewContainer">
+                    <img id="hairExtractedPreview" class="preview-image" style="display:none">
+                </div>
+                <button class="btn" id="extractBtn" onclick="extractHair()" disabled>提取发型</button>
+            </div>
+            
+            <!-- 步骤3: 上传客户照片 -->
+            <div class="upload-box" id="customerBox" onclick="document.getElementById('customerInput').click()">
+                <h3>👤 步骤3: 客户照片</h3>
+                <p>点击上传客户照片</p>
+                <input type="file" id="customerInput" accept="image/*" style="display:none" onchange="handleCustomerUpload(event)">
+                <img id="customerPreview" class="preview-image" style="display:none">
+            </div>
+        </div>
+        
+        <!-- 步骤4: 选项设置 -->
+        <div class="options">
+            <h3>⚙️ 步骤4: 参数设置</h3>
+            <div class="option-group">
+                <label>模型版本:</label>
+                <select id="modelVersion">
+                    <option value="v1" selected>v1 (推荐 - 脸型适配)</option>
+                    <option value="v2">v2 (标准)</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label>脸型融合权重:</label>
+                <input type="range" id="faceBlendRatio" min="0" max="1" step="0.1" value="0.5" style="width: 200px;">
+                <span id="faceBlendValue">0.5</span>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    <span style="float: left;">← 偏向客户脸型</span>
+                    <span style="float: right;">偏向发型脸型 →</span>
+                    <div style="clear: both;"></div>
+                </div>
+            </div>
+            <div class="option-group">
+                <label>
+                    <input type="checkbox" id="enableSketch">
+                    启用素描效果
+                </label>
+            </div>
+            <div class="option-group" id="sketchOptions" style="display:none">
+                <label>素描风格:</label>
+                <select id="sketchStyle">
+                    <option value="pencil">铅笔素描</option>
+                    <option value="anime">动漫素描</option>
+                    <option value="ink" selected>艺术素描 (推荐)</option>
+                    <option value="vivid">浓烈素描</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 步骤5: 开始迁移 -->
+        <div class="controls">
+            <button class="btn btn-success" id="transferBtn" onclick="startTransfer()" disabled>
+                🚀 步骤5: 开始发型迁移
+            </button>
+        </div>
+        
+        <!-- 消息提示 -->
+        <div class="message" id="message"></div>
+        
+        <!-- 加载中 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">处理中...</p>
+            <div class="progress-container" id="progressContainer" style="display: none; margin-top: 20px; width: 300px;">
+                <div class="progress-bar" style="width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                    <div class="progress-fill" id="progressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease;"></div>
+                </div>
+                <p id="progressText" style="margin-top: 10px; font-size: 14px; color: #666;">0%</p>
+            </div>
+        </div>
+        
+        <!-- 步骤6: 结果展示 -->
+        <div class="result-section" id="resultSection">
+            <h2>🎉 步骤6: 迁移完成!</h2>
+            <img id="resultImage" class="preview-image">
+            <div id="resultInfo" style="margin-top: 15px; padding: 15px; background: #f0f0f0; border-radius: 10px;">
+                <!-- 结果信息将显示在这里 -->
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="downloadResult()">下载结果</button>
+                <button class="btn" onclick="resetAll()">重新开始</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图片放大模态框 -->
+    <div class="image-modal" id="imageModal" onclick="closeModal()">
+        <span class="close-btn">&times;</span>
+        <img id="modalImage" src="" alt="">
+    </div>
+    
+    <script>
+        let hairstyleFile = null;
+        let customerFile = null;
+        let originalHairUrl = null;  // 原始发型图 URL
+        let extractedHairUrl = null;  // 提取的发型 URL
+        
+        // 脸型融合权重滑杆更新
+        document.getElementById('faceBlendRatio').addEventListener('input', function() {
+            document.getElementById('faceBlendValue').textContent = this.value;
+        });
+        
+        // 素描选项切换
+        document.getElementById('enableSketch').addEventListener('change', function() {
+            document.getElementById('sketchOptions').style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // 处理发型参考图上传
+        function handleHairstyleUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                hairstyleFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('hairstylePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('hairstyleBox').classList.add('has-image');
+                    document.getElementById('extractBtn').disabled = false;
+                    updateStep(1);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // 处理客户照片上传
+        function handleCustomerUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                customerFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('customerPreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('customerBox').classList.add('has-image');
+                    updateStep(3);
+                    checkReadyToTransfer();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // 提取发型
+        async function extractHair() {
+            if (!hairstyleFile) {
+                showMessage('请先上传发型参考图', 'error');
+                return;
+            }
+            
+            showLoading('正在提取发型...', true);  // 显示进度条
+            document.getElementById('extractBtn').disabled = true;
+            
+            // 模拟进度
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progress <= 90) {
+                    updateProgress(progress);
+                }
+            }, 500);
+            
+            try {
+                const formData = new FormData();
+                formData.append('hairstyle_image', hairstyleFile);
+                
+                const response = await fetch('/api/extract-hair', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(progressInterval);  // 清除进度模拟
+                updateProgress(100);  // 完成
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    originalHairUrl = result.original_url;  // 保存原始图片URL
+                    extractedHairUrl = result.extracted_url;  // 保存提取的发型URL
+                    const preview = document.getElementById('hairExtractedPreview');
+                    preview.src = result.extracted_url;
+                    preview.style.display = 'block';
+                    document.getElementById('hairPreviewContainer').style.display = 'inline-block';
+                    document.getElementById('hairExtractedBox').classList.add('has-image');
+                    document.getElementById('extractStatus').textContent = '✅ 发型提取成功';
+                    showMessage('发型提取成功！', 'success');
+                    updateStep(2);
+                    checkReadyToTransfer();
+                } else {
+                    showMessage('发型提取失败: ' + result.message, 'error');
+                    document.getElementById('extractBtn').disabled = false;
+                }
+            } catch (error) {
+                showMessage('发型提取失败: ' + error.message, 'error');
+                document.getElementById('extractBtn').disabled = false;
+            } finally {
+                clearInterval(progressInterval);  // 清除进度模拟
+                hideLoading();
+                updateProgress(0); // 重置进度
+                updateProgress(0); // 重置进度
+            }
+        }
+        
+        // 检查是否可以开始迁移
+        function checkReadyToTransfer() {
+            if (extractedHairUrl && customerFile) {
+                document.getElementById('transferBtn').disabled = false;
+                updateStep(4);
+            }
+        }
+        
+        // 开始发型迁移
+        async function startTransfer() {
+            if (!originalHairUrl || !customerFile) {
+                showMessage('请先提取发型并上传客户照片', 'error');
+                return;
+            }
+            
+            showLoading('正在进行发型迁移...', true);  // 显示进度条
+            updateStep(5);
+            
+            // 模拟进度
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 3;
+                if (progress <= 90) {
+                    updateProgress(progress);
+                }
+            }, 1000);
+            
+            try {
+                const formData = new FormData();
+                formData.append('customer_image', customerFile);
+                formData.append('original_hair_url', originalHairUrl);  // 使用原始发型图
+                formData.append('model_version', document.getElementById('modelVersion').value);
+                formData.append('face_blend_ratio', document.getElementById('faceBlendRatio').value);
+                formData.append('enable_sketch', document.getElementById('enableSketch').checked);
+                formData.append('sketch_style', document.getElementById('sketchStyle').value);
+                
+                const response = await fetch('/api/transfer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 显示结果
+                    const resultImage = document.getElementById('resultImage');
+                    resultImage.src = result.result_url;
+                    resultImage.style.display = 'block';
+                    
+                    // 保存sketch_url到全局变量
+                    window.currentSketchUrl = result.sketch_url;
+                    
+                    document.getElementById('resultSection').style.display = 'block';
+                    
+                    // 构建结果信息
+                    let infoHTML = `
+                        <p><strong>处理时间:</strong> ${result.info.elapsed_time.toFixed(2)}秒</p>
+                        <p><strong>模型版本:</strong> ${result.info.model_version}</p>
+                    `;
+                    
+                    // 如果启用了素描且有素描图片
+                    if (result.info.sketch_enabled && result.sketch_url) {
+                        infoHTML += `
+                            <p><strong>素描风格:</strong> ${result.info.sketch_style}</p>
+                            <p><strong>素描方法:</strong> ${result.info.sketch_method === 'bailian' ? '百炼图生图' : 'OpenCV'}</p>
+                            <div style="margin-top: 15px;">
+                                <p><strong>素描效果:</strong></p>
+                                <img src="${result.sketch_url}" style="max-width: 100%; border-radius: 10px; margin-top: 10px; cursor: pointer;" onclick="enlargeImage(this.src)">
+                                <div style="margin-top: 10px;">
+                                    <button class="btn" onclick="downloadSketch()" style="padding: 8px 16px; font-size: 14px;">下载素描图片</button>
+                                </div>
+                            </div>
+                        `;
+                    } else if (result.info.sketch_enabled) {
+                        infoHTML += `<p><strong>素描风格:</strong> ${result.info.sketch_style} (未生成)</p>`;
+                    }
+                    
+                    document.getElementById('resultInfo').innerHTML = infoHTML;
+                    
+                    showMessage('发型迁移成功！', 'success');
+                    updateStep(6);
+                } else {
+                    showMessage('发型迁移失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('发型迁移失败: ' + error.message, 'error');
+            } finally {
+                clearInterval(progressInterval);  // 清除进度模拟
+                hideLoading();
+                updateProgress(0); // 重置进度
+                updateProgress(0); // 重置进度
+            }
+        }
+        
+        // 更新步骤状态
+        function updateStep(stepNumber) {
+            for (let i = 1; i <= 6; i++) {
+                const step = document.getElementById('step' + i);
+                if (i <= stepNumber) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            }
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = 'message show ' + type;
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 5000);
+        }
+        
+        // 显示加载
+        function showLoading(text, showProgress = false) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loading').classList.add('show');
+            if (showProgress) {
+                document.getElementById('progressContainer').style.display = 'block';
+                updateProgress(0);
+            } else {
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+        }
+        
+        // 更新进度
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+        }
+        
+        // 隐藏加载
+        function hideLoading() {
+            const loading = document.getElementById('loading');
+            loading.classList.remove('show');
+            document.getElementById('progressContainer').style.display = 'none';
+            // 重置进度
+            updateProgress(0);
+        }
+        
+        // 下载结果
+        function downloadResult() {
+            const resultImage = document.getElementById('resultImage');
+            if (resultImage && resultImage.src) {
+                const link = document.createElement('a');
+                link.href = resultImage.src;
+                link.download = 'hairstyle_result_' + Date.now() + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage('结果图片下载成功！', 'success');
+            }
+        }
+        
+        // 下载素描图片
+        function downloadSketch() {
+            if (window.currentSketchUrl) {
+                const link = document.createElement('a');
+                link.href = window.currentSketchUrl;
+                link.download = 'hairstyle_sketch_' + Date.now() + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage('素描图片下载成功！', 'success');
+            } else {
+                showMessage('没有素描图片可下载', 'error');
+            }
+        }
+        
+        // 重置所有
+        function resetAll() {
+            location.reload();
+        }
+        
+        // 下载结果
+        function downloadResult() {
+            const img = document.getElementById('resultImage');
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = 'hairstyle_result.png';
+            link.click();
+        }
+        
+        // 图片放大功能
+        function openModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = imageSrc;
+            modal.classList.add('show');
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('show');
+        }
+        
+        // 为所有预览图片添加点击放大事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 监听所有preview-image的点击
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('preview-image') && e.target.src && e.target.style.display !== 'none') {
+                    openModal(e.target.src);
+                }
+            });
+        });
+        
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+
+    <script>
+        // 图片缩放功能
+        let currentZoom = 100;
+        
+        function setupImageZoom() {
+            const images = document.querySelectorAll('.result-image');
+            images.forEach(img => {
+                if (!img.parentElement.classList.contains('image-zoom-container')) {
+                    const container = document.createElement('div');
+                    container.className = 'image-zoom-container';
+                    img.parentNode.insertBefore(container, img);
+                    container.appendChild(img);
+                    
+                    img.classList.add('zoomable-image');
+                    
+                    // 添加缩放控制按钮
+                    const controls = document.createElement('div');
+                    controls.className = 'zoom-controls';
+                    controls.innerHTML = `
+                        <button class="zoom-btn" onclick="zoomImage(this, 'out')">−</button>
+                        <span class="zoom-level">100%</span>
+                        <button class="zoom-btn" onclick="zoomImage(this, 'in')">+</button>
+                        <button class="zoom-btn" onclick="resetZoom(this)">⟲</button>
+                    `;
+                    container.appendChild(controls);
+                }
+            });
+        }
+        
+        function zoomImage(btn, direction) {
+            const container = btn.closest('.image-zoom-container');
+            const img = container.querySelector('.zoomable-image');
+            const zoomLevel = container.querySelector('.zoom-level');
+            
+            let zoom = parseInt(zoomLevel.textContent);
+            
+            if (direction === 'in') {
+                zoom = Math.min(zoom + 25, 300);
+            } else {
+                zoom = Math.max(zoom - 25, 50);
+            }
+            
+            img.style.transform = `scale(${zoom / 100})`;
+            zoomLevel.textContent = zoom + '%';
+        }
+        
+        function resetZoom(btn) {
+            const container = btn.closest('.image-zoom-container');
+            const img = container.querySelector('.zoomable-image');
+            const zoomLevel = container.querySelector('.zoom-level');
+            
+            img.style.transform = 'scale(1)';
+            zoomLevel.textContent = '100%';
+        }
+        
+        // 监听结果更新，自动设置缩放功能
+        const observer = new MutationObserver(function(mutations) {
+            setupImageZoom();
+        });
+        
+        // 页面加载完成后设置
+        document.addEventListener('DOMContentLoaded', function() {
+            setupImageZoom();
+            
+            // 监听结果区域的变化
+            const resultSections = document.querySelectorAll('.result-section');
+            resultSections.forEach(section => {
+                observer.observe(section, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

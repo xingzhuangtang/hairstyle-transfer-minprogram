@@ -1,0 +1,185 @@
+<!--pages/index/index.wxml-->
+<view class="index-container">
+  <!-- 余额显示区域 -->
+  <view class="balance-section">
+    <view class="balance-item">
+      <text class="balance-value">{{combHairs}}</text>
+      <text class="balance-label">梳子</text>
+    </view>
+    <view class="balance-divider"></view>
+    <view class="balance-item">
+      <text class="balance-value">{{scissorHairs}}</text>
+      <text class="balance-label">剪刀</text>
+    </view>
+    <view class="balance-divider"></view>
+    <view class="balance-item total">
+      <text class="balance-value">{{totalHairs}}</text>
+      <text class="balance-label">总计</text>
+    </view>
+    <view class="vip-badge" wx:if="{{isPremium}}">
+      <text>会员50%优惠</text>
+    </view>
+  </view>
+
+  <!-- 图片上传区域 -->
+  <view class="upload-section">
+    <!-- 发型参考图 -->
+    <view class="upload-item">
+      <text class="upload-label">发型参考图</text>
+      <view class="upload-box" bindtap="chooseHairstyleImage">
+        <image wx:if="{{hairstyleUrl}}" class="preview-image" src="{{hairstyleUrl}}" mode="widthFix" show-menu-by-longpress lazy-load binderror="imageError" bindload="imageLoad"></image>
+        <view wx:else class="upload-placeholder">
+          <image class="upload-icon" src="/images/icons/upload.png"></image>
+          <text class="upload-text">点击上传图片</text>
+        </view>
+        <image wx:if="{{hairstyleUrl}}" class="delete-icon" src="/images/icons/close.png" catchtap="deleteHairstyleImage"></image>
+      </view>
+    </view>
+
+    <!-- 客户照片 -->
+    <view class="upload-item">
+      <text class="upload-label">客户照片</text>
+      <view class="upload-box" bindtap="chooseCustomerImage">
+        <image wx:if="{{customerUrl}}" class="preview-image" src="{{customerUrl}}" mode="widthFix" show-menu-by-longpress lazy-load binderror="imageError" bindload="imageLoad"></image>
+        <view wx:else class="upload-placeholder">
+          <image class="upload-icon" src="/images/icons/upload.png"></image>
+          <text class="upload-text">点击上传图片</text>
+        </view>
+        <image wx:if="{{customerUrl}}" class="delete-icon" src="/images/icons/close.png" catchtap="deleteCustomerImage"></image>
+      </view>
+    </view>
+  </view>
+
+  <!-- 参数调节区域 -->
+  <view class="params-section">
+    <!-- 处理模式切换 -->
+    <view class="param-item">
+      <text class="param-label">处理模式</text>
+      <view class="param-value">
+        <picker mode="selector" range="{{['综合模式', '分步模式']}}" value="{{modeIndex}}" bindchange="onModeChange">
+          <view class="picker">
+            {{modeIndex === 0 ? '综合模式' : '分步模式'}}
+            <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+          </view>
+        </picker>
+      </view>
+    </view>
+    <!-- 模型版本 -->
+    <view class="param-item">
+      <text class="param-label">模型版本</text>
+      <view class="param-value">
+        <picker mode="selector" range="{{modelVersions}}" value="{{modelVersionIndex}}" bindchange="onModelVersionChange">
+          <view class="picker">
+            {{modelVersions[modelVersionIndex]}}
+            <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 脸型融合度 -->
+    <view class="param-item">
+      <text class="param-label">脸型融合度</text>
+      <view class="slider-container">
+        <slider
+          class="slider"
+          min="0"
+          max="100"
+          value="{{fusionDegree}}"
+          bindchange="onFusionDegreeChange"
+          activeColor="#667eea"
+          backgroundColor="#e0e0e0"
+          block-size="20" />
+        <text class="slider-value">{{fusionDegree}}%</text>
+      </view>
+    </view>
+
+    <!-- 素描效果（分步模式下禁用） -->
+    <view class="param-item">
+      <text class="param-label">素描效果</text>
+      <switch
+        class="switch"
+        checked="{{enableSketch}}"
+        bindchange="onSketchChange"
+        disabled="{{modeIndex === 1}}"
+        color="#667eea" />
+    </view>
+
+    <!-- 素描风格（素描开启时显示） -->
+    <view class="param-item" wx:if="{{enableSketch}}">
+      <text class="param-label">素描风格</text>
+      <view class="param-value">
+        <picker mode="selector" range="{{sketchStyles}}" range-key="label" value="{{sketchStyleIndex}}" bindchange="onSketchStyleChange">
+          <view class="picker">
+            {{sketchStyles[sketchStyleIndex].label}}
+            <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+          </view>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-section">
+    <!-- 分步模式：结果预览 -->
+    <view class="step-result" wx:if="{{modeIndex === 1}}">
+      <text class="step-label" wx:if="{{!hasResult}}">准备：请先生成发型</text>
+      <text class="step-label" wx:if="{{hasResult}}">第一步：发型迁移完成</text>
+      <image wx:if="{{hasResult}}" class="step-image" src="{{resultUrl}}" mode="widthFix" show-menu-by-longpress bindtap="enlargeImage" data-src="{{resultUrl}}"></image>
+    </view>
+
+    <view class="cost-info">
+      <text wx:if="{{currentCost > 0}}" class="cost-text">
+        预计消耗：{{currentCost}}发丝
+        <text wx:if="{{isPremium}}" class="discount-text">(会员优惠)</text>
+      </text>
+    </view>
+
+    <!-- 综合模式按钮 -->
+    <view class="action-buttons" wx:if="{{modeIndex === 0}}">
+      <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
+        仅提取发型
+        <text class="cost">4发丝</text>
+      </button>
+      <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
+        仅迁移发型
+        <text class="cost">4发丝</text>
+      </button>
+      <button class="action-btn primary" bindtap="processAll" disabled="{{processing}}">
+        素描优化
+        <text class="cost">{{allCost}}发丝</text>
+      </button>
+    </view>
+
+    <!-- 分步模式按钮 -->
+    <view class="action-buttons" wx:if="{{modeIndex === 1}}">
+      <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
+        仅提取发型
+        <text class="cost">4发丝</text>
+      </button>
+      <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
+        生成发型
+        <text class="cost">4发丝</text>
+      </button>
+      <button class="action-btn primary" bindtap="addSketchOnly" disabled="{{processing || !hasResult}}">
+        素描优化
+        <text class="cost">{{isPremium ? 44 : 88}}发丝</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 会员提示 -->
+  <view class="vip-tip" wx:if="{{!isPremium}}">
+    <text class="tip-icon">👑</text>
+    <text class="tip-text">升级会员享受50%折扣特权</text>
+    <text class="tip-link" bindtap="goToMember">立即升级</text>
+  </view>
+</view>
+
+<!-- 加载弹窗 -->
+<view class="loading-modal" wx:if="{{processing}}">
+  <view class="loading-content">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">{{processingText}}</text>
+  </view>
+</view>

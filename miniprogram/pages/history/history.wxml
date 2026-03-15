@@ -1,0 +1,8 @@
+<!--pages/history/history.wxml-->
+<view class="history-container">
+  <view class="content">
+    <text class="title">历史记录</text>
+    <text class="desc">功能开发中，敬请期待...</text>
+    <text class="vip-tip">此功能仅限陪跑会员使用</text>
+  </view>
+</view>
