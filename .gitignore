@@ -66,3 +66,6 @@ miniprogram/project.private.config.json
 # AI 索引文件
 .ai-files
 .ai-index
+
+# Git worktrees
+.worktrees/
