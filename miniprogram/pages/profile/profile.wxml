@@ -103,6 +103,24 @@
     </view>
   </view>
 
+  <!-- 开发者模式（仅开发者账号显示） -->
+  <view wx:if="{{isDeveloper}}" class="developer-section">
+    <view class="developer-title">开发者模式</view>
+    <view class="developer-card">
+      <view class="developer-row">
+        <text class="developer-label">当前会员状态：</text>
+        <text class="developer-value">{{userInfo.member_level === 'vip' ? 'VIP 会员' : '普通用户'}}</text>
+      </view>
+      <view class="developer-row">
+        <text class="developer-label">到期时间：</text>
+        <text class="developer-value">{{userInfo.member_expire_at || '永久'}}</text>
+      </view>
+      <button class="toggle-vip-btn" bindtap="onToggleVip" loading="{{toggleLoading}}">
+        {{userInfo.member_level === 'vip' ? '切换为普通用户' : '切换为 VIP 会员'}}
+      </button>
+    </view>
+  </view>
+
   <!-- 退出登录按钮 -->
   <view class="logout-btn" bindtap="handleLogout">
     <text>退出登录</text>

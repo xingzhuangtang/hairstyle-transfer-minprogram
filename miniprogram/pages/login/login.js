@@ -1,5 +1,6 @@
 // pages/login/login.js
 import { wechatLogin, phoneLogin as phoneLoginApi, sendVerificationCode, redirectAfterLogin } from '../../utils/auth.js'
+import { API_BASE_URL } from '../../utils/constants.js'
 
 Page({
   data: {

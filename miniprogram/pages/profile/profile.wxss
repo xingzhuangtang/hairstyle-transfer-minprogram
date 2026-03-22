@@ -197,3 +197,66 @@
   color: #e64340;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 }
+
+/* 开发者模式 */
+.developer-section {
+  margin: 0 30rpx 30rpx;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  border: 2rpx solid #667eea;
+}
+
+.developer-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+.developer-card {
+  background-color: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 24rpx;
+}
+
+.developer-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.developer-row:last-child {
+  margin-bottom: 20rpx;
+}
+
+.developer-label {
+  font-size: 26rpx;
+  color: #666;
+  min-width: 200rpx;
+}
+
+.developer-value {
+  font-size: 26rpx;
+  color: #333;
+  flex: 1;
+}
+
+.toggle-vip-btn {
+  width: 100%;
+  height: 80rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-vip-btn::after {
+  border: none;
+}

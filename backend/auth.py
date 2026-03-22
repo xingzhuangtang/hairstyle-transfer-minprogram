@@ -351,3 +351,49 @@ def optional_login(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+# 开发者账号判断函数
+def is_developer(user_id=None):
+    """
+    判断是否为开发者测试账号
+
+    Args:
+        user_id: 用户 ID，如果不传则从当前请求中获取
+
+    Returns:
+        bool: 是否为开发者账号
+    """
+    from config import DEVELOPER_ACCOUNTS
+
+    if user_id is None:
+        # 从当前登录用户获取
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+        if not user:
+            return False
+        user_id = user.id
+
+    return user_id in DEVELOPER_ACCOUNTS
+
+
+# 装饰器：开发者权限
+def developer_required(f):
+    """开发者权限装饰器"""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+
+        if not user:
+            return jsonify({"error": "未登录或登录已过期", "code": 401}), 401
+
+        if not is_developer(user.id):
+            return jsonify({"error": "此功能仅限开发者账号使用", "code": 403}), 403
+
+        # 将用户存入 g 对象
+        g.current_user = user
+
+        return f(*args, **kwargs)
+
+    return decorated_function

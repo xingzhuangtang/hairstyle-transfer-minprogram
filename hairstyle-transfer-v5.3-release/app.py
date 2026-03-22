@@ -14,8 +14,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-# 导入阿里云发型迁移模块(修复版)
-from aliyun_hair_transfer_fixed import AliyunHairTransferFixed
+# 导入阿里云发型迁移模块
+from aliyun_hair_transfer import AliyunHairTransfer
 
 # 导入头发分割模块
 try:
@@ -347,9 +347,9 @@ def transfer_hairstyle():
         if enable_sketch:
             print(f"   素描风格: {sketch_style}")
         
-        # 创建发型迁移服务(修复版)
+        # 创建发型迁移服务
         print(f"\n🔧 初始化服务...")
-        service = AliyunHairTransferFixed()
+        service = AliyunHairTransfer()
         
         # 执行发型迁移
         result_image, info = service.transfer_hairstyle(

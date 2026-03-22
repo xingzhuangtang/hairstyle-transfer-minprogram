@@ -66,6 +66,11 @@ class User(db.Model):
         """是否为vip 会员"""
         return self.member_level == 'vip' and not self.is_member_expired()
     
+
+    def is_premium(self):
+        """是否为 premium 会员（陪跑会员）"""
+        return self.is_vip()
+
     def is_member_expired(self):
         """会员是否已过期"""
         if self.member_level != 'vip':

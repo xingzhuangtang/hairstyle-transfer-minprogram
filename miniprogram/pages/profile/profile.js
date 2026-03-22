@@ -1,5 +1,5 @@
 // pages/profile/profile.js
-import { getUser, isPremium, logout, refreshUserInfo } from '../../utils/auth.js'
+import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip } from '../../utils/auth.js'
 import { checkPremium, requireLogin } from '../../utils/auth.js'
 import { MEMBER_LEVEL_NAMES } from '../../utils/constants.js'
 
@@ -7,9 +7,11 @@ Page({
   data: {
     userInfo: {},
     isPremium: false,
+    isDeveloper: false,
     memberLevelName: '普通用户',
     totalHairs: 0,
-    daysRemaining: 0
+    daysRemaining: 0,
+    toggleLoading: false
   },
 
   onShow() {
@@ -26,7 +28,8 @@ Page({
 
       if (res.success) {
         const userInfo = res.user
-        const isPremium = userInfo.member_level === 'premium'
+        const isPremium = userInfo.member_level === 'vip'
+        const isDeveloper = isDeveloperAccount()
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
         // 计算剩余天数
@@ -41,6 +44,7 @@ Page({
         this.setData({
           userInfo: userInfo,
           isPremium: isPremium,
+          isDeveloper: isDeveloper,
           memberLevelName: MEMBER_LEVEL_NAMES[userInfo.member_level] || '普通用户',
           totalHairs: totalHairs,
           daysRemaining: daysRemaining > 0 ? daysRemaining : 0
@@ -151,5 +155,43 @@ Page({
         }
       }
     })
+  },
+
+  /**
+   * 切换 VIP 状态（开发者功能）
+   */
+  async onToggleVip() {
+    if (this.data.toggleLoading) {
+      return
+    }
+
+    this.setData({ toggleLoading: true })
+
+    try {
+      const res = await toggleVip()
+
+      if (res.success) {
+        wx.showToast({
+          title: res.message || '切换成功',
+          icon: 'success'
+        })
+
+        // 刷新用户信息
+        await this.loadUserInfo()
+      } else {
+        wx.showToast({
+          title: res.error || '切换失败',
+          icon: 'none'
+        })
+      }
+    } catch (e) {
+      console.error('切换 VIP 状态失败:', e)
+      wx.showToast({
+        title: e.error || '切换失败',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({ toggleLoading: false })
+    }
   }
 })

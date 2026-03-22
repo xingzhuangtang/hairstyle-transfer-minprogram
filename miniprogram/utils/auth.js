@@ -20,7 +20,7 @@ export function checkLogin() {
  */
 export function isPremium() {
   const userInfo = getUserInfo()
-  return userInfo && userInfo.member_level === 'premium'
+  return userInfo && userInfo.member_level === 'vip'
 }
 
 /**
@@ -56,7 +56,7 @@ export async function wechatLogin() {
       const app = getApp()
       app.globalData.token = res.token
       app.globalData.userInfo = res.user
-      app.globalData.isPremium = res.user.member_level === 'premium'
+      app.globalData.isPremium = res.user.member_level === 'vip'
 
       return {
         success: true,
@@ -96,7 +96,7 @@ export async function phoneLogin(phone, code) {
       const app = getApp()
       app.globalData.token = res.token
       app.globalData.userInfo = res.user
-      app.globalData.isPremium = res.user.member_level === 'premium'
+      app.globalData.isPremium = res.user.member_level === 'vip'
 
       return {
         success: true,
@@ -239,7 +239,7 @@ export async function refreshUserInfo() {
 
       const app = getApp()
       app.globalData.userInfo = res.user
-      app.globalData.isPremium = res.user.member_level === 'premium'
+      app.globalData.isPremium = res.user.member_level === 'vip'
 
       return {
         success: true,
@@ -309,9 +309,56 @@ export function redirectAfterLogin() {
   }
 }
 
+/**
+ * 检查是否为开发者账号
+ */
+export function isDeveloperAccount() {
+  const userInfo = getUserInfo()
+  // 开发者账号 ID 列表
+  const developerIds = [5, 7]
+  return userInfo && userInfo.id && developerIds.includes(userInfo.id)
+}
+
+/**
+ * 切换会员状态（开发者功能）
+ */
+export async function toggleVip() {
+  try {
+    const res = await post('/api/dev/toggle-vip', {})
+
+    if (res.success) {
+      // 更新本地存储的用户信息
+      setUserInfo(res.user)
+
+      // 更新全局数据
+      const app = getApp()
+      app.globalData.userInfo = res.user
+      app.globalData.isPremium = res.user.member_level === 'vip'
+
+      return {
+        success: true,
+        user: res.user,
+        message: res.message
+      }
+    } else {
+      return {
+        success: false,
+        error: res.error || '切换失败'
+      }
+    }
+  } catch (e) {
+    console.error('切换会员状态失败:', e)
+    return {
+      success: false,
+      error: e.error || e.message || '切换失败'
+    }
+  }
+}
+
 export default {
   checkLogin,
   isPremium,
+  isDeveloperAccount,
   getUser,
   wechatLogin,
   phoneLogin,
@@ -321,5 +368,6 @@ export default {
   checkPremium,
   refreshUserInfo,
   requireLogin,
-  redirectAfterLogin
+  redirectAfterLogin,
+  toggleVip
 }

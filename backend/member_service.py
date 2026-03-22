@@ -41,7 +41,7 @@ class MemberService:
             'is_expired': is_expired,
             'expire_at': user.member_expire_at.isoformat() if user.member_expire_at else None,
             'remaining_days': remaining_days,
-            'premium_config': self.member_config.get('premium', {})
+            'vip_config': self.member_config.get('vip', {})
         }
     
     def check_and_send_reminders(self):

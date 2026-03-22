@@ -65,7 +65,7 @@ Page({
       const res = await refreshUserInfo()
       if (res.success) {
         const userInfo = res.user
-        const isPremium = userInfo.member_level === 'premium'
+        const isPremium = userInfo.member_level === 'vip'
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
         // 计算价格（会员优惠）

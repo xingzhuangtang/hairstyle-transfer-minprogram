@@ -109,7 +109,7 @@ Page({
       const res = await refreshUserInfo()
       if (res.success) {
         const userInfo = res.user
-        const isPremium = userInfo.member_level === 'premium'
+        const isPremium = userInfo.member_level === 'vip'
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
         this.setData({
@@ -129,7 +129,7 @@ Page({
 
     // 判断会员身份
     const userInfo = getUserInfo() || {}
-    const isPremium = userInfo.member_level === 'premium'
+    const isPremium = userInfo.member_level === 'vip'
 
     // 会员 50% 优惠
     const actualCost = isPremium ? Math.ceil(cost / 2) : cost

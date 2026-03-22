@@ -34,7 +34,7 @@ App({
     if (token && userInfo) {
       this.globalData.token = token
       this.globalData.userInfo = userInfo
-      this.globalData.isPremium = userInfo.member_level === 'premium'
+      this.globalData.isPremium = userInfo.member_level === 'vip'
 
       console.log('用户已登录:', userInfo.nickname)
     } else {
