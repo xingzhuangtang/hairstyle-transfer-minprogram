@@ -1,8 +1,74 @@
 <!--pages/history/history.wxml-->
 <view class="history-container">
-  <view class="content">
-    <text class="title">历史记录</text>
-    <text class="desc">功能开发中，敬请期待...</text>
-    <text class="vip-tip">此功能仅限陪跑会员使用</text>
+  <view class="header">
+    <view class="header-title">历史记录</view>
+    <view class="header-desc" wx:if="{{isVip}}">保留 {{remainingDays}} 天</view>
+    <view class="header-desc" wx:else>开通会员保留 45 天</view>
+  </view>
+
+  <view class="vip-notice" wx:if="{{!isVip}}" bindtap="goToMember">
+    <view class="vip-notice-content">
+      <view class="vip-icon">👑</view>
+      <view class="vip-text">
+        <text class="vip-title">开通陪跑会员</text>
+        <text class="vip-desc">历史记录保留 45 天，随时查看</text>
+      </view>
+      <view class="vip-arrow">></view>
+    </view>
+  </view>
+
+  <view class="history-list" wx:if="{{isVip}}">
+    <view class="empty-state" wx:if="{{records.length === 0 && !loading}}">
+      <view class="empty-icon">📋</view>
+      <view class="empty-text">暂无历史记录</view>
+      <view class="empty-desc">开始使用发型迁移功能后<br/>历史记录将在这里显示</view>
+    </view>
+
+    <view class="loading-state" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+
+    <view wx:for="{{records}}" wx:key="id" class="history-item" bindtap="viewDetail" data-id="{{item.id}}">
+      <view class="item-preview">
+        <image src="{{item.result_image}}" mode="aspectFill" lazy-load />
+      </view>
+      <view class="item-info">
+        <view class="item-title">发型迁移 #{{item.id}}</view>
+        <view class="item-time">{{item.created_at}}</view>
+        <view class="item-status {{item.is_expired ? 'expired' : 'valid'}}">
+          {{item.is_expired ? '已过期' : '有效期内'}}
+        </view>
+      </view>
+      <view class="item-arrow">></view>
+    </view>
+  </view>
+
+  <view class="non-premium-list" wx:if="{{!isVip}}">
+    <view class="feature-item">
+      <view class="feature-icon">📸</view>
+      <view class="feature-text">
+        <view class="feature-title">查看历史</view>
+        <view class="feature-desc">随时查看发型迁移历史记录</view>
+      </view>
+    </view>
+    <view class="feature-item">
+      <view class="feature-icon">⏰</view>
+      <view class="feature-text">
+        <view class="feature-title">45 天保留</view>
+        <view class="feature-desc">历史记录保留 45 天</view>
+      </view>
+    </view>
+    <view class="feature-item">
+      <view class="feature-icon">💾</view>
+      <view class="feature-text">
+        <view class="feature-title">下载保存</view>
+        <view class="feature-desc">支持下载高清结果图片</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="load-more" wx:if="{{hasMore && isVip}}">
+    <button class="load-more-btn" bindtap="loadMore">加载更多</button>
   </view>
 </view>

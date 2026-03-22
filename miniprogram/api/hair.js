@@ -40,6 +40,11 @@ export function getHistoryList(page = 1, page_size = 10) {
 }
 
 /**
+ * 获取历史记录（别名）
+ */
+export const getHistoryRecords = getHistoryList
+
+/**
  * 下载历史记录图片
  */
 export function downloadHistoryImage(recordId) {
@@ -51,5 +56,6 @@ export default {
     transferHair,
     addSketch,
     getHistoryList,
+    getHistoryRecords,
     downloadHistoryImage
 }

@@ -602,6 +602,83 @@ def buy_member():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/member/pay', methods=['POST'])
+@login_required
+def pay_member():
+    """支付会员订单 - 支持微信支付"""
+    try:
+        data = request.get_json()
+        order_no = data.get('order_no')
+        payment_method = data.get('payment_method')
+
+        if not order_no or not payment_method:
+            return jsonify({'error': '缺少 order_no 或 payment_method 参数'}), 400
+
+        user = g.current_user
+
+        if payment_method == 'wechat':
+            from payment_service import WeChatPayService
+            from models import MemberOrder
+
+            order = MemberOrder.query.filter_by(order_no=order_no).first()
+            if not order:
+                return jsonify({'error': '订单不存在'}), 404
+            if order.user_id != user.id:
+                return jsonify({'error': '无权操作此订单'}), 403
+            if order.payment_status == 'success':
+                return jsonify({'error': '订单已支付'}), 400
+
+            wechat_service = WeChatPayService()
+            result = wechat_service.create_jsapi_order(
+                order_no=order_no,
+                amount=float(order.amount),
+                openid=user.openid,
+                body='发型迁移陪跑会员'
+            )
+
+            if result['success']:
+                return jsonify({
+                    'success': True,
+                    'prepay_id': result['prepay_id'],
+                    'wxpay_params': result['wxpay_params']
+                })
+            else:
+                return jsonify({'error': result['error']}), 400
+
+        elif payment_method == 'alipay':
+            from payment_service import AlipayService
+            from models import MemberOrder
+
+            order = MemberOrder.query.filter_by(order_no=order_no).first()
+            if not order:
+                return jsonify({'error': '订单不存在'}), 404
+            if order.user_id != user.id:
+                return jsonify({'error': '无权操作此订单'}), 403
+            if order.payment_status == 'success':
+                return jsonify({'error': '订单已支付'}), 400
+
+            alipay_service = AlipayService()
+            result = alipay_service.create_wap_pay_order(
+                order_no=order_no,
+                amount=float(order.amount),
+                subject='发型迁移陪跑会员'
+            )
+
+            if result['success']:
+                return jsonify({
+                    'success': True,
+                    'h5_pay_url': result['pay_url']
+                })
+            else:
+                return jsonify({'error': result['error']}), 400
+
+        else:
+            return jsonify({'error': '不支持的支付方式'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/member/orders', methods=['GET'])
 @login_required
 def get_member_orders():
