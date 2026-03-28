@@ -54,14 +54,14 @@ class PaymentService:
         """
         try:
             # 验证充值金额
-            if amount not in self.recharge_rules:
+            if amount not in self.normal_recharge_rules:
                 return {
                     'success': False,
                     'error': '充值金额不合法'
                 }
-            
+
             # 获取充值规则
-            rule = self.recharge_rules[amount]
+            rule = self.normal_recharge_rules[amount]
             
             # 生成订单号
             order_no = self.generate_order_no('RE')

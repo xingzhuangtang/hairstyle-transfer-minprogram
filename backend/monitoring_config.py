@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, g
 from functools import wraps
 import logging
+from sqlalchemy import text
 
 
 class SystemMonitor:
@@ -219,7 +220,7 @@ class SystemMonitor:
             try:
                 from models import db
 
-                db.session.execute("SELECT 1")
+                db.session.execute(text("SELECT 1"))
                 health_status["checks"]["database"] = "ok"
             except Exception as e:
                 health_status["checks"]["database"] = f"error: {str(e)}"

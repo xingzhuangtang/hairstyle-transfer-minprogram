@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://192.168.1.3:5003"
+export const API_BASE_URL = "http://192.168.241.199:5003"
 
 // 存储键位定义
 export const STORAGE_KEYS = {

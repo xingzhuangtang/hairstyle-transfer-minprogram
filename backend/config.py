@@ -167,7 +167,7 @@ PRICING_RULES = {
 
 
 # 会员配置
-MEMBER_CONFIG = {"premium": {"price": 99, "duration_days": 365, "bonus_hairs": 1000}}
+MEMBER_CONFIG = {"vip": {"price": 99, "duration_days": 365, "bonus_hairs": 1000}}
 
 
 # ============================================

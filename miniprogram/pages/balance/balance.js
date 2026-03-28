@@ -127,6 +127,19 @@ Page({
 
       wx.hideLoading()
 
+      // 检查是否是模拟支付
+      if (payRes.mock) {
+        wx.showModal({
+          title: '模拟支付',
+          content: '开发环境模拟支付成功，充值已到账',
+          showCancel: false,
+          success: () => {
+            this.checkOrderStatus(orderNo)
+          }
+        })
+        return
+      }
+
       // 调起微信支付
       await wx.requestPayment({
         ...payRes.wxpay_params,
