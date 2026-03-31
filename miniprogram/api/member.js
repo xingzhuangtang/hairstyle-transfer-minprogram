@@ -1,5 +1,5 @@
 /**
- * 会员相关API
+ * 会员相关 API
  */
 
 import { get, post } from '../utils/request.js'
@@ -21,13 +21,6 @@ export function buyMember(payment_method = 'wechat') {
 }
 
 /**
- * 获取会员订单列表
- */
-export function getMemberOrders(page = 1, page_size = 20) {
-  return get('/api/member/orders', { page, page_size })
-}
-
-/**
  * 支付会员订单
  */
 export function payMemberOrder(order_no, payment_method = 'wechat') {
@@ -35,6 +28,13 @@ export function payMemberOrder(order_no, payment_method = 'wechat') {
     order_no: order_no,
     payment_method: payment_method
   })
+}
+
+/**
+ * 获取会员订单列表
+ */
+export function getMemberOrders(page = 1, page_size = 20) {
+  return get('/api/member/orders', { page, page_size })
 }
 
 export default {

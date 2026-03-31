@@ -101,6 +101,7 @@ Page({
         return
       }
 
+      // 调起微信支付
       wx.requestPayment({
         ...payRes.wxpay_params,
         total_fee: payRes.wxpay_params.total_fee || 0,

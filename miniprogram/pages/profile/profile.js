@@ -45,7 +45,7 @@ Page({
           userInfo: userInfo,
           isPremium: isPremium,
           isDeveloper: isDeveloper,
-          memberLevelName: MEMBER_LEVEL_NAMES[userInfo.member_level] || '普通用户',
+          memberLevelName: (typeof MEMBER_LEVEL_NAMES !== 'undefined' && MEMBER_LEVEL_NAMES[userInfo.member_level]) || '普通用户',
           totalHairs: totalHairs,
           daysRemaining: daysRemaining > 0 ? daysRemaining : 0
         })

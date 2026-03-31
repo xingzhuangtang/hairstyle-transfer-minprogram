@@ -142,7 +142,7 @@ Page({
       wx.hideLoading()
 
       // 调起微信支付
-      await wx.requestPayment({
+      wx.requestPayment({
         ...payRes.wxpay_params,
         total_fee: payRes.wxpay_params.total_fee || 0,
         success: () => {
@@ -173,7 +173,7 @@ Page({
    */
   async handleAlipayPay(orderNo) {
     try {
-      // 获取支付参数（H5支付URL）
+      // 获取支付参数（H5 支付 URL）
       const payRes = await pay(orderNo, 'alipay')
 
       if (!payRes.success) {
@@ -182,7 +182,7 @@ Page({
 
       wx.hideLoading()
 
-      // 跳转到支付宝H5支付页面（使用web-view）
+      // 跳转到支付宝 H5 支付页面（使用 web-view）
       const h5PayUrl = payRes.h5_pay_url
 
       wx.navigateTo({
@@ -200,14 +200,14 @@ Page({
   async checkOrderStatus(orderNo) {
     wx.showLoading({ title: '处理中...' })
 
-    // 轮询查询（最多30秒）
+    // 轮询查询（最多 30 秒）
     let count = 0
-    const maxCount = 15 // 最多查询15次 (15 * 2秒 = 30秒)
+    const maxCount = 15 // 最多查询 15 次 (15 * 2 秒 = 30 秒)
     const timer = setInterval(async () => {
       count++
 
       try {
-        // 调用查询订单状态的API
+        // 调用查询订单状态的 API
         const res = await getOrderStatus(orderNo)
 
         if (res.success) {
@@ -247,7 +247,7 @@ Page({
               icon: 'none'
             })
           }
-          // 如果状态是pending，继续轮询
+          // 如果状态是 pending，继续轮询
         }
 
       } catch (e) {
@@ -259,9 +259,9 @@ Page({
           icon: 'none'
         })
       }
-    }, 2000) // 每2秒查询一次
+    }, 2000) // 每 2 秒查询一次
 
-    // 30秒后停止轮询
+    // 30 秒后停止轮询
     setTimeout(() => {
       clearInterval(timer)
       wx.hideLoading()

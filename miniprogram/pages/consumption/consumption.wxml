@@ -1,7 +1,0 @@
-<!--pages/consumption/consumption.wxml-->
-<view class="consumption-container">
-  <view class="content">
-    <text class="title">消费记录</text>
-    <text class="desc">功能开发中，敬请期待...</text>
-  </view>
-</view>

@@ -54,14 +54,14 @@ class PaymentService:
         """
         try:
             # 验证充值金额
-            if amount not in self.recharge_rules:
+            if amount not in self.normal_recharge_rules:
                 return {
                     'success': False,
                     'error': '充值金额不合法'
                 }
-            
+
             # 获取充值规则
-            rule = self.recharge_rules[amount]
+            rule = self.normal_recharge_rules[amount]
             
             # 生成订单号
             order_no = self.generate_order_no('RE')
@@ -123,10 +123,10 @@ class PaymentService:
             member_order = MemberOrder(
                 user_id=user_id,
                 order_no=order_no,
-                member_level='vip',
-                amount=config['price'],
-                bonus_hairs=config['bonus_hairs'],
-                payment_method=payment_method,
+                member_level='vip',  # 会员等级
+                amount=float(config['price']),  # 确保是浮点数
+                bonus_hairs=int(config.get('purchase_bonus', {}).get('comb_hairs', 0)),  # 确保是整数
+                payment_method='wechat',  # 固定使用 wechat
                 payment_status='pending',
                 expire_at=expire_at
             )
@@ -140,7 +140,7 @@ class PaymentService:
                 'success': True,
                 'order_no': order_no,
                 'amount': config['price'],
-                'bonus_hairs': config['bonus_hairs'],
+                'bonus_hairs': int(config.get('purchase_bonus', {}).get('comb_hairs', 0)),
                 'expire_at': expire_at.isoformat()
             }
             

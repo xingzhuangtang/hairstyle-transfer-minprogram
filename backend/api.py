@@ -7,6 +7,8 @@ API路由模块
 
 from flask import Blueprint, request, jsonify, g
 import json
+import time
+import config
 
 # 创建蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')

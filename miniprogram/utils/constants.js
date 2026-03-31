@@ -59,6 +59,12 @@ export const MEMBER_CONFIG = {
   bonusHairs: 1000
 }
 
+// 会员等级名称
+export const MEMBER_LEVEL_NAMES = {
+  vip: '陪跑会员',
+  normal: '普通用户'
+}
+
 // 余额不足自动赠送配置
 export const INSUFFICIENT_BONUS_CONFIG = {
   checkAfterHours: 4,        // 4 小时后检查
