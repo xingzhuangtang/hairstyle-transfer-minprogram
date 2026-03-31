@@ -123,10 +123,10 @@ class PaymentService:
             member_order = MemberOrder(
                 user_id=user_id,
                 order_no=order_no,
-                member_level='vip',
-                amount=config['price'],
-                bonus_hairs=config.get('purchase_bonus', {}).get('comb_hairs', 0),
-                payment_method=payment_method,
+                member_level='vip',  # 会员等级
+                amount=float(config['price']),  # 确保是浮点数
+                bonus_hairs=int(config.get('purchase_bonus', {}).get('comb_hairs', 0)),  # 确保是整数
+                payment_method='wechat',  # 固定使用 wechat
                 payment_status='pending',
                 expire_at=expire_at
             )
