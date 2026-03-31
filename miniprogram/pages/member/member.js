@@ -101,8 +101,10 @@ Page({
         return
       }
 
-      wx.requestPayment({
+      // 调起微信支付
+      const paymentParams = {
         ...payRes.wxpay_params,
+        total_fee: payRes.wxpay_params.total_fee || 0,  // 确保 total_fee 存在
         success: () => {
           wx.showToast({ title: '支付成功', icon: 'success' })
           setTimeout(() => this.loadMemberInfo(), 1500)
@@ -113,7 +115,9 @@ Page({
             icon: 'none'
           })
         }
-      })
+      }
+
+      wx.requestPayment(paymentParams)
     } catch (e) {
       wx.showToast({ title: e.message || '发起支付失败', icon: 'none' })
     }

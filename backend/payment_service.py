@@ -125,7 +125,7 @@ class PaymentService:
                 order_no=order_no,
                 member_level='vip',
                 amount=config['price'],
-                bonus_hairs=config['bonus_hairs'],
+                bonus_hairs=config.get('purchase_bonus', {}).get('comb_hairs', 0),
                 payment_method=payment_method,
                 payment_status='pending',
                 expire_at=expire_at

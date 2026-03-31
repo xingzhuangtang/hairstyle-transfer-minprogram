@@ -141,8 +141,9 @@ Page({
       }
 
       // 调起微信支付
-      await wx.requestPayment({
+      const paymentParams = {
         ...payRes.wxpay_params,
+        total_fee: payRes.wxpay_params.total_fee || 0,  // 确保 total_fee 存在
         success: () => {
           // 支付成功，查询订单状态
           this.checkOrderStatus(orderNo)
@@ -160,7 +161,9 @@ Page({
             })
           }
         }
-      })
+      }
+
+      await wx.requestPayment(paymentParams)
     } catch (e) {
       throw e
     }
