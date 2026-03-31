@@ -140,7 +140,7 @@ class MemberOrder(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     order_no = db.Column(db.String(64), unique=True, nullable=False, comment='订单号')
-    member_level = db.Column(db.Enum('normal', 'vip'), nullable=False, comment='会员等级')
+    member_level = db.Column(db.String(20), nullable=False, default='vip', comment='会员等级')
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='会员费用')
     bonus_hairs = db.Column(db.Integer, default=0, comment='赠送头发丝')
     payment_method = db.Column(db.Enum('wechat', 'alipay', 'unionpay'), nullable=False, comment='支付方式')
