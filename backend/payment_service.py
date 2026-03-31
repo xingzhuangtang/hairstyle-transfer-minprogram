@@ -140,7 +140,7 @@ class PaymentService:
                 'success': True,
                 'order_no': order_no,
                 'amount': config['price'],
-                'bonus_hairs': config['bonus_hairs'],
+                'bonus_hairs': int(config.get('purchase_bonus', {}).get('comb_hairs', 0)),
                 'expire_at': expire_at.isoformat()
             }
             
