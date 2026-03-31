@@ -302,6 +302,24 @@ def pay_recharge():
             if order.payment_status == 'cancelled':
                 return jsonify({'error': '订单已取消'}), 400
 
+            # 开发环境下返回模拟支付参数
+            from config import get_config
+            _config = get_config()
+            if _config.DEBUG:
+                return jsonify({
+                    'success': True,
+                    'prepay_id': 'mock_prepay_id',
+                    'wxpay_params': {
+                        'timeStamp': str(int(time.time())),
+                        'nonceStr': 'mock_nonce_str',
+                        'package': 'prepay_id=mock_prepay_id',
+                        'signType': 'RSA',
+                        'paySign': 'mock_pay_sign',
+                        'total_fee': float(order.amount) * 100  # 单位：分
+                    },
+                    'mock': True  # 标记为模拟支付
+                })
+
             # 创建微信支付订单
             wechat_service = WeChatPayService()
             result = wechat_service.create_jsapi_order(
@@ -627,6 +645,24 @@ def pay_member():
                 return jsonify({'error': '无权操作此订单'}), 403
             if order.payment_status == 'success':
                 return jsonify({'error': '订单已支付'}), 400
+
+            # 开发环境下返回模拟支付参数
+            from config import get_config
+            _config = get_config()
+            if _config.DEBUG:
+                return jsonify({
+                    'success': True,
+                    'prepay_id': 'mock_prepay_id',
+                    'wxpay_params': {
+                        'timeStamp': str(int(time.time())),
+                        'nonceStr': 'mock_nonce_str',
+                        'package': 'prepay_id=mock_prepay_id',
+                        'signType': 'RSA',
+                        'paySign': 'mock_pay_sign',
+                        'total_fee': float(order.amount) * 100  # 单位：分
+                    },
+                    'mock': True  # 标记为模拟支付
+                })
 
             wechat_service = WeChatPayService()
             result = wechat_service.create_jsapi_order(
@@ -1023,3 +1059,48 @@ def upload_file():
     except Exception as e:
         return jsonify({'error': f'上传失败: {str(e)}'}), 500
 
+
+
+# ============================================
+# 开发者工具接口
+# ============================================
+
+@api_bp.route('/dev/toggle-vip', methods=['POST'])
+@login_required
+def toggle_vip():
+    """
+    切换会员等级（开发者/管理员专属）
+    用于开发测试时快速切换会员状态
+    """
+    try:
+        from auth import is_developer
+
+        user = g.current_user
+
+        # 检查是否为开发者账号
+        if not is_developer(user.id):
+            return jsonify({'error': '此功能仅限开发者账号使用'}), 403
+
+        # 切换会员等级
+        if user.member_level == 'vip':
+            user.member_level = 'normal'
+            user.member_expire_at = None
+            message = '已切换为普通用户'
+        else:
+            user.member_level = 'vip'
+            # 设置永久的会员到期时间
+            from datetime import datetime
+            user.member_expire_at = datetime(2099, 12, 31, 23, 59, 59)
+            message = '已切换为 VIP 会员'
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'user': user.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

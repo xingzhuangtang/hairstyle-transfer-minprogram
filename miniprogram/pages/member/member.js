@@ -88,8 +88,22 @@ Page({
       const payRes = await payMemberOrder(orderNo, 'wechat')
       if (!payRes.success) throw new Error(payRes.error)
 
+      // 检查是否是 mock 支付
+      if (payRes.mock) {
+        wx.showModal({
+          title: '模拟支付',
+          content: '开发环境模拟支付成功，会员已开通',
+          showCancel: false,
+          success: () => {
+            this.loadMemberInfo()
+          }
+        })
+        return
+      }
+
       wx.requestPayment({
         ...payRes.wxpay_params,
+        total_fee: payRes.wxpay_params.total_fee || 0,
         success: () => {
           wx.showToast({ title: '支付成功', icon: 'success' })
           setTimeout(() => this.loadMemberInfo(), 1500)

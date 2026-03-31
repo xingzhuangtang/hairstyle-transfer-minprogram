@@ -27,8 +27,19 @@ export function getMemberOrders(page = 1, page_size = 20) {
   return get('/api/member/orders', { page, page_size })
 }
 
+/**
+ * 支付会员订单
+ */
+export function payMemberOrder(order_no, payment_method = 'wechat') {
+  return post('/api/member/pay', {
+    order_no: order_no,
+    payment_method: payment_method
+  })
+}
+
 export default {
   getMemberInfo,
   buyMember,
+  payMemberOrder,
   getMemberOrders
 }
