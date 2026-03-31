@@ -305,7 +305,9 @@ def pay_recharge():
                 return jsonify({'error': '订单已取消'}), 400
 
             # 开发环境下返回模拟支付参数
-            if config.DEBUG:
+            from config import get_config
+            _config = get_config()
+            if _config.DEBUG:
                 return jsonify({
                     'success': True,
                     'prepay_id': 'mock_prepay_id',
@@ -647,7 +649,9 @@ def pay_member():
                 return jsonify({'error': '订单已支付'}), 400
 
             # 开发环境下返回模拟支付参数
-            if config.DEBUG:
+            from config import get_config
+            _config = get_config()
+            if _config.DEBUG:
                 return jsonify({
                     'success': True,
                     'prepay_id': 'mock_prepay_id',

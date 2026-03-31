@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://192.168.241.199:5003"
+export const API_BASE_URL = "http://192.168.1.2:5003"
 
 // 存储键位定义
 export const STORAGE_KEYS = {
@@ -57,6 +57,12 @@ export const MEMBER_CONFIG = {
   price: 99,
   durationDays: 365,
   bonusHairs: 1000
+}
+
+// 会员等级名称
+export const MEMBER_LEVEL_NAMES = {
+  vip: '陪跑会员',
+  normal: '普通用户'
 }
 
 // 余额不足自动赠送配置
