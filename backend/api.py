@@ -1037,6 +1037,10 @@ def upload_file():
         # 生成唯一文件名
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"upload_{uuid.uuid4().hex[:8]}.{ext}"
+
+        # 使用绝对路径，基于 api.py 所在位置
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
         filepath = os.path.join(UPLOAD_FOLDER, filename)
 
         # 确保目录存在
