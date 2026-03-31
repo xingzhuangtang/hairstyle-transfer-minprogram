@@ -4,8 +4,8 @@ werkzeug==2.3.7
 flask-sqlalchemy==3.0.5
 
 # 图像处理
-opencv-python==4.8.1.78
-pillow>=10.0.0
+opencv-python>=4.9.0.80
+pillow>=10.3.0
 numpy>=1.23.0,<2.0.0
 
 # 网络请求

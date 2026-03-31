@@ -181,9 +181,12 @@ class SystemMonitor:
                 cursor.execute("SHOW STATUS LIKE 'Threads_connected'")
                 threads_connected = cursor.fetchone()[1]
 
-                # 数据库大小
+                # 数据库大小（使用参数化查询避免 SQL 注入）
+                db_name = self.config.MYSQL_DATABASE
                 cursor.execute(
-                    f"SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS 'DB Size in MB' FROM information_schema.tables WHERE table_schema='{self.config.MYSQL_DATABASE}'"
+                    "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS 'DB Size in MB' "
+                    "FROM information_schema.tables WHERE table_schema=%s",
+                    (db_name,)
                 )
                 db_size = cursor.fetchone()[0]
 
