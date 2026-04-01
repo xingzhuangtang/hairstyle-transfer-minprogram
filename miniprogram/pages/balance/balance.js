@@ -59,6 +59,16 @@ Page({
   },
 
   /**
+   * 处理支付宝不可用提示
+   */
+  handleAlipayNotAvailable() {
+    wx.showToast({
+      title: '功能开发中',
+      icon: 'none'
+    })
+  },
+
+  /**
    * 创建订单并支付
    */
   async createOrder() {
@@ -94,14 +104,8 @@ Page({
       const orderNo = orderRes.order_no
       this.setData({ currentOrderNo: orderNo })
 
-      // 2. 根据支付方式处理
-      if (paymentMethod === 'wechat') {
-        // 微信支付
-        await this.handleWechatPay(orderNo)
-      } else if (paymentMethod === 'alipay') {
-        // 支付宝支付
-        await this.handleAlipayPay(orderNo)
-      }
+      // 2. 调用微信支付
+      await this.handleWechatPay(orderNo)
 
     } catch (e) {
       console.error('创建订单失败:', e)
@@ -163,32 +167,6 @@ Page({
           }
         }
       })
-    } catch (e) {
-      throw e
-    }
-  },
-
-  /**
-   * 处理支付宝支付
-   */
-  async handleAlipayPay(orderNo) {
-    try {
-      // 获取支付参数（H5 支付 URL）
-      const payRes = await pay(orderNo, 'alipay')
-
-      if (!payRes.success) {
-        throw new Error(payRes.error || '获取支付参数失败')
-      }
-
-      wx.hideLoading()
-
-      // 跳转到支付宝 H5 支付页面（使用 web-view）
-      const h5PayUrl = payRes.h5_pay_url
-
-      wx.navigateTo({
-        url: `/pages/alipay-web/alipay-web?h5_pay_url=${encodeURIComponent(h5PayUrl)}`
-      })
-
     } catch (e) {
       throw e
     }

@@ -119,6 +119,26 @@
   color: #ffffff;
 }
 
+/* 禁用状态的支付方式 */
+.payment-method-item.disabled {
+  background-color: #f0f0f0;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-method-item.disabled .payment-name {
+  color: #999;
+}
+
+.coming-soon {
+  font-size: 20rpx;
+  color: #ff9900;
+  background-color: rgba(255, 153, 0, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-left: auto;
+}
+
 .recharge-list {
   display: flex;
   flex-wrap: wrap;

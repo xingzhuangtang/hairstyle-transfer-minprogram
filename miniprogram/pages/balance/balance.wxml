@@ -36,12 +36,11 @@
         </view>
 
         <view
-          class="payment-method-item {{paymentMethod === 'alipay' ? 'active' : ''}}"
-          bindtap="selectPaymentMethod"
-          data-method="alipay">
+          class="payment-method-item disabled"
+          catchtap="handleAlipayNotAvailable">
           <view class="payment-icon alipay">💙</view>
           <text class="payment-name">支付宝</text>
-          <view class="payment-check {{paymentMethod === 'alipay' ? 'active' : ''}}">✓</view>
+          <text class="coming-soon">功能开发中</text>
         </view>
       </view>
     </view>
