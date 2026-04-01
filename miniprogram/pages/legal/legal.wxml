@@ -1,0 +1,12 @@
+<!--pages/legal/legal.wxml-->
+<view class="legal-container">
+  <view class="legal-header">
+    <text class="legal-title">{{title}}</text>
+    <text class="legal-version">版本：{{version}}</text>
+    <text class="legal-date">更新日期：{{updateDate}}</text>
+  </view>
+
+  <scroll-view class="legal-content" scroll-y>
+    <rich-text nodes="{{content}}" class="legal-text"></rich-text>
+  </scroll-view>
+</view>

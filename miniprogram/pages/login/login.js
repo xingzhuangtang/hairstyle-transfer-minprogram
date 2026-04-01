@@ -289,11 +289,35 @@ Page({
    * 查看用户协议
    */
   viewUserAgreement() {
-    // TODO: 跳转到用户协议页面
-    wx.showModal({
-      title: '用户协议',
-      content: '这里显示用户协议内容',
-      showCancel: false
+    wx.showLoading({ title: '加载中...' })
+    
+    // 调用后端 API 获取用户协议内容
+    wx.request({
+      url: 'https://xn--gmq63iba0780e.com/api/legal/user-agreement',
+      method: 'GET',
+      success: (res) => {
+        wx.hideLoading()
+        if (res.data.success || res.data.title) {
+          // 使用富文本方式显示协议内容
+          wx.setStorageSync('agreement_html', res.data.content)
+          wx.navigateTo({
+            url: '/pages/legal/legal?type=agreement&title=' + encodeURIComponent(res.data.title || '用户协议')
+          })
+        } else {
+          wx.showToast({
+            title: '加载失败',
+            icon: 'none'
+          })
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        console.error('获取用户协议失败:', err)
+        wx.showToast({
+          title: '网络错误，请稍后重试',
+          icon: 'none'
+        })
+      }
     })
   },
 
@@ -301,11 +325,35 @@ Page({
    * 查看隐私政策
    */
   viewPrivacyPolicy() {
-    // TODO: 跳转到隐私政策页面
-    wx.showModal({
-      title: '隐私政策',
-      content: '这里显示隐私政策内容',
-      showCancel: false
+    wx.showLoading({ title: '加载中...' })
+    
+    // 调用后端 API 获取隐私政策内容
+    wx.request({
+      url: 'https://xn--gmq63iba0780e.com/api/legal/privacy-policy',
+      method: 'GET',
+      success: (res) => {
+        wx.hideLoading()
+        if (res.data.success || res.data.title) {
+          // 使用富文本方式显示协议内容
+          wx.setStorageSync('privacy_html', res.data.content)
+          wx.navigateTo({
+            url: '/pages/legal/legal?type=privacy&title=' + encodeURIComponent(res.data.title || '隐私政策')
+          })
+        } else {
+          wx.showToast({
+            title: '加载失败',
+            icon: 'none'
+          })
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        console.error('获取隐私政策失败:', err)
+        wx.showToast({
+          title: '网络错误，请稍后重试',
+          icon: 'none'
+        })
+      }
     })
   }
 })
