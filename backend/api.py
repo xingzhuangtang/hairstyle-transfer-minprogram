@@ -879,12 +879,31 @@ def download_history_record():
         if not record:
             return jsonify({'error': '记录不存在'}), 404
         
-        # TODO: 实现图片下载逻辑
+        image_type = request.args.get('type', 'result')  # result, sketch, original, customer
+
+        # 根据类型获取对应的图片 URL
+        image_url = None
+        if image_type == 'result':
+            image_url = record.result_url
+        elif image_type == 'sketch':
+            image_url = record.sketch_url
+        elif image_type == 'original':
+            image_url = record.original_hair_url
+        elif image_type == 'customer':
+            image_url = record.customer_image_url
+        else:
+            return jsonify({'error': '不支持的图片类型'}), 400
+
+        if not image_url:
+            return jsonify({'error': '该类型图片不存在'}, 404)
+
         # 这里需要返回图片URL或直接返回图片
         
         return jsonify({
             'success': True,
-            'record': record.to_dict()
+            'download_url': image_url,
+            'image_type': image_type,
+            'record_id': record_id
         })
         
     except Exception as e:
