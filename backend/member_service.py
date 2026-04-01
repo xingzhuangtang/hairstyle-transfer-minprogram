@@ -53,7 +53,7 @@ class MemberService:
             now = datetime.now()
             
             # 查询所有陪跑会员
-            premium_users = User.query.filter_by(member_level='premium').all()
+            premium_users = User.query.filter_by(member_level='vip').all()
             
             reminder_count = 0
             
@@ -117,7 +117,7 @@ class MemberService:
             
             # 查询已过期的陪跑会员
             expired_users = User.query.filter(
-                User.member_level == 'premium',
+                User.member_level == 'vip',
                 User.member_expire_at.isnot(None),
                 User.member_expire_at < now
             ).all()
