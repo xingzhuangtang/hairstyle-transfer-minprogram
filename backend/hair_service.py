@@ -79,12 +79,40 @@ class HairService:
             
             # 检查头发丝是否足够
             if not user.has_enough_hairs(required_hairs):
-                return {
-                    'success': False,
-                    'error': '人工智能生产失败，请充值头发丝哦！',
-                    'required': required_hairs,
-                    'available': user.get_total_hairs()
-                }
+                # 余额不足，调用账户服务检查是否可以赠送
+                from account_service import AccountService
+                account_service = AccountService()
+                gift_result = account_service.check_and_add_bonus_for_insufficient(user)
+                
+                # 如果赠送成功，重新检查余额
+                if gift_result['success'] and gift_result.get('bonus_added'):
+                    bonus_hairs = gift_result.get('bonus_hairs', 0)
+                    user.comb_hairs += bonus_hairs
+                    db.session.commit()
+                    print(f"✅ 余额不足自动赠送成功：user_id={user.id}, bonus={bonus_hairs}")
+                    
+                    # 重新检查余额是否足够
+                    if user.has_enough_hairs(required_hairs):
+                        # 余额足够，继续消费流程
+                        pass
+                    else:
+                        # 赠送后仍然不足，返回错误
+                        return {
+                            'success': False,
+                            'error': '人工智能生产失败，免费额度已发放，但仍不足以支付本次服务，请充值后使用',
+                            'required': required_hairs,
+                            'available': user.get_total_hairs(),
+                            'bonus_added': bonus_hairs
+                        }
+                else:
+                    # 无法赠送（未达到 4 小时或已达到年度上限）
+                    return {
+                        'success': False,
+                        'error': '人工智能生产失败，余额不足请充值头发丝哦！',
+                        'required': required_hairs,
+                        'available': user.get_total_hairs(),
+                        'gift_info': gift_result
+                    }
             
             # 扣除头发丝（优先从梳子卡槽扣除）
             comb_deducted = 0
