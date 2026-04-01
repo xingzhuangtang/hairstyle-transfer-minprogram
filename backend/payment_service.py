@@ -126,7 +126,7 @@ class PaymentService:
                 member_level='vip',  # 会员等级
                 amount=float(config['price']),  # 确保是浮点数
                 bonus_hairs=int(config.get('purchase_bonus', {}).get('comb_hairs', 0)),  # 确保是整数
-                payment_method='wechat',  # 固定使用 wechat
+                payment_method=payment_method,  # 使用传入的支付方式
                 payment_status='pending',
                 expire_at=expire_at
             )
