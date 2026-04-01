@@ -53,5 +53,4 @@ alibabacloud-dysmsapi20170525>=2.0.1
 alipay-sdk-python>=3.6.0
 
 # 云闪付SDK
-# python-acp>=1.0.0  # 暂不安装，此包不支持 Python 3.14
 flask-cors==4.0.0

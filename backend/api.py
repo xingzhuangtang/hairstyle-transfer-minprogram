@@ -395,12 +395,9 @@ def pay_recharge():
             else:
                 return jsonify({'error': result['error']}), 400
 
-        elif payment_method == 'unionpay':
-            # TODO: 云闪付实现
-            return jsonify({'error': '云闪付暂未实现'}), 501
-
         else:
-            return jsonify({'error': '不支持的支付方式'}), 400
+            # 不支持的支付方式
+            return jsonify({'error': '不支持的支付方式，仅支持微信支付'}), 400
 
     except Exception as e:
         print(f"❌ 支付充值失败: {e}")

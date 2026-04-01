@@ -71,12 +71,6 @@ class Config:
     ALIPAY_PUBLIC_KEY_FILE = os.getenv("ALIPAY_PUBLIC_KEY_FILE")
     ALIPAY_NOTIFY_URL = os.getenv("ALIPAY_NOTIFY_URL")
 
-    # 云闪付配置
-    UNIONPAY_MER_ID = os.getenv("UNIONPAY_MER_ID")
-    UNIONPAY_PRIVATE_KEY = os.getenv("UNIONPAY_PRIVATE_KEY")
-    UNIONPAY_CERT_PATH = os.getenv("UNIONPAY_CERT_PATH")
-    UNIONPAY_NOTIFY_URL = os.getenv("UNIONPAY_NOTIFY_URL")
-
     # 短信配置（阿里云短信）
     SMS_ACCESS_KEY_ID = os.getenv("SMS_ACCESS_KEY_ID")
     SMS_ACCESS_KEY_SECRET = os.getenv("SMS_ACCESS_KEY_SECRET")

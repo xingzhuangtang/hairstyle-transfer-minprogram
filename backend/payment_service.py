@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 支付服务模块
-支持微信支付、支付宝、云闪付
+支持微信支付、支付宝（禁用）
 """
 
 import uuid
@@ -14,7 +14,7 @@ from config import get_config, NORMAL_RECHARGE_RULES, VIP_RECHARGE_RULES, MEMBER
 from wechat_pay import WeChatPay
 # 支付宝功能暂时注释（SDK结构需要适配）
 # from alipay_client import AlipayClient
-from unionpay import UnionPay
+# 云闪付已删除
 
 
 class PaymentService:
@@ -435,44 +435,3 @@ class AlipayService:
                 'success': False,
                 'error': str(e)
             }
-
-
-class UnionPayService:
-    """云闪付支付服务"""
-    
-    def __init__(self):
-        self.config = get_config()
-        self.mer_id = self.config.UNIONPAY_MER_ID
-        self.private_key = self.config.UNIONPAY_PRIVATE_KEY
-        self.notify_url = self.config.UNIONPAY_NOTIFY_URL
-    
-    def create_order(self, order_no, amount):
-        """
-        创建订单
-        
-        Args:
-            order_no: 订单号
-            amount: 金额（分）
-        
-        Returns:
-            dict: {success, tn, error}
-        """
-        # TODO: 实现云闪付下单接口
-        # 这里需要调用银联API
-        pass
-    
-    def verify_callback(self, data):
-        """
-        验证支付回调
-        
-        Args:
-            data: 回调数据
-        
-        Returns:
-            bool: 验证是否成功
-        """
-        # TODO: 实现云闪付回调验证
-        pass
-
-
-from datetime import timedelta
