@@ -134,9 +134,12 @@ Page({
    * 跳转到设置
    */
   goToSettings() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
+    if (!requireLogin()) {
+      return
+    }
+
+    wx.navigateTo({
+      url: '/pages/settings/settings'
     })
   },
 

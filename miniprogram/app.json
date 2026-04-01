@@ -9,7 +9,8 @@
     "pages/history/history",
     "pages/consumption/consumption",
     "pages/alipay-web/alipay-web",
-    "pages/screenshot-demo/screenshot-demo"
+    "pages/screenshot-demo/screenshot-demo",
+    "pages/settings/settings"
   ],
   "window": {
     "backgroundTextStyle": "light",
