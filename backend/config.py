@@ -21,7 +21,7 @@ class Config:
 
     # 服务器配置
     SERVER_HOST = os.getenv("SERVER_HOST", "localhost:5003")
-    SERVER_URL = os.getenv("SERVER_URL", f"http://{SERVER_HOST}")
+    SERVER_URL = os.getenv("SERVER_URL", "https://xn--gmq63iba0780e.com")
 
     # 文件上传配置
     UPLOAD_FOLDER = "static/uploads"
@@ -268,3 +268,10 @@ AUTO_GIFT_CONFIG = {
     "normal_user_bonus": 188,      # 普通用户赠送 188 根
     "vip_user_bonus": 98,          # 陪跑会员赠送 98 根
 }
+
+
+# ============================================
+# 开发者测试账号配置
+# ============================================
+
+DEVELOPER_ACCOUNTS = [5, 7]  # 开发者测试账号用户 ID 列表
