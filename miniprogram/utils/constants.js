@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://192.168.1.2:5003"
+export const API_BASE_URL = "https://xn--gmq63iba0780e.com"
 
 // 存储键位定义
 export const STORAGE_KEYS = {
