@@ -54,7 +54,11 @@
   "condition": {},
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": ".claude" },
+      { "type": "folder", "value": ".worktrees" },
+      { "type": "suffix", "value": ".tmp" }
+    ],
     "include": []
   }
 }
