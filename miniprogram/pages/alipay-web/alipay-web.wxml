@@ -1,2 +1,0 @@
-<!--pages/alipay-web/alipay-web.wxml-->
-<web-view src="{{h5PayUrl}}" bindmessage="handleMessage"></web-view>
