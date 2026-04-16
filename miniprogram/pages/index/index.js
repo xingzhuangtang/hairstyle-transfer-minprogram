@@ -1,6 +1,6 @@
 // pages/index/index.js
 import { uploadFile } from '../../utils/request.js'
-import { optionalLogin, isPremium, checkPremium, refreshUserInfo } from '../../utils/auth.js'
+import { optionalLogin, isPremium, checkPremium, refreshUserInfo, guestLogin } from '../../utils/auth.js'
 import { setRedirectUrl } from '../../utils/storage.js'
 import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES } from '../../utils/constants.js'
 import { transferHair, extractHair, addSketch } from '../../api/hair.js'
@@ -43,6 +43,11 @@ Page({
     hasResult: false,        // 是否已有发型迁移结果
     resultUrl: '',           // 发型迁移结果 URL
     resultTaskId: ''         // 发型迁移任务 ID
+  },
+
+  onLoad() {
+    // 初始化游客模式（静默登录获取 openid）
+    this.initGuestMode()
   },
 
   onShow() {
@@ -104,6 +109,32 @@ Page({
         isLoggedIn: false,
         allCost: PRICING.normal.combined
       })
+    }
+  },
+
+  /**
+   * 初始化游客模式
+   */
+  async initGuestMode() {
+    try {
+      // 静默登录，获取游客身份
+      const res = await guestLogin()
+
+      if (res.success) {
+        console.log('游客初始化成功:', res.user)
+
+        // 如果是首次赠送，显示提示
+        if (res.isNewGuest) {
+          wx.showToast({
+            title: '游客体验金 198 根已到账',
+            icon: 'success'
+          })
+        }
+      } else {
+        console.error('游客初始化失败:', res.error)
+      }
+    } catch (e) {
+      console.error('游客初始化失败:', e)
     }
   },
 
@@ -468,23 +499,64 @@ Page({
    */
   async checkBalance(cost) {
     if (this.data.totalHairs < cost) {
-      return new Promise((resolve) => {
-        wx.showModal({
-          title: '余额不足',
-          content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
-          confirmText: '去充值',
-          cancelText: '取消',
-          success: (res) => {
-            if (res.confirm) {
-              wx.navigateTo({
-                url: '/pages/balance/balance'
-              })
-            }
-            resolve(false)
-          },
-          fail: () => resolve(false)
+      // 获取用户信息，检查是否为游客
+      const userInfo = wx.getStorageSync('userInfo')
+      const isGuest = userInfo && userInfo.user_type === 'guest'
+
+      if (isGuest) {
+        // 游客余额不足
+        return new Promise((resolve) => {
+          wx.showModal({
+            title: '余额不足',
+            content: `完成新用户注册，领取 1000 根头发丝福利，或 4 小时后继续使用游客免费额度`,
+            confirmText: '去注册',
+            cancelText: '稍后再说',
+            success: (res) => {
+              if (res.confirm) {
+                wx.navigateTo({
+                  url: '/pages/login/login'
+                })
+              }
+              resolve(false)
+            },
+            fail: () => resolve(false)
+          })
         })
-      })
+      } else {
+        // 普通用户/会员余额不足 - 双重提示
+        return new Promise((resolve) => {
+          // 第一个标签
+          wx.showModal({
+            title: '余额不足',
+            content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
+            confirmText: '去充值',
+            cancelText: '取消',
+            success: (res1) => {
+              if (res1.confirm) {
+                wx.navigateTo({
+                  url: '/pages/balance/balance'
+                })
+                resolve(false)
+                return
+              }
+
+              // 用户点击"取消"后，弹出第二个标签（仅普通用户）
+              if (userInfo && userInfo.member_level === 'normal') {
+                wx.showModal({
+                  title: '温馨提示',
+                  content: '升级会员更实惠哦！等你啊  baby！',
+                  showCancel: false,
+                  success: () => resolve(false),
+                  fail: () => resolve(false)
+                })
+              } else {
+                resolve(false)
+              }
+            },
+            fail: () => resolve(false)
+          })
+        })
+      }
     }
     return true
   },
@@ -522,22 +594,83 @@ Page({
 
     // 已登录用户，检查余额
     if (this.data.totalHairs < cost) {
+      // 获取用户信息，检查是否为游客
+      const userInfo = wx.getStorageSync('userInfo')
+      const isGuest = userInfo && userInfo.user_type === 'guest'
+
+      if (isGuest) {
+        // 游客余额不足，显示特殊提示
+        return new Promise((resolve) => {
+          wx.showModal({
+            title: '余额不足',
+            content: `完成新用户注册，领取 1000 根头发丝福利，或 4 小时后继续使用游客免费额度`,
+            confirmText: '去注册',
+            cancelText: '稍后再说',
+            success: (res) => {
+              if (res.confirm) {
+                wx.navigateTo({
+                  url: '/pages/login/login'
+                })
+              }
+              resolve(false)
+            },
+            fail: () => resolve(false)
+          })
+        })
+      }
+
+      // 普通用户/会员 - 双重提示
       return new Promise((resolve) => {
-        wx.showModal({
-          title: '余额不足',
-          content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
-          confirmText: '去充值',
-          cancelText: '取消',
-          success: (res) => {
-            if (res.confirm) {
-              wx.navigateTo({
-                url: '/pages/balance/balance'
+        // 检查是否达到年度上限
+        const annualLimitReached = userInfo && userInfo.registered_bonus_used_count >= 36
+
+        if (annualLimitReached) {
+          // 年度上限提示 - 第一个标签
+          wx.showModal({
+            title: '提示',
+            content: '本年度免费额度已用完，请充值消费',
+            showCancel: false,
+            success: () => {
+              // 第二个标签（趣味提示）
+              wx.showModal({
+                title: '温馨提示',
+                content: 'Baby 难道你用了 36 计嘛！？还没等到你的到来？？？请记住升级会员更实惠哦！等你啊 baby！！！',
+                showCancel: false,
+                success: () => resolve(false)
               })
             }
-            resolve(false)
-          },
-          fail: () => resolve(false)
-        })
+          })
+        } else {
+          // 第一个标签
+          wx.showModal({
+            title: '余额不足',
+            content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
+            confirmText: '去充值',
+            cancelText: '取消',
+            success: (res1) => {
+              if (res1.confirm) {
+                wx.navigateTo({
+                  url: '/pages/balance/balance'
+                })
+                resolve(false)
+                return
+              }
+
+              // 普通用户双重提示 - 第二个标签
+              if (userInfo && userInfo.member_level === 'normal') {
+                wx.showModal({
+                  title: '温馨提示',
+                  content: '升级会员更实惠哦！等你啊  baby！',
+                  showCancel: false,
+                  success: () => resolve(false)
+                })
+              } else {
+                resolve(false)
+              }
+            },
+            fail: () => resolve(false)
+          })
+        }
       })
     }
     return true

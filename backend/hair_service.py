@@ -79,40 +79,51 @@ class HairService:
             
             # 检查头发丝是否足够
             if not user.has_enough_hairs(required_hairs):
-                # 余额不足，调用账户服务检查是否可以赠送
-                from account_service import AccountService
-                account_service = AccountService()
-                gift_result = account_service.check_and_add_bonus_for_insufficient(user)
-                
-                # 如果赠送成功，重新检查余额
-                if gift_result['success'] and gift_result.get('bonus_added'):
-                    bonus_hairs = gift_result.get('bonus_hairs', 0)
-                    user.comb_hairs += bonus_hairs
-                    db.session.commit()
-                    print(f"✅ 余额不足自动赠送成功：user_id={user.id}, bonus={bonus_hairs}")
-                    
-                    # 重新检查余额是否足够
-                    if user.has_enough_hairs(required_hairs):
-                        # 余额足够，继续消费流程
-                        pass
-                    else:
-                        # 赠送后仍然不足，返回错误
+                # 检查是否为游客
+                if hasattr(user, 'user_type') and user.user_type == 'guest':
+                    # 游客余额不足，走游客处理流程
+                    from account_service import AccountService
+                    account_service = AccountService()
+                    guest_result = account_service.handle_guest_insufficient_balance(user, required_hairs)
+
+                    if guest_result:
                         return {
                             'success': False,
-                            'error': '人工智能生产失败，免费额度已发放，但仍不足以支付本次服务，请充值后使用',
+                            'error': guest_result.get('message', '余额不足'),
+                            'code': 'INSUFFICIENT_BALANCE',
+                            'action': guest_result.get('action'),
+                            'next_check_time': guest_result.get('next_check_time'),
                             'required': required_hairs,
-                            'available': user.get_total_hairs(),
-                            'bonus_added': bonus_hairs
+                            'available': user.get_total_hairs()
                         }
                 else:
-                    # 无法赠送（未达到 4 小时或已达到年度上限）
-                    return {
-                        'success': False,
-                        'error': '人工智能生产失败，余额不足请充值头发丝哦！',
-                        'required': required_hairs,
-                        'available': user.get_total_hairs(),
-                        'gift_info': gift_result
-                    }
+                    # 普通用户/会员余额不足，走 4 小时赠送流程
+                    from account_service import AccountService
+                    account_service = AccountService()
+                    registered_result = account_service.handle_registered_insufficient_balance(user, required_hairs)
+
+                    if registered_result.get('annual_limit_reached'):
+                        # 已达到年度上限
+                        return {
+                            'success': False,
+                            'error': registered_result.get('message', '余额不足'),
+                            'vip_upgrade_message': registered_result.get('vip_upgrade_message'),
+                            'code': 'INSUFFICIENT_BALANCE',
+                            'annual_limit_reached': True,
+                            'required': required_hairs,
+                            'available': user.get_total_hairs()
+                        }
+                    else:
+                        # 未达上限，记录提醒时间，返回 4 小时后检查信息
+                        return {
+                            'success': False,
+                            'error': registered_result.get('message', '余额不足'),
+                            'vip_upgrade_message': registered_result.get('vip_upgrade_message'),
+                            'code': 'INSUFFICIENT_BALANCE',
+                            'next_check_time': registered_result.get('next_check_time'),
+                            'required': required_hairs,
+                            'available': user.get_total_hairs()
+                        }
             
             # 扣除头发丝（优先从梳子卡槽扣除）
             comb_deducted = 0

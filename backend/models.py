@@ -30,15 +30,26 @@ class User(db.Model):
     total_consumed_hairs = db.Column(db.Integer, default=0, comment='累计消耗头发丝')
     is_deactivated = db.Column(db.Boolean, default=False, comment='是否已注销')
     deactivated_at = db.Column(db.DateTime, nullable=True, comment='注销时间')
+
+    # 访客模式相关字段
+    user_type = db.Column(db.Enum('guest', 'registered', 'member'), default='registered', comment='用户类型：guest=游客，registered=已注册，member=会员')
+    guest_bonus_used_count = db.Column(db.Integer, default=0, comment='游客免费额度使用次数')
+    last_guest_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次游客赠送时间')
+
+    # 普通用户/会员赠送相关字段
+    registered_bonus_used_count = db.Column(db.Integer, default=0, comment='普通用户/会员免费额度使用次数')
+    last_registered_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次普通用户/会员赠送时间')
+
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
-    
+
     # 索引
     __table_args__ = (
         Index('idx_openid', 'openid'),
         Index('idx_phone', 'phone'),
         Index('idx_member_level', 'member_level'),
         Index('idx_is_deactivated', 'is_deactivated'),
+        Index('idx_user_type', 'user_type'),
         {'comment': '用户表'}
     )
 
@@ -59,7 +70,10 @@ class User(db.Model):
             'total_recharge': float(self.total_recharge),
             'total_consumed_hairs': self.total_consumed_hairs,
             'is_vip': self.is_vip(),
-            'is_member_expired': self.is_member_expired()
+            'is_member_expired': self.is_member_expired(),
+            'user_type': self.user_type,
+            'registered_bonus_used_count': self.registered_bonus_used_count,
+            'last_registered_bonus_time': self.last_registered_bonus_time.isoformat() if self.last_registered_bonus_time else None
         }
     
     def is_vip(self):
@@ -332,6 +346,109 @@ class InsufficientReminder(db.Model):
             'bonus_added': self.bonus_added,
             'bonus_hairs': self.bonus_hairs,
             'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class GuestBonusRecord(db.Model):
+    """游客免费额度赠送记录表"""
+    __tablename__ = 'guest_bonus_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    openid = db.Column(db.String(128), nullable=False, index=True, comment='游客 openid（未注册用户）')
+
+    bonus_type = db.Column(db.Enum('initial', 'auto_renew'), nullable=False, comment='赠送类型：initial=首次赠送，auto_renew=4 小时续赠')
+    hairs_added = db.Column(db.Integer, default=0, comment='赠送数量')
+    trigger_reason = db.Column(db.String(50), default='insufficient_balance', comment='触发原因')
+
+    reminded_at = db.Column(db.DateTime, nullable=False, comment='余额不足提醒时间')
+    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='实际赠送时间')
+    next_check_time = db.Column(db.DateTime, nullable=True, comment='下次检查时间（提醒时间 +4 小时）')
+    is_completed = db.Column(db.Boolean, default=False, comment='是否已完成赠送')
+
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联
+    user = db.relationship('User', backref=db.backref('guest_bonus_records', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_openid', 'openid'),
+        Index('idx_bonus_type', 'bonus_type'),
+        Index('idx_is_completed', 'is_completed'),
+        Index('idx_next_check_time', 'next_check_time'),
+        {'comment': '游客免费额度赠送记录表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'openid': self.openid,
+            'bonus_type': self.bonus_type,
+            'hairs_added': self.hairs_added,
+            'trigger_reason': self.trigger_reason,
+            'reminded_at': self.reminded_at.isoformat(),
+            'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
+            'next_check_time': self.next_check_time.isoformat() if self.next_check_time else None,
+            'is_completed': self.is_completed,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class UserBonusRecord(db.Model):
+    """普通用户/会员用户免费额度赠送记录表"""
+    __tablename__ = 'user_bonus_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, index=True, comment='用户 ID')
+
+    # 用户类型：registered=普通用户，vip=会员（记录赠送时的用户类型）
+    user_type_at_bonus = db.Column(db.Enum('normal', 'vip'), nullable=False, index=True, comment='赠送时用户类型')
+
+    # 赠送信息
+    bonus_type = db.Column(db.Enum('auto_renew'), nullable=False, comment='赠送类型：auto_renew=4 小时续赠')
+    hairs_added = db.Column(db.Integer, default=0, comment='赠送数量（188 或 98）')
+
+    # 时间追踪
+    reminded_at = db.Column(db.DateTime, nullable=False, index=True, comment='余额不足提醒时间')
+    next_check_time = db.Column(db.DateTime, nullable=True, index=True, comment='下次检查时间（提醒时间 +4 小时）')
+    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='实际赠送时间')
+    is_completed = db.Column(db.Boolean, default=False, index=True, comment='是否已完成赠送')
+
+    # 触发条件追踪
+    has_consumption_before_bonus = db.Column(db.Boolean, default=False, comment='赠送前是否有消费记录')
+
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联
+    user = db.relationship('User', backref=db.backref('user_bonus_records', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_reminded', 'user_id', 'reminded_at'),
+        Index('idx_next_check', 'next_check_time', 'is_completed'),
+        {'comment': '普通用户/会员免费额度赠送记录表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'user_type_at_bonus': self.user_type_at_bonus,
+            'bonus_type': self.bonus_type,
+            'hairs_added': self.hairs_added,
+            'reminded_at': self.reminded_at.isoformat(),
+            'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
+            'next_check_time': self.next_check_time.isoformat() if self.next_check_time else None,
+            'is_completed': self.is_completed,
+            'has_consumption_before_bonus': self.has_consumption_before_bonus,
             'created_at': self.created_at.isoformat()
         }
 
