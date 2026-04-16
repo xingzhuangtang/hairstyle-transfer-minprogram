@@ -1,6 +1,6 @@
 // pages/index/index.js
 import { uploadFile } from '../../utils/request.js'
-import { requireLogin, optionalLogin, isPremium, checkPremium, refreshUserInfo } from '../../utils/auth.js'
+import { optionalLogin, isPremium, checkPremium, refreshUserInfo } from '../../utils/auth.js'
 import { setRedirectUrl } from '../../utils/storage.js'
 import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES } from '../../utils/constants.js'
 import { transferHair, extractHair, addSketch } from '../../api/hair.js'
@@ -38,18 +38,18 @@ Page({
     processingText: '处理中...',
 
     // 分步模式状态
-    modeIndex: 0,           // 0 = 综合模式, 1 = 分步模式 - 默认为综合模式
-    modeInitialized: false, // 是否已经初始化过模式，避免每次onShow都重置
+    modeIndex: 0,           // 0 = 综合模式，1 = 分步模式 - 默认为综合模式
+    modeInitialized: false, // 是否已经初始化过模式，避免每次 onShow 都重置
     hasResult: false,        // 是否已有发型迁移结果
-    resultUrl: '',           // 发型迁移结果URL
-    resultTaskId: ''         // 发型迁移任务ID
+    resultUrl: '',           // 发型迁移结果 URL
+    resultTaskId: ''         // 发型迁移任务 ID
   },
 
   onShow() {
     // 刷新用户信息和余额
     this.loadUserInfo()
 
-    // 只有在第一次进入页面时才设置默认模式，避免每次onShow都重置用户选择
+    // 只有在第一次进入页面时才设置默认模式，避免每次 onShow 都重置用户选择
     if (!this.data.modeInitialized) {
       this.setData({
         modeIndex: 0,      // 确保默认综合模式
@@ -336,13 +336,9 @@ Page({
   },
 
   /**
-   * 素描优化（分步模式第二步，新增）
+   * 素描优化（分步模式第二步）
    */
   async addSketchOnly() {
-    // 访客也可以体验，不强制登录
-      return
-    }
-
     if (!this.data.hasResult) {
       wx.showToast({
         title: '请先生成发型',
@@ -351,7 +347,7 @@ Page({
       return
     }
 
-    const cost = this.data.isPremium ? 44 : 88  // 分步模式第2步：sketch_step 定价
+    const cost = this.data.isPremium ? 44 : 88  // 分步模式第 2 步：sketch_step 定价
     if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
@@ -362,7 +358,7 @@ Page({
       const params = {
         result_url: this.data.resultUrl,
         sketch_style: this.data.sketchStyles[this.data.sketchStyleIndex].value,
-        step_by_step: true  // 分步模式第2步
+        step_by_step: true  // 分步模式第 2 步
       }
 
       const res = await addSketch(params)
@@ -397,7 +393,6 @@ Page({
         icon: 'none'
       })
     } finally {
-      // 确保无论成功或失败都重置处理状态
       this.setData({
         processing: false
       })
@@ -538,7 +533,7 @@ Page({
   },
 
   /**
-   * 调用提取发型API
+   * 调用提取发型 API
    */
   async callExtractAPI() {
     this.setData({
@@ -576,7 +571,7 @@ Page({
   },
 
   /**
-   * 调用发型迁移API
+   * 调用发型迁移 API
    * @param {boolean} enableSketch - 是否启用素描
    * @param {boolean} saveResult - 是否保存结果用于分步模式
    */
@@ -595,7 +590,7 @@ Page({
         customer_image: this.data.customerHttpUrl,
         model_version: modelVersion,
         fusion_degree: fusionDegree,
-        step_by_step: this.data.modeIndex === 1  // 分步模式（modeIndex=1）时传递true
+        step_by_step: this.data.modeIndex === 1  // 分步模式（modeIndex=1）时传递 true
       }
 
       // 如果启用素描，添加参数
