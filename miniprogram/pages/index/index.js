@@ -64,6 +64,7 @@ Page({
    */
   async loadUserInfo() {
     try {
+      // 使用 allowGuest: true 让未登录用户可以访问首页
       const res = await refreshUserInfo()
       if (res.success) {
         const userInfo = res.user
@@ -80,6 +81,16 @@ Page({
           isPremium: isPremium,
           allCost: pricing.combined,
           isLoggedIn: true
+        })
+      } else if (res.code === 401) {
+        // 未登录，设置为访客模式
+        this.setData({
+          scissorHairs: 0,
+          combHairs: 0,
+          totalHairs: 0,
+          isPremium: false,
+          isLoggedIn: false,
+          allCost: PRICING.normal.combined
         })
       }
     } catch (e) {
