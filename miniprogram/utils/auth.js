@@ -232,7 +232,8 @@ export function checkPremium(showTip = true) {
  */
 export async function refreshUserInfo() {
   try {
-    const res = await get('/api/user/info')
+    // 使用 allowGuest: true 允许访客访问
+    const res = await get('/api/user/info', {}, { allowGuest: true })
 
     if (res.success) {
       setUserInfo(res.user)
