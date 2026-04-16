@@ -1,6 +1,6 @@
 /**
  * 网络请求封装
- * 提供统一的HTTP请求接口，自动处理Token、错误等
+ * 提供统一的 HTTP 请求接口，自动处理 Token、错误等
  */
 
 import { API_BASE_URL } from './constants.js'
@@ -11,7 +11,7 @@ import { getToken, clearAuthInfo } from './storage.js'
  */
 function request(options) {
   return new Promise((resolve, reject) => {
-    // 获取Token
+    // 获取 Token
     const token = getToken()
 
     // 构建请求头
@@ -19,7 +19,7 @@ function request(options) {
       'Content-Type': 'application/json'
     }
 
-    // 添加Token
+    // 添加 Token
     if (token) {
       header['Authorization'] = `Bearer ${token}`
     }
@@ -39,16 +39,26 @@ function request(options) {
       timeout: options.timeout || 30000,
       dataType: options.dataType || 'json',
       success: (res) => {
-        // HTTP状态码200
+        // HTTP 状态码 200
         if (res.statusCode === 200) {
           resolve(res.data)
         }
         // 401 未授权
         else if (res.statusCode === 401) {
-          console.error('Token已过期或无效')
+          console.error('Token 已过期或无效')
 
           // 清除认证信息
           clearAuthInfo()
+
+          // 检查是否允许访客访问（不强制跳转登录页）
+          if (options.allowGuest) {
+            reject({
+              error: '请先登录',
+              code: 401,
+              needLogin: true
+            })
+            return
+          }
 
           // 跳转到登录页
           const pages = getCurrentPages()
@@ -123,7 +133,7 @@ function request(options) {
 }
 
 /**
- * GET请求
+ * GET 请求
  */
 export function get(url, data = {}, options = {}) {
   return request({
@@ -135,7 +145,7 @@ export function get(url, data = {}, options = {}) {
 }
 
 /**
- * POST请求
+ * POST 请求
  */
 export function post(url, data = {}, options = {}) {
   console.log('[POST] 请求 URL:', url)
@@ -149,7 +159,7 @@ export function post(url, data = {}, options = {}) {
 }
 
 /**
- * PUT请求
+ * PUT 请求
  */
 export function put(url, data = {}, options = {}) {
   return request({
@@ -161,7 +171,7 @@ export function put(url, data = {}, options = {}) {
 }
 
 /**
- * DELETE请求
+ * DELETE 请求
  */
 export function del(url, data = {}, options = {}) {
   return request({
@@ -181,7 +191,7 @@ export function uploadFile(filePath, formData = {}) {
 
     const header = {}
 
-    // 添加Token
+    // 添加 Token
     if (token) {
       header['Authorization'] = `Bearer ${token}`
     }
@@ -205,6 +215,16 @@ export function uploadFile(filePath, formData = {}) {
             })
           }
         } else if (res.statusCode === 401) {
+          // 访客模式下不强制跳转
+          if (formData.allowGuest) {
+            clearAuthInfo()
+            reject({
+              error: '请先登录',
+              code: 401,
+              needLogin: true
+            })
+            return
+          }
           clearAuthInfo()
           wx.reLaunch({
             url: '/pages/login/login'

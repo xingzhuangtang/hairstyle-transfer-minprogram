@@ -119,7 +119,7 @@ App({
         'Content-Type': 'application/json'
       }
 
-      // 添加Token
+      // 添加 Token
       if (token) {
         header['Authorization'] = `Bearer ${token}`
       }
@@ -137,8 +137,15 @@ App({
           if (res.statusCode === 200) {
             resolve(res.data)
           } else if (res.statusCode === 401) {
-            // Token过期，清除登录信息
+            // Token 过期，清除登录信息
             this.clearLoginInfo()
+
+            // 检查是否允许访客访问（不强制跳转登录页）
+            if (options.allowGuest) {
+              reject({ error: '请先登录', code: 401 })
+              return
+            }
+
             wx.reLaunch({
               url: '/pages/login/login'
             })
