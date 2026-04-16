@@ -253,6 +253,15 @@ export async function refreshUserInfo() {
     }
   } catch (e) {
     console.error('刷新用户信息失败:', e)
+    // 401 错误表示未登录，返回特定错误码
+    if (e && e.code === 401) {
+      return {
+        success: false,
+        error: '请先登录',
+        code: 401,
+        needLogin: true
+      }
+    }
     return {
       success: false,
       error: e.error || e.message || '刷新失败'
@@ -261,8 +270,48 @@ export async function refreshUserInfo() {
 }
 
 /**
+ * 检查登录并提示
+ * 如果未登录，显示可选登录提示（不强制跳转）
+ * @param {string} action - 需要登录才能执行的操作描述
+ * @returns {Promise<boolean>} - 用户是否选择登录
+ */
+export function optionalLogin(action = '使用此功能') {
+  return new Promise((resolve) => {
+    if (!checkLogin()) {
+      wx.showModal({
+        title: '提示',
+        content: `登录后即可${action}，是否立即登录？`,
+        confirmText: '去登录',
+        cancelText: '暂不',
+        success: (res) => {
+          if (res.confirm) {
+            // 保存当前路径
+            const pages = getCurrentPages()
+            const currentPage = pages[pages.length - 1]
+            const currentUrl = '/' + currentPage.route
+            setRedirectUrl(currentUrl)
+
+            wx.navigateTo({
+              url: '/pages/login/login'
+            })
+            resolve(false)
+          } else {
+            resolve(false)
+          }
+        },
+        fail: () => {
+          resolve(false)
+        }
+      })
+      return
+    }
+    resolve(true)
+  })
+}
+
+/**
  * 检查登录并跳转
- * 如果未登录，跳转到登录页
+ * 如果未登录，跳转到登录页（用于必须登录的场景）
  */
 export function requireLogin() {
   if (!checkLogin()) {
@@ -368,6 +417,7 @@ export default {
   checkPremium,
   refreshUserInfo,
   requireLogin,
+  optionalLogin,
   redirectAfterLogin,
   toggleVip
 }

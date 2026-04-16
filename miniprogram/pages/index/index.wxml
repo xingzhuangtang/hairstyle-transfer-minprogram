@@ -1,7 +1,7 @@
 <!--pages/index/index.wxml-->
 <view class="index-container">
   <!-- 余额显示区域 -->
-  <view class="balance-section">
+  <view class="balance-section" wx:if="{{isLoggedIn}}">
     <view class="balance-item">
       <text class="balance-value">{{combHairs}}</text>
       <text class="balance-label">梳子</text>
@@ -17,8 +17,15 @@
       <text class="balance-label">总计</text>
     </view>
     <view class="vip-badge" wx:if="{{isPremium}}">
-      <text>会员50%优惠</text>
+      <text>会员 50% 优惠</text>
     </view>
+  </view>
+
+  <!-- 访客提示 -->
+  <view class="guest-tip" wx:if="{{!isLoggedIn}}">
+    <text class="guest-tip-icon">👤</text>
+    <text class="guest-tip-text">游客体验中</text>
+    <text class="guest-tip-link" bindtap="goToLogin">登录查看更多</text>
   </view>
 
   <!-- 图片上传区域 -->
@@ -139,11 +146,11 @@
     <view class="action-buttons" wx:if="{{modeIndex === 0}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         仅提取发型
-        <text class="cost">4发丝</text>
+        <text class="cost">4 发丝</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         仅迁移发型
-        <text class="cost">4发丝</text>
+        <text class="cost">4 发丝</text>
       </button>
       <button class="action-btn primary" bindtap="processAll" disabled="{{processing}}">
         素描优化
@@ -155,11 +162,11 @@
     <view class="action-buttons" wx:if="{{modeIndex === 1}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         仅提取发型
-        <text class="cost">4发丝</text>
+        <text class="cost">4 发丝</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         生成发型
-        <text class="cost">4发丝</text>
+        <text class="cost">4 发丝</text>
       </button>
       <button class="action-btn primary" bindtap="addSketchOnly" disabled="{{processing || !hasResult}}">
         素描优化
@@ -171,7 +178,7 @@
   <!-- 会员提示 -->
   <view class="vip-tip" wx:if="{{!isPremium}}">
     <text class="tip-icon">👑</text>
-    <text class="tip-text">升级会员享受50%折扣特权</text>
+    <text class="tip-text">升级会员享受 50% 折扣特权</text>
     <text class="tip-link" bindtap="goToMember">立即升级</text>
   </view>
 </view>

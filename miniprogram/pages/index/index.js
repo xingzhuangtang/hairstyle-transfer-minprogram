@@ -1,6 +1,7 @@
 // pages/index/index.js
 import { uploadFile } from '../../utils/request.js'
-import { requireLogin, isPremium, checkPremium, refreshUserInfo } from '../../utils/auth.js'
+import { requireLogin, optionalLogin, isPremium, checkPremium, refreshUserInfo } from '../../utils/auth.js'
+import { setRedirectUrl } from '../../utils/storage.js'
 import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES } from '../../utils/constants.js'
 import { transferHair, extractHair, addSketch } from '../../api/hair.js'
 import { checkBalance } from '../../api/user.js'
@@ -12,6 +13,7 @@ Page({
     combHairs: 0,
     totalHairs: 0,
     isPremium: false,
+    isLoggedIn: false,    // 是否已登录
 
     // 图片
     hairstyleUrl: '',      // 显示用（临时文件路径）
@@ -76,11 +78,21 @@ Page({
           combHairs: userInfo.comb_hairs || 0,
           totalHairs: totalHairs,
           isPremium: isPremium,
-          allCost: pricing.combined
+          allCost: pricing.combined,
+          isLoggedIn: true
         })
       }
     } catch (e) {
       console.error('加载用户信息失败:', e)
+      // 访客模式：设置默认值
+      this.setData({
+        scissorHairs: 0,
+        combHairs: 0,
+        totalHairs: 0,
+        isPremium: false,
+        isLoggedIn: false,
+        allCost: PRICING.normal.combined
+      })
     }
   },
 
@@ -285,10 +297,6 @@ Page({
    * 仅提取发型
    */
   async extractOnly() {
-    if (!requireLogin()) {
-      return
-    }
-
     if (!this.data.hairstyleUrl) {
       wx.showToast({
         title: '请先上传发型参考图',
@@ -298,7 +306,7 @@ Page({
     }
 
     const cost = this.data.isPremium ? 2 : 4
-    if (!await this.checkBalance(cost)) {
+    if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
 
@@ -309,10 +317,6 @@ Page({
    * 仅迁移发型
    */
   async transferOnly() {
-    if (!requireLogin()) {
-      return
-    }
-
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
         title: '请先上传两张图片',
@@ -322,7 +326,7 @@ Page({
     }
 
     const cost = this.data.isPremium ? 2 : 4
-    if (!await this.checkBalance(cost)) {
+    if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
 
@@ -335,7 +339,7 @@ Page({
    * 素描优化（分步模式第二步，新增）
    */
   async addSketchOnly() {
-    if (!requireLogin()) {
+    // 访客也可以体验，不强制登录
       return
     }
 
@@ -348,7 +352,7 @@ Page({
     }
 
     const cost = this.data.isPremium ? 44 : 88  // 分步模式第2步：sketch_step 定价
-    if (!await this.checkBalance(cost)) {
+    if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
 
@@ -428,10 +432,6 @@ Page({
    * 素描优化（综合模式）
    */
   async processAll() {
-    if (!requireLogin()) {
-      return
-    }
-
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
         title: '请先上传两张图片',
@@ -450,7 +450,7 @@ Page({
     }
 
     const cost = this.data.allCost
-    if (!await this.checkBalance(cost)) {
+    if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
 
@@ -461,6 +461,60 @@ Page({
    * 检查余额
    */
   async checkBalance(cost) {
+    if (this.data.totalHairs < cost) {
+      return new Promise((resolve) => {
+        wx.showModal({
+          title: '余额不足',
+          content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
+          confirmText: '去充值',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              wx.navigateTo({
+                url: '/pages/balance/balance'
+              })
+            }
+            resolve(false)
+          },
+          fail: () => resolve(false)
+        })
+      })
+    }
+    return true
+  },
+
+  /**
+   * 检查余额并提示登录
+   * 如果余额不足或用户未登录，显示相应提示
+   */
+  async checkBalanceAndLogin(cost) {
+    // 如果未登录，提示登录
+    if (!this.data.isLoggedIn) {
+      return new Promise((resolve) => {
+        wx.showModal({
+          title: '提示',
+          content: `登录后即可使用全部功能，消耗发丝扣费，是否立即登录？`,
+          confirmText: '去登录',
+          cancelText: '暂不',
+          success: (res) => {
+            if (res.confirm) {
+              // 保存当前路径
+              setRedirectUrl('/pages/index/index')
+              wx.navigateTo({
+                url: '/pages/login/login'
+              })
+              resolve(false)
+            } else {
+              // 用户选择暂不登录，不允许继续操作
+              resolve(false)
+            }
+          },
+          fail: () => resolve(false)
+        })
+      })
+    }
+
+    // 已登录用户，检查余额
     if (this.data.totalHairs < cost) {
       return new Promise((resolve) => {
         wx.showModal({
@@ -660,6 +714,15 @@ Page({
   goToMember() {
     wx.navigateTo({
       url: '/pages/member/member'
+    })
+  },
+
+  /**
+   * 跳转到登录页
+   */
+  goToLogin() {
+    wx.navigateTo({
+      url: '/pages/login/login'
     })
   },
 
