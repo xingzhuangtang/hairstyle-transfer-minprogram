@@ -22,6 +22,9 @@ App({
 
   onShow() {
     console.log('小程序显示')
+
+    // 检查是否有待处理的游客赠送
+    this.checkPendingGuestBonus()
   },
 
   /**
@@ -29,7 +32,7 @@ App({
    */
   checkLoginStatus() {
     const token = wx.getStorageSync('token')
-    const userInfo = wx.getStorageSync('userInfo')
+    const userInfo = wx.getStorageSync('user_info')
 
     if (token && userInfo) {
       this.globalData.token = token
@@ -101,7 +104,7 @@ App({
       if (res.success) {
         this.globalData.userInfo = res.user
         this.globalData.isPremium = res.user.member_level === 'premium'
-        wx.setStorageSync('userInfo', res.user)
+        wx.setStorageSync('user_info', res.user)
       }
     } catch (e) {
       console.error('刷新用户信息失败:', e)
@@ -165,6 +168,38 @@ App({
   /**
    * 清除登录信息
    */
+  /**
+   * 检查待处理的游客赠送
+   */
+  async checkPendingGuestBonus() {
+    const userInfo = wx.getStorageSync('user_info')
+    if (!userInfo || userInfo.user_type !== 'guest') {
+      return
+    }
+
+    try {
+      const res = await this.request({
+        url: '/api/account/check-guest-bonus',
+        method: 'POST',
+        allowGuest: true
+      })
+
+      if (res.success && res.hairs) {
+        wx.showModal({
+          title: '游客额度续期',
+          content: `您的游客免费额度已续期，${res.hairs}根发丝已到账`,
+          showCancel: false,
+          success: () => {
+            // 刷新用户信息
+            this.refreshUserInfo()
+          }
+        })
+      }
+    } catch (e) {
+      // 忽略错误（可能是没有待处理的赠送记录）
+    }
+  },
+
   clearLoginInfo() {
     this.globalData.token = null
     this.globalData.userInfo = null
