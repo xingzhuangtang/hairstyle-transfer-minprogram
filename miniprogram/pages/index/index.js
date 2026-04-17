@@ -500,7 +500,7 @@ Page({
   async checkBalance(cost) {
     if (this.data.totalHairs < cost) {
       // 获取用户信息，检查是否为游客
-      const userInfo = wx.getStorageSync('userInfo')
+      const userInfo = wx.getStorageSync('user_info')
       const isGuest = userInfo && userInfo.user_type === 'guest'
 
       if (isGuest) {
@@ -524,6 +524,7 @@ Page({
         })
       } else {
         // 普通用户/会员余额不足 - 双重提示
+        console.log('[checkBalance] userInfo:', userInfo)
         return new Promise((resolve) => {
           // 第一个标签
           wx.showModal({
@@ -541,6 +542,7 @@ Page({
               }
 
               // 用户点击"取消"后，弹出第二个标签（仅普通用户）
+              console.log('[checkBalance] Checking member_level:', userInfo?.member_level)
               if (userInfo && userInfo.member_level === 'normal') {
                 wx.showModal({
                   title: '温馨提示',
@@ -550,6 +552,7 @@ Page({
                   fail: () => resolve(false)
                 })
               } else {
+                console.log('[checkBalance] Not showing second modal, member_level:', userInfo?.member_level)
                 resolve(false)
               }
             },
@@ -595,7 +598,7 @@ Page({
     // 已登录用户，检查余额
     if (this.data.totalHairs < cost) {
       // 获取用户信息，检查是否为游客
-      const userInfo = wx.getStorageSync('userInfo')
+      const userInfo = wx.getStorageSync('user_info')
       const isGuest = userInfo && userInfo.user_type === 'guest'
 
       if (isGuest) {
