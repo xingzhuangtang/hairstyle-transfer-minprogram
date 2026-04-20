@@ -15,7 +15,7 @@ from config import get_config
 from models import (
     User, RechargeRecord, MemberOrder,
     ConsumptionRecord, HistoryRecord, MemberReminder,
-    InsufficientReminder
+    InsufficientReminder, GuestBonusRecord
 )
 
 
@@ -88,7 +88,8 @@ def init_tables():
         # 显示创建的表
         tables = [
             'users', 'recharge_records', 'member_orders',
-            'consumption_records', 'history_records', 'member_reminders'
+            'consumption_records', 'history_records', 'member_reminders',
+            'insufficient_reminders', 'guest_bonus_records'
         ]
         print("\n📋 创建的表:")
         for table in tables:

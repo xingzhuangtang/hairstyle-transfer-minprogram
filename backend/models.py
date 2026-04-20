@@ -32,7 +32,7 @@ class User(db.Model):
     deactivated_at = db.Column(db.DateTime, nullable=True, comment='注销时间')
 
     # 访客模式相关字段
-    user_type = db.Column(db.Enum('guest', 'registered', 'member'), default='registered', comment='用户类型：guest=游客，registered=已注册，member=会员')
+    user_type = db.Column(db.Enum('guest', 'registered'), default='guest', comment='用户类型：guest=游客（未注册），registered=已注册用户（含 VIP 会员）')
     guest_bonus_used_count = db.Column(db.Integer, default=0, comment='游客免费额度使用次数')
     last_guest_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次游客赠送时间')
 

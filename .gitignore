@@ -33,6 +33,9 @@ instance/
 .env
 .env.local
 
+# 开发者本地配置（不提交到 git）
+backend/debug_config.py
+
 # 临时文件
 *.tmp
 *.temp

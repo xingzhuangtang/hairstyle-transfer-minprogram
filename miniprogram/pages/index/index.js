@@ -46,8 +46,8 @@ Page({
   },
 
   onLoad() {
-    // 初始化游客模式（静默登录获取 openid）
-    this.initGuestMode()
+    // 游客模式已在 app.js onLaunch 中全局初始化
+    // 这里只需要等待 onShow 时刷新用户信息即可
   },
 
   onShow() {
@@ -71,24 +71,25 @@ Page({
     try {
       // 使用 allowGuest: true 让未登录用户可以访问首页
       const res = await refreshUserInfo()
-      if (res.success) {
+
+      if (res.success && res.user) {
         const userInfo = res.user
         const isPremium = userInfo.member_level === 'vip'
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
-        // 计算价格（会员优惠）
-        const pricing = isPremium ? PRICING.premium : PRICING.normal
+        // 计算价格（会员优惠）- PRICING 对象中是 vip 不是 premium
+        const pricing = isPremium ? PRICING.vip : PRICING.normal
 
         this.setData({
           scissorHairs: userInfo.scissor_hairs || 0,
           combHairs: userInfo.comb_hairs || 0,
           totalHairs: totalHairs,
           isPremium: isPremium,
-          allCost: pricing.combined,
-          isLoggedIn: true
+          isLoggedIn: true,
+          allCost: pricing.combined
         })
-      } else if (res.code === 401) {
-        // 未登录，设置为访客模式
+      } else {
+        // 未登录或获取失败，设置为访客模式
         this.setData({
           scissorHairs: 0,
           combHairs: 0,
@@ -109,32 +110,6 @@ Page({
         isLoggedIn: false,
         allCost: PRICING.normal.combined
       })
-    }
-  },
-
-  /**
-   * 初始化游客模式
-   */
-  async initGuestMode() {
-    try {
-      // 静默登录，获取游客身份
-      const res = await guestLogin()
-
-      if (res.success) {
-        console.log('游客初始化成功:', res.user)
-
-        // 如果是首次赠送，显示提示
-        if (res.isNewGuest) {
-          wx.showToast({
-            title: '游客体验金 198 根已到账',
-            icon: 'success'
-          })
-        }
-      } else {
-        console.error('游客初始化失败:', res.error)
-      }
-    } catch (e) {
-      console.error('游客初始化失败:', e)
     }
   },
 
@@ -305,7 +280,6 @@ Page({
    */
   onModeChange(e) {
     const newModeIndex = parseInt(e.detail.value)
-    console.log('模式切换:', this.data.modeIndex, '->', newModeIndex)
 
     // 如果从分步模式切换到综合模式，重置中间结果
     const updateData = { modeIndex: newModeIndex }
@@ -313,7 +287,6 @@ Page({
       updateData.hasResult = false
       updateData.resultUrl = ''
       updateData.resultTaskId = ''
-      console.log('重置分步模式中间结果')
     }
 
     this.setData(updateData)
@@ -446,7 +419,6 @@ Page({
    */
   switchMode() {
     const newModeIndex = this.data.modeIndex === 0 ? 1 : 0
-    console.log('模式切换:', this.data.modeIndex, '->', newModeIndex)
 
     // 如果从分步模式切换到综合模式，重置中间结果
     const updateData = { modeIndex: newModeIndex }
@@ -454,7 +426,6 @@ Page({
       updateData.hasResult = false
       updateData.resultUrl = ''
       updateData.resultTaskId = ''
-      console.log('重置分步模式中间结果')
     }
 
     this.setData(updateData)
@@ -524,7 +495,6 @@ Page({
         })
       } else {
         // 普通用户/会员余额不足 - 双重提示
-        console.log('[checkBalance] userInfo:', userInfo)
         return new Promise((resolve) => {
           // 第一个标签
           wx.showModal({
@@ -542,7 +512,6 @@ Page({
               }
 
               // 用户点击"取消"后，弹出第二个标签（仅普通用户）
-              console.log('[checkBalance] Checking member_level:', userInfo?.member_level)
               if (userInfo && userInfo.member_level === 'normal') {
                 wx.showModal({
                   title: '温馨提示',
@@ -552,7 +521,6 @@ Page({
                   fail: () => resolve(false)
                 })
               } else {
-                console.log('[checkBalance] Not showing second modal, member_level:', userInfo?.member_level)
                 resolve(false)
               }
             },
@@ -763,7 +731,6 @@ Page({
             url: fullResultUrl,
             success: (downloadRes) => {
               if (downloadRes.statusCode === 200) {
-                console.log('分步模式结果图片下载成功:', downloadRes.tempFilePath)
                 self.setData({
                   hasResult: true,
                   resultUrl: downloadRes.tempFilePath,  // 使用临时文件路径显示
@@ -771,7 +738,6 @@ Page({
                   enableSketch: true  // 自动开启素描效果开关
                 })
               } else {
-                console.error('分步模式结果图片下载失败:', downloadRes.statusCode)
                 self.setData({
                   hasResult: true,
                   resultUrl: fullResultUrl,  // 下载失败，使用原 URL
@@ -805,8 +771,6 @@ Page({
           // 如果启用了素描且有 sketch_url，跳转到素描结果；否则跳转到原图
           let finalUrl = (enableSketch && res.sketch_url) ? res.sketch_url : res.result_url
           finalUrl = finalUrl.startsWith('/static/') ? API_BASE_URL + finalUrl : finalUrl
-
-          console.log('综合模式跳转:', { enableSketch, hasSketchUrl: !!res.sketch_url, finalUrl })
 
           if (enableSketch && res.sketch_url) {
             // 有素描结果：显示原图和素描对比
@@ -872,14 +836,12 @@ Page({
    * 图片加载成功
    */
   imageLoad(e) {
-    console.log('图片加载成功:', e.currentTarget.dataset.src || e.target.src)
   },
 
   /**
    * 图片加载失败
    */
   imageError(e) {
-    console.error('图片加载失败:', e.detail.errMsg, 'URL:', e.currentTarget.dataset.src || e.target.src)
     wx.showToast({
       title: '图片加载失败',
       icon: 'none'

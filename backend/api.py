@@ -152,6 +152,42 @@ def get_user_info():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@api_bp.route('/account/check-guest-bonus', methods=['POST'])
+@login_required
+def check_guest_bonus():
+    """游客检查是否符合 4 小时续赠条件"""
+    try:
+        user = g.current_user
+        account_service = AccountService()
+        result = account_service.check_and_grant_guest_bonus(user)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/guest/bonus-status', methods=['GET'])
+@login_required
+def guest_bonus_status():
+    """获取游客额度使用状态"""
+    try:
+        user = g.current_user
+        account_service = AccountService()
+
+        return jsonify({
+            'success': True,
+            'user_type': user.user_type,
+            'bonus_used_count': user.guest_bonus_used_count,
+            'max_bonus_per_year': account_service.guest_max_bonus_per_year,
+            'remaining_bonus': account_service.guest_max_bonus_per_year - user.guest_bonus_used_count,
+            'last_bonus_time': user.last_guest_bonus_time.isoformat() if user.last_guest_bonus_time else None
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @api_bp.route('/user/update', methods=['PUT'])
 @login_required
 def update_user_info():
@@ -1013,7 +1049,7 @@ def confirm_deactivate():
 
 
 @api_bp.route('/upload', methods=['POST'])
-@login_required
+@optional_login
 def upload_file():
     """上传图片"""
     try:
@@ -1084,7 +1120,7 @@ def upload_file():
 
 
 # ============================================
-# 开发者工具接口
+# 开发者工具接口（仅本地开发启用）
 # ============================================
 
 @api_bp.route('/dev/toggle-vip', methods=['POST'])
@@ -1093,13 +1129,19 @@ def toggle_vip():
     """
     切换会员等级（开发者/管理员专属）
     用于开发测试时快速切换会员状态
+
+    注意：此接口仅在本机开发环境启用，生产环境访问返回 404
     """
     try:
         from auth import is_developer
 
+        # 如果开发者功能未启用，直接返回 404（不暴露接口存在）
+        if not is_developer():
+            return jsonify({'error': 'Not Found'}), 404
+
         user = g.current_user
 
-        # 检查是否为开发者账号
+        # 二次检查是否为开发者账号
         if not is_developer(user.id):
             return jsonify({'error': '此功能仅限开发者账号使用'}), 403
 

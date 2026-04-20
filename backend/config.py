@@ -265,7 +265,28 @@ AUTO_GIFT_CONFIG = {
 
 
 # ============================================
-# 开发者测试账号配置
+# 访客模式配置
 # ============================================
 
-DEVELOPER_ACCOUNTS = [5, 7]  # 开发者测试账号用户 ID 列表
+GUEST_MODE_CONFIG = {
+    "initial_bonus": 198,           # 首次赠送梳子发丝数量
+    "auto_renew_bonus": 198,        # 4 小时续赠数量
+    "check_after_hours": 4,         # 4 小时后检查
+    "max_bonus_per_year": 9,        # 年度上限 9 次
+    "registration_bonus": 1000,     # 注册赠送梳子发丝
+    "bonus_valid_hours": 4,         # 赠送有效期（4 小时后失效）
+}
+
+
+# ============================================
+# 开发者测试账号配置
+# ============================================
+# 从环境变量读取开发者模式开关和开发者账号，未配置则禁用（功能默认禁用）
+# 本地开发时可在 .env 中设置：DEVELOPER_MODE_ENABLED=true, DEVELOPER_ACCOUNTS=5,7
+try:
+    # 优先从本地 debug_config.py 读取（不提交到 git）
+    from debug_config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
+except ImportError:
+    # 否则从环境变量读取
+    DEVELOPER_MODE_ENABLED = os.getenv("DEVELOPER_MODE_ENABLED", "False").lower() == "true"
+    DEVELOPER_ACCOUNTS = [int(x.strip()) for x in os.getenv("DEVELOPER_ACCOUNTS", "").split(",") if x.strip()]

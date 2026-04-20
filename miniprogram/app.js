@@ -1,5 +1,6 @@
 // app.js
 import { API_BASE_URL } from './utils/constants.js'
+import { getUserMode } from './utils/auth.js'
 
 App({
   globalData: {
@@ -11,8 +12,8 @@ App({
   onLaunch() {
     console.log('小程序启动')
 
-    // 检查登录状态
-    this.checkLoginStatus()
+    // 移除自动登录，让游客可以直接体验首页功能
+    // 用户需要登录时再引导登录（符合微信审核要求）
 
     // 检查未完成订单（不阻塞页面加载，延迟执行）
     setTimeout(() => {
@@ -23,26 +24,8 @@ App({
   onShow() {
     console.log('小程序显示')
 
-    // 检查是否有待处理的游客赠送
-    this.checkPendingGuestBonus()
-  },
-
-  /**
-   * 检查登录状态
-   */
-  checkLoginStatus() {
-    const token = wx.getStorageSync('token')
-    const userInfo = wx.getStorageSync('user_info')
-
-    if (token && userInfo) {
-      this.globalData.token = token
-      this.globalData.userInfo = userInfo
-      this.globalData.isPremium = userInfo.member_level === 'vip'
-
-      console.log('用户已登录:', userInfo.nickname)
-    } else {
-      console.log('用户未登录')
-    }
+    // 移除自动刷新用户信息，改为按需加载
+    // 用户进入需要登录的页面时再引导登录
   },
 
   /**
@@ -98,16 +81,22 @@ App({
     try {
       const res = await this.request({
         url: '/api/user/info',
-        method: 'GET'
+        method: 'GET',
+        allowGuest: true
       })
 
       if (res.success) {
         this.globalData.userInfo = res.user
-        this.globalData.isPremium = res.user.member_level === 'premium'
+        this.globalData.isPremium = res.user.member_level === 'vip'
         wx.setStorageSync('user_info', res.user)
+
+        // 判断用户模式
+        const userMode = getUserMode(res.user)
+        console.log('用户模式:', userMode)
       }
     } catch (e) {
-      console.error('刷新用户信息失败:', e)
+      // 忽略错误（可能是未登录）
+      console.log('刷新用户信息失败:', e)
     }
   },
 
