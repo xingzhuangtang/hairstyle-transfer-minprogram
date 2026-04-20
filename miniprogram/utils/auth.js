@@ -60,7 +60,8 @@ export async function wechatLogin() {
 
       return {
         success: true,
-        user: res.user
+        user: res.user,
+        isGuest: res.is_guest
       }
     } else {
       return {
@@ -75,6 +76,88 @@ export async function wechatLogin() {
       error: e.error || e.message || '登录失败'
     }
   }
+}
+
+/**
+ * 游客静默登录（自动接待）
+ * 首次进入：游客模式（赠送 198 根梳子发丝）
+ * 已绑定微信/手机：普通用户模式
+ * 已购买 VIP：会员模式
+ */
+export async function guestLogin() {
+  try {
+    // 1. 获取 code
+    const loginRes = await wx.login()
+
+    if (!loginRes.code) {
+      throw new Error('获取微信 code 失败')
+    }
+
+    // 2. 调用后端 API（后端根据 user_type 和 member_level 自动判断用户模式）
+    const res = await post('/api/auth/wechat/login', {
+      code: loginRes.code
+    })
+
+    if (res.success) {
+      // 3. 保存 Token 和用户信息
+      setToken(res.token)
+      setUserInfo(res.user)
+
+      // 4. 更新全局数据
+      const app = getApp()
+      app.globalData.token = res.token
+      app.globalData.userInfo = res.user
+      app.globalData.isPremium = res.user.member_level === 'vip'
+
+      // 5. 判断用户模式
+      const userMode = getUserMode(res.user)
+      console.log('自动登录成功:', {
+        user_type: res.user.user_type,
+        member_level: res.user.member_level,
+        userMode: userMode
+      })
+
+      return {
+        success: true,
+        user: res.user,
+        userMode: userMode,  // guest, normal, vip
+        isNewGuest: res.is_new_user && res.user.user_type === 'guest'
+      }
+    } else {
+      return {
+        success: false,
+        error: res.error || '登录失败'
+      }
+    }
+  } catch (e) {
+    console.error('游客登录失败:', e)
+    return {
+      success: false,
+      error: e.error || e.message || '登录失败'
+    }
+  }
+}
+
+/**
+ * 判断用户模式
+ * @param {Object} user - 用户信息
+ * @returns {string} - 'guest' | 'normal' | 'vip'
+ */
+export function getUserMode(user) {
+  if (!user) return 'guest'
+
+  // 游客模式：user_type='guest'
+  if (user.user_type === 'guest') {
+    return 'guest'
+  }
+
+  // 会员模式：member_level='vip'
+  if (user.member_level === 'vip') {
+    return 'vip'
+  }
+
+  // 普通用户模式：user_type='registered' 且 member_level='normal'
+  return 'normal'
 }
 
 /**
@@ -361,16 +444,38 @@ export function redirectAfterLogin() {
 
 /**
  * 检查是否为开发者账号
+ * 开发者模式通过环境变量控制，前端无法主动切换
+ * 仅用于显示开发者专属功能入口（如果后端启用）
+ *
+ * 注意：后端 to_dict() 不返回 is_developer 字段，所以此函数始终返回 false
  */
 export function isDeveloperAccount() {
+  // 开发者模式完全由后端环境变量控制
+  // 前端仅读取用户信息中的 developer 标志（如果后端返回）
+  // 由于后端没有返回 is_developer 字段，所以始终为 false
   const userInfo = getUserInfo()
-  // 开发者账号 ID 列表
-  const developerIds = [5, 7]
-  return userInfo && userInfo.id && developerIds.includes(userInfo.id)
+
+  // 调试日志
+  console.log('isDeveloperAccount check:', {
+    hasUserInfo: !!userInfo,
+    is_developer: userInfo ? userInfo.is_developer : undefined,
+    result: !!(userInfo && userInfo.is_developer === true)
+  })
+
+  return userInfo && userInfo.is_developer === true
+}
+
+/**
+ * 开发者模式激活说明
+ * 开发者模式必须通过配置 DEVELOPER_MODE_ENABLED=true 和 DEVELOPER_ACCOUNTS 来启用
+ */
+export function getDeveloperModeInstructions() {
+  return '开发者模式需联系管理员配置，无法自行切换'
 }
 
 /**
  * 切换会员状态（开发者功能）
+ * 注意：此功能仅在开发者模式启用时可用
  */
 export async function toggleVip() {
   try {
@@ -409,8 +514,11 @@ export default {
   checkLogin,
   isPremium,
   isDeveloperAccount,
+  getDeveloperModeInstructions,
   getUser,
+  getUserMode,
   wechatLogin,
+  guestLogin,
   phoneLogin,
   sendVerificationCode,
   bindPhone,

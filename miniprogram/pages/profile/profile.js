@@ -1,5 +1,5 @@
 // pages/profile/profile.js
-import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip } from '../../utils/auth.js'
+import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip, getDeveloperModeInstructions } from '../../utils/auth.js'
 import { checkPremium, requireLogin } from '../../utils/auth.js'
 import { MEMBER_LEVEL_NAMES } from '../../utils/constants.js'
 
@@ -26,7 +26,7 @@ Page({
     try {
       const res = await refreshUserInfo()
 
-      if (res.success) {
+      if (res.success && res.user) {
         const userInfo = res.user
         const isPremium = userInfo.member_level === 'vip'
         const isDeveloper = isDeveloperAccount()
@@ -49,17 +49,49 @@ Page({
           totalHairs: totalHairs,
           daysRemaining: daysRemaining > 0 ? daysRemaining : 0
         })
+      } else {
+        // 未登录，显示默认状态（不跳转登录页）
+        this.setData({
+          userInfo: {},
+          isPremium: false,
+          isDeveloper: false,
+          memberLevelName: '游客',
+          totalHairs: 0,
+          daysRemaining: 0
+        })
       }
     } catch (e) {
       console.error('加载用户信息失败:', e)
-
-      // 如果未登录，跳转到登录页
-      if (e.code === 401) {
-        wx.reLaunch({
-          url: '/pages/login/login'
-        })
-      }
+      // 未登录，显示默认状态（不跳转登录页）
+      this.setData({
+        userInfo: {},
+        isPremium: false,
+        isDeveloper: false,
+        memberLevelName: '游客',
+        totalHairs: 0,
+        daysRemaining: 0
+      })
     }
+  },
+
+  /**
+   * 查看开发者模式说明
+   */
+  onViewDeveloperMode() {
+    wx.showModal({
+      title: '开发者模式',
+      content: getDeveloperModeInstructions(),
+      showCancel: false
+    })
+  },
+
+  /**
+   * 跳转到登录页
+   */
+  goToLogin() {
+    wx.navigateTo({
+      url: '/pages/login/login'
+    })
   },
 
   /**

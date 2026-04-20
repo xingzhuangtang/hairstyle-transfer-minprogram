@@ -194,6 +194,9 @@ export function uploadFile(filePath, formData = {}) {
     // 添加 Token
     if (token) {
       header['Authorization'] = `Bearer ${token}`
+    } else {
+      // 没有 token 时，传递 allowGuest 标志
+      formData.allowGuest = true
     }
 
     wx.uploadFile({
