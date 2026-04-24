@@ -88,6 +88,11 @@ Page({
           isLoggedIn: true,
           allCost: pricing.combined
         })
+
+        // Feature 1: 游客余额不足，每次进入都弹注册弹窗
+        if (userInfo.user_type === 'guest' && totalHairs < pricing.combined) {
+          this.showGuestRegisterModal()
+        }
       } else {
         // 未登录或获取失败，设置为访客模式
         this.setData({
@@ -98,10 +103,14 @@ Page({
           isLoggedIn: false,
           allCost: PRICING.normal.combined
         })
+
+        // Token 过期或未登录时，游客弹注册弹窗
+        if (res && res.needLogin) {
+          this.showGuestRegisterModal()
+        }
       }
     } catch (e) {
       console.error('加载用户信息失败:', e)
-      // 访客模式：设置默认值
       this.setData({
         scissorHairs: 0,
         combHairs: 0,
@@ -811,6 +820,25 @@ Page({
   navigateToResult(resultUrl, cost) {
     wx.navigateTo({
       url: `/pages/result/result?resultUrl=${encodeURIComponent(resultUrl)}&cost=${cost}`
+    })
+  },
+
+  /**
+   * 游客余额不足专属注册弹窗
+   */
+  showGuestRegisterModal() {
+    wx.showModal({
+      title: '提示',
+      content: '完成新用户注册，领取 1000 根头发丝福利',
+      confirmText: '去注册',
+      cancelText: '稍后再说',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: '/pages/login/login'
+          })
+        }
+      }
     })
   },
 
