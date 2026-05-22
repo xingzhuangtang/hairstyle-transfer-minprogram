@@ -45,6 +45,8 @@ temp_*.png
 # 微信小程序
 miniprogram/node_modules/
 miniprogram/.tea/
+miniprogram/private.key
+miniprogram/project.config.json
 
 # IDE
 .idea/

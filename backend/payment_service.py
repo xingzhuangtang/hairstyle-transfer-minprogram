@@ -7,7 +7,7 @@
 
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import request
 from models import db, User, RechargeRecord, MemberOrder
 from config import get_config, NORMAL_RECHARGE_RULES, VIP_RECHARGE_RULES, MEMBER_CONFIG, NEW_USER_BONUS, AUTO_GIFT_CONFIG
@@ -40,7 +40,7 @@ class PaymentService:
         random_str = uuid.uuid4().hex[:8].upper()
         return f"{prefix}{timestamp}{random_str}"
     
-    def create_recharge_order(self, user_id, amount, payment_method):
+    def create_recharge_order(self, user_id, amount, payment_method, user=None):
         """
         创建充值订单
         
@@ -48,11 +48,17 @@ class PaymentService:
             user_id: 用户ID
             amount: 充值金额
             payment_method: 支付方式 (wechat, alipay, unionpay)
+            user: User 对象（可选，用于判断用户类型）
         
         Returns:
             dict: {success, order_no, error}
         """
         try:
+            # 获取用户等级以选择对应充值规则
+            user_level = 'normal'
+            if user:
+                user_level = user.member_level if user.member_level == 'vip' else 'normal'
+
             # 验证充值金额
             if amount not in self.normal_recharge_rules:
                 return {
@@ -61,7 +67,7 @@ class PaymentService:
                 }
 
             # 获取充值规则
-            rule = self.normal_recharge_rules[amount]
+            rule = self.get_recharge_rules(user_level)[amount]
             
             # 生成订单号
             order_no = self.generate_order_no('RE')

@@ -28,6 +28,27 @@
     <text class="guest-tip-link" bindtap="goToLogin">登录查看更多</text>
   </view>
 
+  <!-- 游客账号信息卡片 -->
+  <view class="device-card" wx:if="{{!isLoggedIn}}">
+    <view class="device-card-header">
+      <image class="device-card-icon" src="/images/icons/device.png"></image>
+      <text class="device-card-title">我的账号</text>
+    </view>
+    <view class="device-card-body">
+      <view class="device-info-row">
+        <text class="device-info-label">设备名称：</text>
+        <text class="device-info-value">{{deviceName}}</text>
+      </view>
+      <view class="device-info-row">
+        <text class="device-info-label">账号 ID：</text>
+        <text class="device-info-value device-id">{{accountId || '登录后显示'}}</text>
+      </view>
+    </view>
+    <view class="device-card-tip">
+      <text>账号 ID 固定不变，换设备登录数据不丢失</text>
+    </view>
+  </view>
+
   <!-- 图片上传区域 -->
   <view class="upload-section">
     <!-- 发型参考图 -->

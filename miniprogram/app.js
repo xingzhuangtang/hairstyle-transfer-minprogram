@@ -12,8 +12,15 @@ App({
   onLaunch() {
     console.log('小程序启动')
 
-    // 移除自动登录，让游客可以直接体验首页功能
-    // 用户需要登录时再引导登录（符合微信审核要求）
+    // 检查本地是否已有登录信息
+    const token = wx.getStorageSync('token')
+    if (!token) {
+      // 无登录信息，自动游客静默登录
+      this.guestAutoLogin()
+    } else {
+      // 已有 token，检查是否需要刷新用户信息
+      this.refreshUserInfo()
+    }
 
     // 检查未完成订单（不阻塞页面加载，延迟执行）
     setTimeout(() => {
@@ -157,6 +164,39 @@ App({
   /**
    * 清除登录信息
    */
+  /**
+   * 游客自动静默登录
+   * 首次进入自动调用微信登录，获取固定的用户 ID（用于追踪客户）
+   */
+  async guestAutoLogin() {
+    try {
+      const loginRes = await wx.login()
+      if (!loginRes.code) {
+        console.log('游客自动登录：获取code失败')
+        return
+      }
+
+      // 调用后端微信登录接口
+      const res = await this.request({
+        url: '/api/auth/wechat/login',
+        method: 'POST',
+        data: { code: loginRes.code }
+      })
+
+      if (res.success && res.user) {
+        // 保存 token 和用户信息
+        wx.setStorageSync('token', res.token)
+        wx.setStorageSync('user_info', res.user)
+        this.globalData.token = res.token
+        this.globalData.userInfo = res.user
+
+        console.log('游客自动登录成功，账号 ID:', res.user.id)
+      }
+    } catch (e) {
+      console.log('游客自动登录失败:', e)
+    }
+  },
+
   /**
    * 检查待处理的游客赠送
    */

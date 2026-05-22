@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, g
-from models import db, User
+from models import db, User, Device
 from config import get_config
 
 
@@ -60,7 +60,7 @@ class AuthService:
         except jwt.InvalidTokenError:
             return None
 
-    def wechat_login(self, code):
+    def wechat_login(self, code, device_info=None):
         """
         微信登录（支持游客模式、普通用户模式、会员模式）
 
@@ -71,6 +71,7 @@ class AuthService:
 
         Args:
             code: 微信登录 code
+            device_info: 设备信息（可选）{device_id, device_name, device_type}
 
         Returns:
             dict: {success, user_id, token, is_new_user, user_type, member_level}
@@ -141,6 +142,43 @@ class AuthService:
             # 生成 token
             token = self.generate_token(user.id)
 
+            # 自动绑定设备（如果提供了设备信息）
+            device_bound = False
+            if device_info and device_info.get('device_id'):
+                try:
+                    device_id = device_info['device_id']
+                    device_name = device_info.get('device_name', '未知设备')
+                    device_type = device_info.get('device_type', 'unknown')
+
+                    # 检查设备是否已被当前用户绑定
+                    existing_device = Device.query.filter_by(user_id=user.id, device_id=device_id).first()
+                    if not existing_device:
+                        # 检查是否已达到最大设备数
+                        device_count = Device.query.filter_by(user_id=user.id).count()
+                        if device_count < 2:
+                            # 创建新设备记录
+                            new_device = Device(
+                                user_id=user.id,
+                                device_id=device_id,
+                                device_name=device_name,
+                                device_type=device_type,
+                                is_primary=(device_count == 0)
+                            )
+                            db.session.add(new_device)
+                            db.session.commit()
+                            device_bound = True
+                            print(f"✅ 设备自动绑定成功: user_id={user.id}, device_id={device_id}")
+                        else:
+                            print(f"⚠️ 用户已达到最大设备数: user_id={user.id}")
+                    else:
+                        # 更新最后活跃时间
+                        existing_device.last_active_at = datetime.now()
+                        db.session.commit()
+                        device_bound = True
+                except Exception as e:
+                    print(f"⚠️ 设备绑定失败: {e}")
+                    db.session.rollback()
+
             return {
                 "success": True,
                 "user_id": user.id,
@@ -149,6 +187,7 @@ class AuthService:
                 "user_type": user.user_type,  # guest, registered
                 "member_level": user.member_level,  # normal, vip
                 "user": user.to_dict(),
+                "device_bound": device_bound
             }
 
         except Exception as e:

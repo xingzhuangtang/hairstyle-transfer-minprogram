@@ -453,3 +453,40 @@ class UserBonusRecord(db.Model):
         }
 
 
+class Device(db.Model):
+    """设备管理表 - 跟踪用户绑定的设备"""
+    __tablename__ = 'devices'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
+    device_id = db.Column(db.String(64), unique=True, nullable=False, index=True, comment='设备唯一标识（固定不变）')
+    device_name = db.Column(db.String(100), nullable=False, comment='设备名称（如 iPhone 13、MacBook Pro）')
+    device_type = db.Column(db.String(20), nullable=True, comment='设备类型：mobile/tablet/desktop')
+    is_primary = db.Column(db.Boolean, default=False, comment='是否为主设备')
+    bound_at = db.Column(db.DateTime, default=datetime.now, comment='绑定时间')
+    last_active_at = db.Column(db.DateTime, default=datetime.now, comment='最后活跃时间')
+
+    # 关联
+    user = db.relationship('User', backref=db.backref('devices', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_device_id', 'device_id'),
+        {'comment': '设备管理表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'device_id': self.device_id,
+            'device_name': self.device_name,
+            'device_type': self.device_type,
+            'is_primary': self.is_primary,
+            'bound_at': self.bound_at.isoformat(),
+            'last_active_at': self.last_active_at.isoformat()
+        }
+
+
