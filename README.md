@@ -246,6 +246,20 @@ MIT License
 - GitHub: [@xingzhuangtang](https://github.com/xingzhuangtang)
 - 项目仓库：[hairstyle-transfer-minprogram](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
 
+### 微信联系
+
+扫一扫添加微信，有问题随时沟通：
+
+<img src="docs/images/wechat-contact.png" alt="微信联系方式" width="250">
+
+---
+
+## ☕ 请作者喝杯咖啡
+
+如果觉得这个项目对你有帮助，欢迎打赏支持：
+
+<img src="docs/images/wechat-tip.png" alt="微信打赏" width="250">
+
 ---
 
 ## 📊 项目状态
