@@ -11,7 +11,8 @@ Page({
     memberLevelName: '普通用户',
     totalHairs: 0,
     daysRemaining: 0,
-    toggleLoading: false
+    toggleLoading: false,
+    resetLoading: false
   },
 
   onShow() {
@@ -163,6 +164,15 @@ Page({
   },
 
   /**
+   * 跳转到设备管理（游客和登录用户都可访问）
+   */
+  goToDevice() {
+    wx.navigateTo({
+      url: '/pages/device/device'
+    })
+  },
+
+  /**
    * 跳转到设置
    */
   goToSettings() {
@@ -190,6 +200,97 @@ Page({
         }
       }
     })
+  },
+
+  /**
+   * 清除数据重新测试（模拟新客户）
+   */
+  onResetForTest() {
+    wx.showModal({
+      title: '确认清除',
+      content: '将清除当前账号的所有数据，重新以新客户身份体验。确定继续？',
+      confirmText: '确定清除',
+      cancelText: '取消',
+      confirmColor: '#ff4d4f',
+      success: (res) => {
+        if (res.confirm) {
+          this.doResetForTest()
+        }
+      }
+    })
+  },
+
+  async doResetForTest() {
+    this.setData({ resetLoading: true })
+
+    try {
+      // 1. 调用后端删除当前用户数据
+      const app = getApp()
+      const token = app.globalData.token || wx.getStorageSync('token')
+
+      console.log('开始清除测试数据...')
+      console.log('当前 token:', token ? token.substring(0, 20) + '...' : '无')
+
+      if (token) {
+        await new Promise((resolve, reject) => {
+          const fullUrl = 'http://192.168.1.3:5003/api/dev/reset-test-user'
+          console.log('调用后端删除接口:', fullUrl)
+
+          wx.request({
+            url: fullUrl,
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            success: (res) => {
+              console.log('后端删除用户返回:', res.statusCode, res.data)
+              if (res.statusCode === 200) {
+                resolve(res.data)
+              } else {
+                reject(new Error(`后端删除失败: ${res.statusCode} - ${JSON.stringify(res.data)}`))
+              }
+            },
+            fail: (err) => reject(new Error(`网络请求失败: ${JSON.stringify(err)}`))
+          })
+        })
+      } else {
+        console.warn('没有 token，跳过删除后端用户数据')
+      }
+
+      // 2. 清除本地存储和全局状态
+      console.log('清除本地存储...')
+      wx.removeStorageSync('token')
+      wx.removeStorageSync('user_info')
+      wx.removeStorageSync('userInfo')
+      wx.removeStorageSync('pending_orders')
+      app.globalData.token = null
+      app.globalData.userInfo = null
+      app.globalData.isPremium = false
+
+      wx.showToast({
+        title: '数据已清除，重新登录中...',
+        icon: 'loading',
+        duration: 2000
+      })
+
+      // 3. 使用 wx.reLaunch 重启小程序（会重新触发 onLaunch 和 guestAutoLogin）
+      setTimeout(() => {
+        console.log('重启小程序...')
+        wx.reLaunch({
+          url: '/pages/index/index'
+        })
+      }, 1000)
+    } catch (e) {
+      console.error('清除测试数据失败:', e)
+      wx.showToast({
+        title: '清除失败: ' + e.message,
+        icon: 'none',
+        duration: 3000
+      })
+    } finally {
+      this.setData({ resetLoading: false })
+    }
   },
 
   /**

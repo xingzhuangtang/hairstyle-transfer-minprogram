@@ -15,6 +15,11 @@ Page({
     isPremium: false,
     isLoggedIn: false,    // 是否已登录
 
+    // 账号信息（游客模式）
+    accountId: '',       // 后端分配的用户 ID
+    deviceName: '',
+    deviceId: '',
+
     // 图片
     hairstyleUrl: '',      // 显示用（临时文件路径）
     customerUrl: '',       // 显示用（临时文件路径）
@@ -51,8 +56,15 @@ Page({
   },
 
   onShow() {
-    // 刷新用户信息和余额
-    this.loadUserInfo()
+    // 游客模式下初始化账号信息（优先执行，轮询等待静默登录完成）
+    setTimeout(() => {
+      this.initAccountInfo()
+    }, 300)
+
+    // 刷新用户信息和余额（延迟执行，等待账号 ID 初始化完成后更新状态）
+    setTimeout(() => {
+      this.loadUserInfo()
+    }, 1500)
 
     // 只有在第一次进入页面时才设置默认模式，避免每次 onShow 都重置用户选择
     if (!this.data.modeInitialized) {
@@ -94,7 +106,7 @@ Page({
           this.showGuestRegisterModal()
         }
       } else {
-        // 未登录或获取失败，设置为访客模式
+        // 未登录或获取失败，设置为游客模式
         this.setData({
           scissorHairs: 0,
           combHairs: 0,
@@ -103,11 +115,6 @@ Page({
           isLoggedIn: false,
           allCost: PRICING.normal.combined
         })
-
-        // Token 过期或未登录时，游客弹注册弹窗
-        if (res && res.needLogin) {
-          this.showGuestRegisterModal()
-        }
       }
     } catch (e) {
       console.error('加载用户信息失败:', e)
@@ -858,6 +865,86 @@ Page({
     wx.navigateTo({
       url: '/pages/login/login'
     })
+  },
+
+  /**
+   * 初始化账号和设备信息（游客模式）
+   */
+  initAccountInfo() {
+    const app = getApp()
+
+    // 如果完全没有登录信息，先触发登录
+    if (!wx.getStorageSync('token')) {
+      console.log('检测到未登录，手动触发游客自动登录...')
+      app.guestAutoLogin().then(() => {
+        console.log('手动登录完成，开始轮询账号 ID...')
+      }).catch(e => {
+        console.error('手动登录失败:', e)
+      })
+    }
+
+    const tryInitAccount = (retry = 0) => {
+      try {
+        const userInfo = wx.getStorageSync('user_info')
+        if (userInfo && userInfo.id) {
+          // 登录完成，格式化账号 ID：QRQM + 数据库ID + FXQY
+          this.setData({
+            accountId: `QRQM${userInfo.id}FXQY`
+          })
+          console.log('账号 ID 初始化成功:', `QRQM${userInfo.id}FXQY`)
+
+          // 重新加载用户信息，更新 isLoggedIn 状态
+          this.loadUserInfo()
+          return
+        }
+
+        console.log(`账号 ID 等待中... (第 ${retry + 1}/30 次重试)`)
+
+        // 登录尚未完成，继续轮询
+        if (retry < 30) {
+          setTimeout(() => tryInitAccount(retry + 1), 300)
+        } else {
+          // 30 次重试后仍然超时（9 秒），直接显示兜底
+          console.warn('账号 ID 获取超时')
+          this.setData({
+            accountId: '获取超时'
+          })
+        }
+      } catch (e) {
+        console.error('获取账号信息失败:', e)
+        this.setData({
+          accountId: '获取失败'
+        })
+      }
+    }
+
+    // 同时初始化设备信息
+    try {
+      const systemInfo = wx.getSystemInfoSync()
+      const uniqueStr = `${systemInfo.brand}-${systemInfo.model}-${systemInfo.system}-${systemInfo.platform}`
+      let hash = 0
+      for (let i = 0; i < uniqueStr.length; i++) {
+        const char = uniqueStr.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash
+      }
+      const deviceId = `device_${Math.abs(hash).toString(16).padStart(8, '0')}`
+      const deviceName = `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`
+
+      this.setData({
+        deviceName: deviceName,
+        deviceId: deviceId
+      })
+    } catch (e) {
+      console.error('获取设备信息失败:', e)
+      this.setData({
+        deviceName: '未知设备',
+        deviceId: 'device_unknown'
+      })
+    }
+
+    // 开始轮询账号 ID
+    tryInitAccount()
   },
 
   /**

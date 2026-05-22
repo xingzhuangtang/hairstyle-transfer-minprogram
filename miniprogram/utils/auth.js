@@ -31,6 +31,45 @@ export function getUser() {
 }
 
 /**
+ * 生成设备信息
+ */
+function getDeviceInfo() {
+  try {
+    const systemInfo = wx.getSystemInfoSync()
+
+    // 生成设备 ID（基于系统信息生成固定 ID）
+    const uniqueStr = `${systemInfo.brand}-${systemInfo.model}-${systemInfo.system}-${systemInfo.platform}`
+    let hash = 0
+    for (let i = 0; i < uniqueStr.length; i++) {
+      const char = uniqueStr.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash
+    }
+    const deviceId = `device_${Math.abs(hash).toString(16).padStart(8, '0')}`
+
+    // 检测设备类型
+    const model = systemInfo.model.toLowerCase()
+    const platform = systemInfo.platform
+    let deviceType = 'desktop'
+    if (platform === 'ios' || platform === 'android') {
+      deviceType = (model.includes('ipad') || model.includes('tablet')) ? 'tablet' : 'mobile'
+    }
+
+    // 生成设备名称
+    const deviceName = `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`
+
+    return {
+      device_id: deviceId,
+      device_name: deviceName,
+      device_type: deviceType
+    }
+  } catch (e) {
+    console.error('获取设备信息失败:', e)
+    return null
+  }
+}
+
+/**
  * 微信登录
  */
 export async function wechatLogin() {
@@ -42,17 +81,21 @@ export async function wechatLogin() {
       throw new Error('获取微信code失败')
     }
 
-    // 2. 调用后端API
+    // 2. 获取设备信息
+    const deviceInfo = getDeviceInfo()
+
+    // 3. 调用后端API
     const res = await post('/api/auth/wechat/login', {
-      code: loginRes.code
+      code: loginRes.code,
+      device_info: deviceInfo
     })
 
     if (res.success) {
-      // 3. 保存Token和用户信息
+      // 4. 保存Token和用户信息
       setToken(res.token)
       setUserInfo(res.user)
 
-      // 4. 更新全局数据
+      // 5. 更新全局数据
       const app = getApp()
       app.globalData.token = res.token
       app.globalData.userInfo = res.user
@@ -61,7 +104,8 @@ export async function wechatLogin() {
       return {
         success: true,
         user: res.user,
-        isGuest: res.is_guest
+        isGuest: res.is_guest,
+        deviceBound: res.device_bound
       }
     } else {
       return {
@@ -93,23 +137,27 @@ export async function guestLogin() {
       throw new Error('获取微信 code 失败')
     }
 
-    // 2. 调用后端 API（后端根据 user_type 和 member_level 自动判断用户模式）
+    // 2. 获取设备信息
+    const deviceInfo = getDeviceInfo()
+
+    // 3. 调用后端 API（后端根据 user_type 和 member_level 自动判断用户模式）
     const res = await post('/api/auth/wechat/login', {
-      code: loginRes.code
+      code: loginRes.code,
+      device_info: deviceInfo
     })
 
     if (res.success) {
-      // 3. 保存 Token 和用户信息
+      // 4. 保存 Token 和用户信息
       setToken(res.token)
       setUserInfo(res.user)
 
-      // 4. 更新全局数据
+      // 5. 更新全局数据
       const app = getApp()
       app.globalData.token = res.token
       app.globalData.userInfo = res.user
       app.globalData.isPremium = res.user.member_level === 'vip'
 
-      // 5. 判断用户模式
+      // 6. 判断用户模式
       const userMode = getUserMode(res.user)
       console.log('自动登录成功:', {
         user_type: res.user.user_type,
@@ -323,7 +371,7 @@ export async function refreshUserInfo() {
 
       const app = getApp()
       app.globalData.userInfo = res.user
-      app.globalData.isPremium = res.user.member_level === 'vip'
+      app.globalData.isPremium = res.user ? res.user.member_level === 'vip' : false
 
       return {
         success: true,

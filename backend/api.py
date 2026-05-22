@@ -6,27 +6,17 @@ API路由模块
 """
 
 from flask import Blueprint, request, jsonify, g
+from datetime import datetime
 import json
 import time
 import config
-
-# 创建蓝图
-api_bp = Blueprint('api', __name__, url_prefix='/api')
-
-# 设置JSON响应的中文编码
-def json_response(data, status=200):
-    """返回JSON响应，确保中文正确编码"""
-    response = jsonify(data)
-    response.status_code = status
-    response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    return response
 from auth import AuthService, login_required, vip_required, optional_login
 from sms_service import SMSService
 from payment_service import PaymentService
 from hair_service import HairService
 from member_service import MemberService
 from account_service import AccountService
-from models import db, User, ConsumptionRecord, HistoryRecord
+from models import db, User, ConsumptionRecord, HistoryRecord, Device
 
 # 创建蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -42,18 +32,21 @@ def wechat_login():
     try:
         data = request.get_json()
         code = data.get('code')
-        
+
         if not code:
             return jsonify({'error': '缺少code参数'}), 400
-        
+
+        # 获取设备信息（可选）
+        device_info = data.get('device_info')
+
         auth_service = AuthService()
-        result = auth_service.wechat_login(code)
-        
+        result = auth_service.wechat_login(code, device_info=device_info)
+
         if result['success']:
             return jsonify(result)
         else:
             return jsonify({'error': result['error']}), 400
-            
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -133,11 +126,21 @@ def bind_phone():
 # ============================================
 
 @api_bp.route('/user/info', methods=['GET'])
-@login_required
+@optional_login
 def get_user_info():
-    """获取用户信息"""
+    """获取用户信息（支持游客）"""
     try:
         user = g.current_user
+
+        # 游客或未登录用户
+        if not user:
+            return jsonify({
+                'success': True,
+                'user': None,
+                'balance': {'scissor_hairs': 0, 'comb_hairs': 0, 'total': 0},
+                'is_guest': True
+            })
+
         hair_service = HairService()
         member_service = MemberService()
 
@@ -255,6 +258,147 @@ def test_recharge():
 
 
 # ============================================
+# 设备管理相关接口
+# ============================================
+
+@api_bp.route('/device/list', methods=['GET'])
+@optional_login
+def list_devices():
+    """获取用户绑定的设备列表（支持游客）"""
+    try:
+        user = g.current_user
+
+        # 游客模式返回空设备列表
+        if not user:
+            return jsonify({
+                'success': True,
+                'devices': [],
+                'device_count': 0,
+                'max_devices': 2,
+                'is_guest': True
+            })
+
+        devices = Device.query.filter_by(user_id=user.id).order_by(Device.bound_at.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'devices': [d.to_dict() for d in devices],
+            'device_count': len(devices),
+            'max_devices': 2
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/device/bind', methods=['POST'])
+@login_required
+def bind_device():
+    """绑定设备（游客首次访问自动调用）"""
+    try:
+        data = request.get_json()
+        device_id = data.get('device_id')
+        device_name = data.get('device_name', '未知设备')
+        device_type = data.get('device_type', 'unknown')
+
+        if not device_id:
+            return jsonify({'error': '缺少device_id参数'}), 400
+
+        user = g.current_user
+
+        # 检查设备是否已被当前用户绑定
+        existing_device = Device.query.filter_by(user_id=user.id, device_id=device_id).first()
+        if existing_device:
+            # 更新最后活跃时间
+            existing_device.last_active_at = datetime.now()
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': '设备已绑定',
+                'device': existing_device.to_dict()
+            })
+
+        # 检查是否已达到最大设备数
+        device_count = Device.query.filter_by(user_id=user.id).count()
+        if device_count >= 2:
+            return jsonify({
+                'success': False,
+                'error': '已达到最大设备绑定数量（2个）',
+                'code': 'MAX_DEVICES_REACHED'
+            }), 400
+
+        # 检查设备是否已被其他用户绑定
+        other_user_device = Device.query.filter_by(device_id=device_id).first()
+        if other_user_device and other_user_device.user_id != user.id:
+            return jsonify({
+                'success': False,
+                'error': '该设备已被其他账户绑定',
+                'code': 'DEVICE_ALREADY_BOUND'
+            }), 400
+
+        # 创建新设备记录
+        new_device = Device(
+            user_id=user.id,
+            device_id=device_id,
+            device_name=device_name,
+            device_type=device_type,
+            is_primary=(device_count == 0)  # 第一个设备设为主设备
+        )
+        db.session.add(new_device)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '设备绑定成功',
+            'device': new_device.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/device/unbind', methods=['POST'])
+@login_required
+def unbind_device():
+    """解绑设备"""
+    try:
+        data = request.get_json()
+        device_id = data.get('device_id')
+
+        if not device_id:
+            return jsonify({'error': '缺少device_id参数'}), 400
+
+        user = g.current_user
+
+        # 查找设备
+        device = Device.query.filter_by(user_id=user.id, device_id=device_id).first()
+        if not device:
+            return jsonify({'error': '设备不存在'}), 404
+
+        # 检查是否至少保留一个设备
+        device_count = Device.query.filter_by(user_id=user.id).count()
+        if device_count <= 1:
+            return jsonify({
+                'success': False,
+                'error': '至少需要保留一个设备',
+                'code': 'MIN_DEVICES_REQUIRED'
+            }), 400
+
+        db.session.delete(device)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '设备解绑成功'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
 # 充值相关接口
 # ============================================
 
@@ -293,7 +437,7 @@ def create_recharge_order():
         
         user = g.current_user
         payment_service = PaymentService()
-        result = payment_service.create_recharge_order(user.id, amount, payment_method)
+        result = payment_service.create_recharge_order(user.id, amount, payment_method, user=user)
         
         if result['success']:
             return jsonify(result)
@@ -1035,11 +1179,6 @@ def confirm_deactivate():
         result = account_service.deactivate_account(user)
         
         if result['success']:
-            # 清除登录信息
-            from auth import AuthService
-            auth_service = AuthService()
-            auth_service.clearLoginInfo()
-
             return jsonify(result)
         else:
             return jsonify({'error': result['error']}), 400
@@ -1167,6 +1306,60 @@ def toggle_vip():
 
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/dev/reset-test-user', methods=['POST'])
+@login_required
+def reset_test_user():
+    """
+    删除当前用户，清除所有数据（测试专用）
+    用于开发者模拟新客户从零开始的体验
+    下次登录时会创建全新的游客账户并授予首次福利
+
+    注意：此接口仅限开发者账号使用，删除操作不可恢复
+    """
+    try:
+        from auth import is_developer
+
+        user = g.current_user
+
+        # 检查是否为开发者账号
+        if not is_developer(user.id):
+            return jsonify({'error': '此功能仅限开发者账号使用'}), 403
+
+        user_id = user.id
+        openid = user.openid
+
+        # 删除用户的所有关联数据
+        from models import ConsumptionRecord, HistoryRecord, RechargeRecord, MemberOrder
+        from models import InsufficientReminder, GuestBonusRecord, UserBonusRecord, Device, MemberReminder
+
+        # 删除关联记录
+        ConsumptionRecord.query.filter_by(user_id=user_id).delete()
+        HistoryRecord.query.filter_by(user_id=user_id).delete()
+        RechargeRecord.query.filter_by(user_id=user_id).delete()
+        MemberOrder.query.filter_by(user_id=user_id).delete()
+        InsufficientReminder.query.filter_by(user_id=user_id).delete()
+        GuestBonusRecord.query.filter_by(user_id=user_id).delete()
+        UserBonusRecord.query.filter_by(user_id=user_id).delete()
+        Device.query.filter_by(user_id=user_id).delete()
+        MemberReminder.query.filter_by(user_id=user_id).delete()
+
+        # 删除用户本身
+        db.session.delete(user)
+        db.session.commit()
+
+        print(f"✅ 测试用户已删除：user_id={user_id}, openid={openid}")
+
+        return jsonify({
+            'success': True,
+            'message': '数据已清除，下次登录将创建全新游客账户'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 重置测试用户失败：{e}")
         return jsonify({'error': str(e)}), 500
 
 

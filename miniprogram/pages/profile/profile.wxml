@@ -96,6 +96,15 @@
 
     <!-- 其他设置 -->
     <view class="menu-list settings">
+      <!-- 设备管理 -->
+      <view class="menu-item" bindtap="goToDevice">
+        <view class="menu-left">
+          <image class="menu-icon" src="/images/icons/device.png"></image>
+          <text class="menu-text">设备管理</text>
+        </view>
+        <image class="arrow" src="/images/icons/arrow-right.png"></image>
+      </view>
+
       <!-- 关于我们 -->
       <view class="menu-item" bindtap="goToAbout">
         <view class="menu-left">
@@ -129,6 +138,24 @@
         </view>
         <button class="toggle-dev-mode-btn" bindtap="onViewDeveloperMode">
           查看开发者模式说明
+        </button>
+      </view>
+    </view>
+
+    <!-- 测试工具（清除数据，模拟新客户） -->
+    <view class="test-section">
+      <view class="test-title">测试工具</view>
+      <view class="test-card">
+        <view class="test-row">
+          <text class="test-label">当前账号：</text>
+          <text class="test-value">{{userInfo.id ? 'QRQM' + userInfo.id + 'FXQY' : '未登录'}}</text>
+        </view>
+        <view class="test-row">
+          <text class="test-label">用户类型：</text>
+          <text class="test-value">{{userInfo.user_type === 'guest' ? '游客' : userInfo.user_type === 'registered' ? '普通用户' : userInfo.member_level === 'vip' ? '会员' : '未知'}}</text>
+        </view>
+        <button class="reset-test-btn" bindtap="onResetForTest" loading="{{resetLoading}}">
+          清除数据，重新测试（模拟新客户）
         </button>
       </view>
     </view>

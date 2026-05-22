@@ -8,7 +8,8 @@
     "pages/member/member",
     "pages/history/history",
     "pages/legal/legal",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/device/device"
   ],
   "window": {
     "backgroundTextStyle": "light",
