@@ -2,7 +2,7 @@
 import { uploadFile } from '../../utils/request.js'
 import { optionalLogin, isPremium, checkPremium, refreshUserInfo, guestLogin } from '../../utils/auth.js'
 import { setRedirectUrl } from '../../utils/storage.js'
-import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES } from '../../utils/constants.js'
+import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES, API_BASE_URL } from '../../utils/constants.js'
 import { transferHair, extractHair, addSketch } from '../../api/hair.js'
 import { checkBalance } from '../../api/user.js'
 
@@ -183,7 +183,6 @@ Page({
         const httpKey = type === 'hairstyle' ? 'hairstyleHttpUrl' : 'customerHttpUrl'
 
         // 将相对路径转换为完整 URL（API 调用需要）
-        const API_BASE_URL = 'http://192.168.1.3:5003'
         const fullHttpUrl = res.url.startsWith('/static/')
           ? API_BASE_URL + res.url
           : res.url
@@ -404,7 +403,6 @@ Page({
         })
 
         // 将相对路径转换为完整 URL（真机显示需要）
-        const API_BASE_URL = 'http://192.168.1.3:5003'
         const fullSketchUrl = res.sketch_url.startsWith('/static/')
           ? API_BASE_URL + res.sketch_url
           : res.sketch_url
@@ -679,7 +677,6 @@ Page({
 
       if (res.success) {
         // 将相对路径转换为完整 URL（真机显示需要）
-        const API_BASE_URL = 'http://192.168.1.3:5003'
         const fullResultUrl = res.result_url.startsWith('/static/')
           ? API_BASE_URL + res.result_url
           : res.result_url
@@ -736,7 +733,6 @@ Page({
         // 保存结果用于分步模式
         if (saveResult) {
           // 将相对路径转换为完整 URL（真机显示需要）
-          const API_BASE_URL = 'http://192.168.1.3:5003'
           const fullResultUrl = res.result_url.startsWith('/static/')
             ? API_BASE_URL + res.result_url
             : res.result_url
@@ -782,7 +778,6 @@ Page({
         } else {
           // 综合模式：直接跳转到结果页
           // 将相对路径转换为完整 URL（真机显示需要）
-          const API_BASE_URL = 'http://192.168.1.3:5003'
 
           // 如果启用了素描且有 sketch_url，跳转到素描结果；否则跳转到原图
           let finalUrl = (enableSketch && res.sketch_url) ? res.sketch_url : res.result_url
