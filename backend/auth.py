@@ -229,6 +229,7 @@ class AuthService:
             # 1. 先按手机号查找
             user = User.query.filter_by(phone=phone).first()
             is_new_user = False
+            guest_upgraded_to_registered = False
 
             if not user:
                 # 2. 手机号未绑定，检查当前请求是否有 openid 用户（游客模式）
@@ -238,9 +239,11 @@ class AuthService:
                 if current_user and current_user.openid and not current_user.phone:
                     user = current_user
                     user.phone = phone
+                    guest_upgraded_to_registered = False
                     # 游客绑定手机号后，更新用户类型为 registered
                     if user.user_type == 'guest':
                         user.user_type = 'registered'
+                        guest_upgraded_to_registered = True
                     db.session.commit()
                     print(f"✅ 游客绑定手机号：user_id={user.id}, openid={user.openid}, phone={phone}, user_type=registered")
                 else:
@@ -259,7 +262,7 @@ class AuthService:
                     return {"success": False, "error": "用户账号已被禁用"}
 
             # 发放新用户福利（1000 根梳子发丝）
-            if is_new_user:
+            if is_new_user or guest_upgraded_to_registered:
                 from account_service import AccountService
 
                 account_service = AccountService()
@@ -319,7 +322,7 @@ class AuthService:
                 return {"success": False, "error": "用户不存在"}
 
             user.phone = phone
-            # 游客绑定手机号后，更新用户类型为 registered
+            # 游客绑定手机号后，更新用户类型为 registered，并赠送注册福利
             if user.user_type == 'guest':
                 user.user_type = 'registered'
                 # 用户已注册，取消未完成的游客续赠记录
@@ -329,6 +332,15 @@ class AuthService:
                     bonus_type='auto_renew',
                     is_completed=False
                 ).update({'is_completed': True})
+                
+                # 赠送新用户注册福利（1000 根梳子发丝）
+                from account_service import AccountService
+                account_service = AccountService()
+                bonus_result = account_service.register_user(user)
+                if bonus_result['success']:
+                    print(f"✅ 游客升级为注册用户，赠送注册福利：{bonus_result['bonus_hairs']}根梳子发丝")
+                else:
+                    print(f"⚠️ 注册福利发放失败：{bonus_result.get('error')}")
             db.session.commit()
 
             return {"success": True, "user": user.to_dict()}
