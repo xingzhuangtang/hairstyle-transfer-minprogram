@@ -60,7 +60,7 @@ class AuthService:
         except jwt.InvalidTokenError:
             return None
 
-    def wechat_login(self, code, device_info=None):
+    def wechat_login(self, code, device_info=None, nickname=None, avatar_url=None):
         """
         微信登录（支持游客模式、普通用户模式、会员模式）
 
@@ -72,6 +72,8 @@ class AuthService:
         Args:
             code: 微信登录 code
             device_info: 设备信息（可选）{device_id, device_name, device_type}
+            nickname: 微信昵称（可选）
+            avatar_url: 微信头像URL（可选）
 
         Returns:
             dict: {success, user_id, token, is_new_user, user_type, member_level}
@@ -113,11 +115,13 @@ class AuthService:
                     member_level="normal",
                     scissor_hairs=0,
                     comb_hairs=0,
+                    nickname=nickname,
+                    avatar_url=avatar_url,
                 )
                 db.session.add(user)
                 db.session.commit()
                 is_new_user = True
-                print(f"✅ 新用户注册（游客）: openid={openid}")
+                print(f"✅ 新用户注册（游客）: openid={openid}, nickname={nickname}")
 
                 # 授予游客首次赠送（198 根梳子发丝）
                 from account_service import AccountService
@@ -132,7 +136,12 @@ class AuthService:
                 # 老用户登录，更新 unionid（如果之前没有）
                 if unionid and not user.unionid:
                     user.unionid = unionid
-                    db.session.commit()
+                # 更新昵称和头像（如果用户还没设置过）
+                if nickname and not user.nickname:
+                    user.nickname = nickname
+                if avatar_url and not user.avatar_url:
+                    user.avatar_url = avatar_url
+                db.session.commit()
 
                 # 根据用户类型和会员等级判断模式
                 # 游客模式：user_type='guest'

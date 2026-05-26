@@ -38,9 +38,13 @@ def wechat_login():
 
         # 获取设备信息（可选）
         device_info = data.get('device_info')
+        
+        # 获取微信昵称和头像（可选）
+        nickname = data.get('nickname')
+        avatar_url = data.get('avatar_url')
 
         auth_service = AuthService()
-        result = auth_service.wechat_login(code, device_info=device_info)
+        result = auth_service.wechat_login(code, device_info=device_info, nickname=nickname, avatar_url=avatar_url)
 
         if result['success']:
             return jsonify(result)

@@ -143,7 +143,8 @@ class SMSService:
                     "success": True,
                     "expire_time": expire_time.isoformat(),
                     "test_mode": True,
-                    "code": code,  # 测试模式返回验证码
+                    # 生产环境不返回验证码，只在前端提示"验证码已发送"
+                    # 开发者可在后端日志查看验证码用于调试
                 }
 
             # 生产环境：发送真实短信

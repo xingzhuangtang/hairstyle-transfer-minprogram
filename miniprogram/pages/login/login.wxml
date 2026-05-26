@@ -9,11 +9,30 @@
 
   <!-- 登录方式选择 -->
   <view class="login-methods">
+    <!-- 微信登录 - 头像选择 + 昵称输入 -->
+    <view class="wechat-profile-section">
+      <!-- 头像选择 -->
+      <button class="avatar-picker-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image class="avatar-preview" src="{{avatarUrl || '/images/icons/default-avatar.png'}}" mode="aspectFill"></image>
+        <text class="avatar-hint">点击选择微信头像</text>
+      </button>
+      
+      <!-- 昵称输入 -->
+      <view class="nickname-input-group">
+        <input
+          class="nickname-input"
+          type="nickname"
+          placeholder="请输入你的昵称"
+          value="{{nickName}}"
+          bindinput="onNickNameInput"
+          bindblur="onNickNameBlur" />
+      </view>
+    </view>
+
     <!-- 微信登录按钮 -->
     <button
       class="login-btn wechat-btn"
-      open-type="getUserInfo"
-      bindgetuserinfo="onWechatLogin"
+      bindtap="onWechatLogin"
       loading="{{wechatLoading}}">
       <image class="btn-icon" src="/images/icons/wechat.png"></image>
       <text>微信一键登录</text>
