@@ -844,6 +844,22 @@ def transfer_hairstyle():
         import traceback
 
         traceback.print_exc()
+        
+        # 阿里云人脸检测失败 - 图片中未检测到人脸
+        error_str = str(e)
+        if "未检测到人脸" in error_str or "no face detected" in error_str.lower():
+            return jsonify({
+                "error": "图片中未检测到人脸",
+                "detail": "请确保上传的照片中包含清晰的人脸，且人脸完整无遮挡。建议使用正面照，光线充足。"
+            }), 400
+        
+        # 阿里云 InvalidParameter 错误 - 图片格式/参数问题
+        if "InvalidParameter" in error_str or "参数错误" in error_str:
+            return jsonify({
+                "error": "图片格式不正确",
+                "detail": "请上传包含清晰人脸的正面照片，确保光线充足、人脸完整无遮挡。"
+            }), 400
+        
         return jsonify({"error": f"处理失败: {str(e)}"}), 500
 
 
