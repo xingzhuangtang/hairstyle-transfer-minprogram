@@ -1,5 +1,6 @@
 // pages/login/login.js
 import { wechatLogin, phoneLogin as phoneLoginApi, sendVerificationCode, redirectAfterLogin } from '../../utils/auth.js'
+import { post, get } from '../../utils/request.js'
 import { API_BASE_URL } from '../../utils/constants.js'
 
 Page({
@@ -11,7 +12,9 @@ Page({
     phoneLoading: false,
     counting: false,
     countDown: 60,
-    timer: null
+    timer: null,
+    avatarUrl: '',
+    nickName: ''
   },
 
   onLoad() {
@@ -23,6 +26,29 @@ Page({
     if (this.data.timer) {
       clearInterval(this.data.timer)
     }
+  },
+
+  /**
+   * 头像选择回调
+   */
+  onChooseAvatar(e) {
+    const { avatarUrl } = e.detail
+    console.log('选择的微信头像:', avatarUrl)
+    this.setData({ avatarUrl })
+  },
+
+  /**
+   * 昵称输入回调
+   */
+  onNickNameInput(e) {
+    this.setData({ nickName: e.detail.value })
+  },
+
+  /**
+   * 昵称失去焦点回调
+   */
+  onNickNameBlur(e) {
+    this.setData({ nickName: e.detail.value.trim() })
   },
 
   /**
@@ -55,7 +81,7 @@ Page({
   /**
    * 微信登录
    */
-  async onWechatLogin(e) {
+  async onWechatLogin() {
     // 检查是否同意协议
     if (!this.data.agreed) {
       wx.showToast({
@@ -65,12 +91,19 @@ Page({
       return
     }
 
-    // 获取用户信息
-    const { userInfo } = e.detail
-
-    if (!userInfo) {
+    // 检查是否选择了头像
+    if (!this.data.avatarUrl) {
       wx.showToast({
-        title: '需要授权才能登录',
+        title: '请先选择微信头像',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 检查是否输入了昵称
+    if (!this.data.nickName) {
+      wx.showToast({
+        title: '请输入昵称',
         icon: 'none'
       })
       return
@@ -79,10 +112,68 @@ Page({
     this.setData({ wechatLoading: true })
 
     try {
-      // 调用微信登录
-      const res = await wechatLogin()
+      // 1. 获取 wx.login code
+      const loginRes = await wx.login()
+      if (!loginRes.code) {
+        throw new Error('获取微信code失败')
+      }
+
+      // 2. 获取设备信息
+      const systemInfo = wx.getSystemInfoSync()
+      const uniqueStr = `${systemInfo.brand}-${systemInfo.model}-${systemInfo.system}-${systemInfo.platform}`
+      let hash = 0
+      for (let i = 0; i < uniqueStr.length; i++) {
+        const char = uniqueStr.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash
+      }
+      const deviceId = `device_${Math.abs(hash).toString(16).padStart(8, '0')}`
+      const deviceInfo = {
+        device_id: deviceId,
+        device_name: `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`,
+        device_type: 'mobile'
+      }
+
+      // 3. 上传头像到后端获取 URL
+      let avatarUploadUrl = null
+      try {
+        const tempFilePath = this.data.avatarUrl
+        const uploadRes = await wx.uploadFile({
+          url: `${API_BASE_URL}/api/upload`,
+          filePath: tempFilePath,
+          name: 'file',
+          formData: { type: 'avatar' }
+        })
+        const uploadData = JSON.parse(uploadRes.data)
+        if (uploadData.success && uploadData.url) {
+          avatarUploadUrl = uploadData.url
+        }
+      } catch (uploadErr) {
+        console.warn('头像上传失败，使用本地临时路径:', uploadErr)
+      }
+
+      const finalAvatarUrl = avatarUploadUrl || this.data.avatarUrl
+
+      // 4. 调用后端微信登录 API，传递昵称和头像
+      const res = await post('/api/auth/wechat/login', {
+        code: loginRes.code,
+        device_info: deviceInfo,
+        nickname: this.data.nickName,
+        avatar_url: finalAvatarUrl
+      })
 
       if (res.success) {
+        // 保存 token 和用户信息
+        const { setToken, setUserInfo } = await import('../../utils/storage.js')
+        setToken(res.token)
+        setUserInfo(res.user)
+
+        // 更新全局数据
+        const app = getApp()
+        app.globalData.token = res.token
+        app.globalData.userInfo = res.user
+        app.globalData.isPremium = res.user.member_level === 'vip'
+
         wx.showToast({
           title: '登录成功',
           icon: 'success'
@@ -101,7 +192,7 @@ Page({
     } catch (e) {
       console.error('微信登录失败:', e)
       wx.showToast({
-        title: e.error || '登录失败',
+        title: e.error || e.message || '登录失败',
         icon: 'none'
       })
     } finally {
@@ -137,19 +228,10 @@ Page({
       console.log('验证码请求返回:', res)
 
       if (res.success) {
-        // 测试模式下显示验证码
-        if (res.test_mode) {
-          wx.showModal({
-            title: '测试模式验证码',
-            content: '验证码：' + res.code + '\n有效期：5 分钟',
-            showCancel: false
-          })
-        } else {
-          wx.showToast({
-            title: '验证码已发送',
-            icon: 'success'
-          })
-        }
+        wx.showToast({
+          title: '验证码已发送',
+          icon: 'success'
+        })
 
         // 开始倒计时
         this.startCountDown()

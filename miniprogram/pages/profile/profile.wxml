@@ -124,39 +124,41 @@
       </view>
     </view>
 
-    <!-- 开发者模式说明（开发者模式由环境变量控制，无法前端切换） -->
-    <view class="developer-section">
-      <view class="developer-title">开发者模式</view>
-      <view class="developer-card">
-        <view class="developer-row">
-          <text class="developer-label">当前状态：</text>
-          <text class="developer-value {{isDeveloper ? 'on' : 'off'}}">{{isDeveloper ? '已开启' : '已关闭'}}</text>
+    <!-- 开发者模式和测试工具（仅开发者可见） -->
+    <view wx:if="{{isDeveloper}}">
+      <view class="developer-section">
+        <view class="developer-title">开发者模式</view>
+        <view class="developer-card">
+          <view class="developer-row">
+            <text class="developer-label">当前状态：</text>
+            <text class="developer-value {{isDeveloper ? 'on' : 'off'}}">已开启</text>
+          </view>
+          <view class="developer-row">
+            <text class="developer-label">激活方式：</text>
+            <text class="developer-instructions">联系管理员配置</text>
+          </view>
+          <button class="toggle-dev-mode-btn" bindtap="onViewDeveloperMode">
+            查看开发者模式说明
+          </button>
         </view>
-        <view class="developer-row">
-          <text class="developer-label">激活方式：</text>
-          <text class="developer-instructions">联系管理员配置</text>
-        </view>
-        <button class="toggle-dev-mode-btn" bindtap="onViewDeveloperMode">
-          查看开发者模式说明
-        </button>
       </view>
-    </view>
 
-    <!-- 测试工具（清除数据，模拟新客户） -->
-    <view class="test-section">
-      <view class="test-title">测试工具</view>
-      <view class="test-card">
-        <view class="test-row">
-          <text class="test-label">当前账号：</text>
-          <text class="test-value">{{userInfo.id ? 'QRQM' + userInfo.id + 'FXQY' : '未登录'}}</text>
+      <!-- 测试工具（清除数据，模拟新客户） -->
+      <view class="test-section">
+        <view class="test-title">测试工具</view>
+        <view class="test-card">
+          <view class="test-row">
+            <text class="test-label">当前账号：</text>
+            <text class="test-value">{{userInfo.id ? 'QRQM' + userInfo.id + 'FXQY' : '未登录'}}</text>
+          </view>
+          <view class="test-row">
+            <text class="test-label">用户类型：</text>
+            <text class="test-value">{{userInfo.user_type === 'guest' ? '游客' : userInfo.user_type === 'registered' ? '普通用户' : userInfo.member_level === 'vip' ? '会员' : '未知'}}</text>
+          </view>
+          <button class="reset-test-btn" bindtap="onResetForTest" loading="{{resetLoading}}">
+            清除数据，重新测试（模拟新客户）
+          </button>
         </view>
-        <view class="test-row">
-          <text class="test-label">用户类型：</text>
-          <text class="test-value">{{userInfo.user_type === 'guest' ? '游客' : userInfo.user_type === 'registered' ? '普通用户' : userInfo.member_level === 'vip' ? '会员' : '未知'}}</text>
-        </view>
-        <button class="reset-test-btn" bindtap="onResetForTest" loading="{{resetLoading}}">
-          清除数据，重新测试（模拟新客户）
-        </button>
       </view>
     </view>
 

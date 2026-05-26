@@ -44,6 +44,68 @@
   width: 100%;
 }
 
+/* 微信头像昵称选择区 */
+.wechat-profile-section {
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+}
+
+.avatar-picker-btn {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f8f8;
+  border: 4rpx dashed #667eea;
+  padding: 0;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.avatar-picker-btn::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 172rpx;
+  height: 172rpx;
+  border-radius: 50%;
+}
+
+.avatar-hint {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 8rpx;
+  position: absolute;
+  bottom: -40rpx;
+  white-space: nowrap;
+}
+
+.nickname-input-group {
+  width: 100%;
+  margin-top: 50rpx;
+}
+
+.nickname-input {
+  width: 100%;
+  height: 80rpx;
+  background-color: #f8f8f8;
+  border-radius: 12rpx;
+  padding: 0 30rpx;
+  font-size: 28rpx;
+  color: #333;
+  text-align: center;
+}
+
 /* 登录按钮 */
 .login-btn {
   width: 100%;
