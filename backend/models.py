@@ -490,3 +490,32 @@ class Device(db.Model):
         }
 
 
+class Message(db.Model):
+    """客户留言表"""
+    __tablename__ = 'messages'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), nullable=False, comment='用户姓名')
+    phone = db.Column(db.String(20), nullable=False, comment='联系电话')
+    content = db.Column(db.Text, nullable=False, comment='留言内容')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+
+    # 索引
+    __table_args__ = (
+        Index('idx_created_at', 'created_at'),
+        {'comment': '客户留言表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'phone': self.phone,
+            'content': self.content,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+
+

@@ -16,7 +16,7 @@ from payment_service import PaymentService
 from hair_service import HairService
 from member_service import MemberService
 from account_service import AccountService
-from models import db, User, ConsumptionRecord, HistoryRecord, Device
+from models import db, User, ConsumptionRecord, HistoryRecord, Device, Message
 
 # 创建蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -1553,4 +1553,91 @@ def get_privacy_policy():
         return jsonify(policy)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================
+# 客户留言相关接口
+# ============================================
+
+@api_bp.route('/messages', methods=['POST'])
+def submit_message():
+    """提交客户留言（无需登录，游客可提交）"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        phone = data.get('phone')
+        content = data.get('content')
+        
+        # 验证必填参数
+        if not name:
+            return jsonify({'error': '姓名不能为空'}), 400
+        if not phone:
+            return jsonify({'error': '联系电话不能为空'}), 400
+        if not content:
+            return jsonify({'error': '留言内容不能为空'}), 400
+        
+        # 验证姓名长度
+        if len(name) > 20:
+            return jsonify({'error': '姓名最多20个字符'}), 400
+        
+        # 验证电话格式（11位数字）
+        if not phone.isdigit() or len(phone) != 11:
+            return jsonify({'error': '请输入正确的11位手机号码'}), 400
+        
+        # 验证内容长度
+        if len(content) > 500:
+            return jsonify({'error': '留言内容最多500个字符'}), 400
+        
+        # 创建留言记录（使用 SQLAlchemy ORM，自动防 SQL 注入）
+        message = Message(
+            name=name.strip(),
+            phone=phone.strip(),
+            content=content.strip()
+        )
+        db.session.add(message)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '留言提交成功，感谢您的反馈！'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/messages', methods=['GET'])
+def get_messages():
+    """获取留言列表（管理后台用，需要开发者权限）"""
+    try:
+        from auth import is_developer
+        
+        # 检查开发者权限
+        if not is_developer():
+            return jsonify({'error': '无权访问此接口'}), 403
+        
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 50, type=int)
+        
+        # 限制 page_size 范围
+        page_size = min(page_size, 100)
+        
+        # 查询留言，按创建时间倒序
+        query = Message.query.order_by(Message.created_at.desc())
+        total = query.count()
+        messages = query.offset((page - 1) * page_size).limit(page_size).all()
+        
+        return jsonify({
+            'success': True,
+            'messages': [m.to_dict() for m in messages],
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 

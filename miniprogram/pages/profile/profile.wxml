@@ -92,6 +92,15 @@
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
+
+      <!-- 客户留言 -->
+      <view class="menu-item" bindtap="goToMessage">
+        <view class="menu-left">
+          <image class="menu-icon" src="/images/icons/message.png"></image>
+          <text class="menu-text">客户留言</text>
+        </view>
+        <image class="arrow" src="/images/icons/arrow-right.png"></image>
+      </view>
     </view>
 
     <!-- 其他设置 -->
@@ -126,6 +135,17 @@
 
     <!-- 开发者模式和测试工具（仅开发者可见） -->
     <view wx:if="{{isDeveloper}}">
+      <!-- 留言管理 -->
+      <view class="menu-list" style="margin-bottom: 30rpx;">
+        <view class="menu-item" bindtap="goToMessageAdmin">
+          <view class="menu-left">
+            <image class="menu-icon" src="/images/icons/admin.png"></image>
+            <text class="menu-text">留言管理</text>
+          </view>
+          <image class="arrow" src="/images/icons/arrow-right.png"></image>
+        </view>
+      </view>
+
       <view class="developer-section">
         <view class="developer-title">开发者模式</view>
         <view class="developer-card">

@@ -9,7 +9,9 @@
     "pages/history/history",
     "pages/legal/legal",
     "pages/settings/settings",
-    "pages/device/device"
+    "pages/device/device",
+    "pages/message/message",
+    "pages/message-admin/message-admin"
   ],
   "window": {
     "backgroundTextStyle": "light",
