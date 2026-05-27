@@ -186,6 +186,24 @@ Page({
   },
 
   /**
+   * 跳转到客户留言
+   */
+  goToMessage() {
+    wx.navigateTo({
+      url: '/pages/message/message'
+    })
+  },
+
+  /**
+   * 跳转到留言管理（开发者功能）
+   */
+  goToMessageAdmin() {
+    wx.navigateTo({
+      url: '/pages/message-admin/message-admin'
+    })
+  },
+
+  /**
    * 退出登录
    */
   handleLogout() {

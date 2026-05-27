@@ -1,0 +1,62 @@
+<!--pages/message/message.wxml-->
+<view class="message-container">
+  <view class="header">
+    <text class="title">客户留言</text>
+    <text class="subtitle">感谢您的反馈，我们会尽快与您联系</text>
+  </view>
+
+  <view class="form-section">
+    <!-- 姓名输入 -->
+    <view class="form-item">
+      <text class="label">姓名 <text class="required">*</text></text>
+      <input
+        class="input"
+        type="text"
+        placeholder="请输入您的姓名"
+        maxlength="20"
+        value="{{name}}"
+        bindinput="onNameInput"
+      />
+      <text class="char-count">{{name.length}}/20</text>
+    </view>
+
+    <!-- 电话输入 -->
+    <view class="form-item">
+      <text class="label">联系电话 <text class="required">*</text></text>
+      <input
+        class="input"
+        type="number"
+        placeholder="请输入11位手机号码"
+        maxlength="11"
+        value="{{phone}}"
+        bindinput="onPhoneInput"
+      />
+      <text class="char-count {{phone.length > 0 && phone.length !== 11 ? 'error' : ''}}">{{phone.length}}/11</text>
+    </view>
+
+    <!-- 留言内容 -->
+    <view class="form-item">
+      <text class="label">留言内容 <text class="required">*</text></text>
+      <textarea
+        class="textarea"
+        placeholder="请输入您的留言内容（最多500字）"
+        maxlength="500"
+        value="{{content}}"
+        bindinput="onContentInput"
+        show-confirm-bar="{{false}}"
+        auto-height
+      />
+      <text class="char-count {{content.length > 450 ? 'warning' : ''}}">{{content.length}}/500</text>
+    </view>
+
+    <!-- 提交按钮 -->
+    <button
+      class="submit-btn {{(!name || !phone || !content || phone.length !== 11) ? 'disabled' : ''}}"
+      bindtap="onSubmit"
+      loading="{{submitting}}"
+      disabled="{{!name || !phone || !content || phone.length !== 11 || submitting}}"
+    >
+      提交留言
+    </button>
+  </view>
+</view>
