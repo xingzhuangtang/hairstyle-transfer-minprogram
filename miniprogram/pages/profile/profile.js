@@ -1,7 +1,7 @@
 // pages/profile/profile.js
 import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip, getDeveloperModeInstructions } from '../../utils/auth.js'
 import { checkPremium, requireLogin } from '../../utils/auth.js'
-import { MEMBER_LEVEL_NAMES } from '../../utils/constants.js'
+import { MEMBER_LEVEL_NAMES, API_BASE_URL } from '../../utils/constants.js'
 
 Page({
   data: {
@@ -233,7 +233,7 @@ Page({
 
       if (token) {
         await new Promise((resolve, reject) => {
-          const fullUrl = 'http://192.168.1.3:5003/api/dev/reset-test-user'
+          const fullUrl = API_BASE_URL + '/api/dev/reset-test-user'
           console.log('调用后端删除接口:', fullUrl)
 
           wx.request({
