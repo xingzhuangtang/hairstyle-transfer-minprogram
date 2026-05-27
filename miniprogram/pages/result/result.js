@@ -1,7 +1,7 @@
 // pages/result/result.js
 import { getUserInfo, checkBalance } from '../../api/user.js'
 import { refreshUserInfo } from '../../utils/auth.js'
-import { PRICING } from '../../utils/constants.js'
+import { PRICING, API_BASE_URL } from '../../utils/constants.js'
 
 Page({
   data: {
@@ -41,7 +41,6 @@ Page({
     const decodedOriginalUrl = originalUrl ? decodeURIComponent(originalUrl) : ''
 
     // 将相对路径转换为完整 URL（用于图片显示）
-    const API_BASE_URL = 'http://192.168.1.3:5003'
     const displayResultUrl = decodedResultUrl.startsWith('/static/')
       ? API_BASE_URL + decodedResultUrl
       : decodedResultUrl
@@ -172,12 +171,12 @@ Page({
 
       // 如果是相对路径，转换为完整 URL
       if (imageUrl && imageUrl.startsWith('/static/')) {
-        fullUrl = 'http://192.168.1.3:5003' + imageUrl
+        fullUrl = API_BASE_URL + imageUrl
       }
 
       // 如果已经是 http 开头，直接使用
       if (fullUrl && !fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-        fullUrl = 'http://localhost:5003' + fullUrl
+        fullUrl = API_BASE_URL + fullUrl
       }
 
       wx.showLoading({ title: '保存中...' })
