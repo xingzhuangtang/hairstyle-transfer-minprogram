@@ -1,6 +1,8 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
 import { createRechargeOrder as createRechargeApi, pay, getOrderStatus } from '../../api/payment.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
+import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
   data: {
@@ -9,11 +11,34 @@ Page({
     totalHairs: 0,
     selectedAmount: null,
     paymentMethod: 'wechat', // 默认微信支付
-    currentOrderNo: null // 当前订单号
+    currentOrderNo: null, // 当前订单号
+    isVirtualPay: false, // 是否使用虚拟支付（iOS端）
+    isDevTools: false // 是否在开发者工具
   },
 
   onLoad() {
     this.loadUserInfo()
+    this.checkPlatform()
+  },
+
+  /**
+   * 检测当前平台
+   */
+  async checkPlatform() {
+    const isVirtual = needsVirtualPay()
+    const systemInfo = wx.getSystemInfoSync()
+    const isDev = systemInfo.platform === 'devtools'
+
+    this.setData({
+      isVirtualPay: isVirtual,
+      isDevTools: isDev
+    })
+
+    console.log('充值页平台检测:', {
+      platform: systemInfo.platform,
+      isVirtualPay: isVirtual,
+      isDevTools: isDev
+    })
   },
 
   /**
@@ -94,18 +119,13 @@ Page({
     try {
       wx.showLoading({ title: '创建订单中...' })
 
-      // 1. 创建充值订单
-      const orderRes = await createRechargeApi(amount, paymentMethod)
-
-      if (!orderRes.success) {
-        throw new Error(orderRes.error || '创建订单失败')
+      // iOS端使用虚拟支付
+      if (this.data.isVirtualPay || this.data.isDevTools) {
+        await this.handleVirtualPay(amount)
+      } else {
+        // Android端使用普通微信支付
+        await this.handleNormalPay(amount, paymentMethod)
       }
-
-      const orderNo = orderRes.order_no
-      this.setData({ currentOrderNo: orderNo })
-
-      // 2. 调用微信支付
-      await this.handleWechatPay(orderNo)
 
     } catch (e) {
       console.error('创建订单失败:', e)
@@ -115,6 +135,66 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  /**
+   * 处理普通微信支付（Android端）
+   */
+  async handleNormalPay(amount, paymentMethod) {
+    // 1. 创建充值订单
+    const orderRes = await createRechargeApi(amount, paymentMethod)
+
+    if (!orderRes.success) {
+      throw new Error(orderRes.error || '创建订单失败')
+    }
+
+    const orderNo = orderRes.order_no
+    this.setData({ currentOrderNo: orderNo })
+
+    // 2. 调用微信支付
+    await this.handleWechatPay(orderNo)
+  },
+
+  /**
+   * 处理微信虚拟支付（iOS端）
+   */
+  async handleVirtualPay(amount) {
+    const goodsKey = getVirtualGoodsKey('recharge', amount)
+
+    // 1. 创建虚拟支付订单
+    const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey)
+
+    if (!orderRes.success) {
+      throw new Error(orderRes.error || '创建虚拟支付订单失败')
+    }
+
+    const orderNo = orderRes.order_no
+    this.setData({ currentOrderNo: orderNo })
+
+    // 2. 开发者模式：直接显示成功
+    if (orderRes.is_developer_mode) {
+      wx.hideLoading()
+      wx.showModal({
+        title: '模拟支付',
+        content: `开发者模式：充值 ${amount} 元成功，头发丝已到账`,
+        showCancel: false,
+        success: () => {
+          this.loadUserInfo()  // 刷新用户信息
+        }
+      })
+      return
+    }
+
+    // 3. 正常模式：调起虚拟支付并轮询
+    wx.hideLoading()
+    wx.showModal({
+      title: '虚拟支付',
+      content: `正在调起微信虚拟支付 ¥${amount}`,
+      showCancel: false,
+      success: () => {
+        this.checkVirtualPayOrderStatus(orderNo)
+      }
+    })
   },
 
   /**
@@ -170,6 +250,75 @@ Page({
     } catch (e) {
       throw e
     }
+  },
+
+  /**
+   * 查询虚拟支付订单状态（iOS端）
+   */
+  async checkVirtualPayOrderStatus(orderNo) {
+    wx.showLoading({ title: '处理中...' })
+
+    // 轮询查询（最多 30 秒）
+    let count = 0
+    const maxCount = 15 // 最多查询 15 次 (15 * 2 秒 = 30 秒)
+    const timer = setInterval(async () => {
+      count++
+
+      try {
+        const res = await getVirtualPayOrderStatus(orderNo)
+
+        if (res.success) {
+          const paymentStatus = res.payment_status
+
+          if (paymentStatus === 'success') {
+            clearInterval(timer)
+            wx.hideLoading()
+
+            wx.showToast({
+              title: '支付成功',
+              icon: 'success'
+            })
+
+            setTimeout(() => {
+              this.loadUserInfo()
+            }, 1500)
+
+          } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+            clearInterval(timer)
+            wx.hideLoading()
+
+            wx.showToast({
+              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
+              icon: 'none'
+            })
+
+          } else if (count >= maxCount) {
+            clearInterval(timer)
+            wx.hideLoading()
+
+            wx.showToast({
+              title: '支付处理超时',
+              icon: 'none'
+            })
+          }
+        }
+
+      } catch (e) {
+        clearInterval(timer)
+        wx.hideLoading()
+        console.error('查询虚拟支付订单状态失败:', e)
+        wx.showToast({
+          title: '查询订单失败',
+          icon: 'none'
+        })
+      }
+    }, 2000)
+
+    // 30 秒后停止轮询
+    setTimeout(() => {
+      clearInterval(timer)
+      wx.hideLoading()
+    }, 30000)
   },
 
   /**

@@ -85,7 +85,9 @@ try:
     AUTH_AVAILABLE = True
 except ImportError as e:
     AUTH_AVAILABLE = False
-    login_required = None
+    # No-op decorator: lets app start without crashing.
+    # Route handlers already guard auth-dependent logic with 'if AUTH_AVAILABLE and DB_AVAILABLE'.
+    login_required = lambda f: f
     HairService = None
     print(f"⚠️  认证和消费模块不可用: {e}")
 
