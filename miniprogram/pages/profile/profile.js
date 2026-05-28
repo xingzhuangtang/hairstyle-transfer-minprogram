@@ -158,7 +158,7 @@ Page({
   goToAbout() {
     wx.showModal({
       title: '关于我们',
-      content: '发型迁移 v1.0.0\n基于AI的发型虚拟试戴应用',
+      content: '发型迁移 v1.0.0\n基于 AI 的发型虚拟试戴应用\n\nPowered by QoderCLI',
       showCancel: false
     })
   },
