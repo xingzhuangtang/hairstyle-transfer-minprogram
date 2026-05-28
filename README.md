@@ -241,6 +241,15 @@ MIT License
 
 ---
 
+## 🙏 感谢
+
+本项目由以下工具驱动开发：
+
+- **Powered by QoderCLI**
+- **Powered by Claude Code CLI**
+
+---
+
 ## 📞 联系方式
 
 - GitHub: [@xingzhuangtang](https://github.com/xingzhuangtang)
