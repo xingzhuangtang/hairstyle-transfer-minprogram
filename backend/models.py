@@ -277,6 +277,10 @@ class HistoryRecord(db.Model):
 
     def to_dict(self):
         """转换为字典"""
+        from datetime import datetime
+        now = datetime.now()
+        is_expired = self.expire_at < now if self.expire_at else False
+        
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -285,11 +289,13 @@ class HistoryRecord(db.Model):
             'original_hair_url': self.original_hair_url,
             'customer_image_url': self.customer_image_url,
             'result_url': self.result_url,
+            'result_image': self.result_url,  # 前端兼容字段
             'sketch_url': self.sketch_url,
             'model_version': self.model_version,
             'face_blend_ratio': float(self.face_blend_ratio) if self.face_blend_ratio else None,
             'expire_at': self.expire_at.isoformat(),
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'is_expired': is_expired
         }
 
 

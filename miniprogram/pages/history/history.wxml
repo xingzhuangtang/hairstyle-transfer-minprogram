@@ -31,10 +31,13 @@
 
     <view wx:for="{{records}}" wx:key="id" class="history-item" bindtap="viewDetail" data-id="{{item.id}}">
       <view class="item-preview">
-        <image src="{{item.result_image}}" mode="aspectFill" lazy-load />
+        <image src="{{item.result_image}}" mode="aspectFill" lazy-load binderror="onImageError" data-index="{{index}}" />
       </view>
       <view class="item-info">
-        <view class="item-title">发型迁移 #{{item.id}}</view>
+        <view class="item-title">
+          <text class="service-type">{{item.service_type_text}}</text>
+          <text class="record-id">#{{item.id}}</text>
+        </view>
         <view class="item-time">{{item.created_at}}</view>
         <view class="item-status {{item.is_expired ? 'expired' : 'valid'}}">
           {{item.is_expired ? '已过期' : '有效期内'}}
