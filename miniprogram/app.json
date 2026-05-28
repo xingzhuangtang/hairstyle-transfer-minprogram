@@ -12,7 +12,8 @@
     "pages/device/device",
     "pages/message/message",
     "pages/message-admin/message-admin",
-    "pages/about/about"
+    "pages/about/about",
+    "pages/consumption/consumption"
   ],
   "window": {
     "backgroundTextStyle": "light",
