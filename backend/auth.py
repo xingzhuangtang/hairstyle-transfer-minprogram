@@ -218,17 +218,32 @@ class AuthService:
             # 兼容两种参数名：'code' 和 'verification_code'
             verification_code = code
 
-            # 验证验证码
-            from sms_service import SMSService
+            # 开发者账号固定验证码 888888 登录
+            from models import User as UserModel
+            from config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
 
-            sms_service = SMSService()
+            developer_user = UserModel.query.filter_by(phone=phone).first()
+            is_developer_login = (
+                DEVELOPER_MODE_ENABLED
+                and developer_user is not None
+                and developer_user.id in DEVELOPER_ACCOUNTS
+            )
+            
+            if is_developer_login and verification_code == '888888':
+                # 开发者账号使用固定验证码登录
+                print(f"✅ 开发者账号使用固定验证码登录: phone={phone}, user_id={developer_user.id}")
+                user = developer_user
+                is_new_user = False
+            else:
+                # 普通用户需要正常验证码
+                from sms_service import SMSService
+                sms_service = SMSService()
+                if not sms_service.verify_code(phone, verification_code):
+                    return {"success": False, "error": "验证码错误或已过期"}
 
-            if not sms_service.verify_code(phone, verification_code):
-                return {"success": False, "error": "验证码错误或已过期"}
-
-            # 1. 先按手机号查找
-            user = User.query.filter_by(phone=phone).first()
-            is_new_user = False
+                # 1. 先按手机号查找
+                user = User.query.filter_by(phone=phone).first()
+                is_new_user = False
 
             if not user:
                 # 2. 手机号未绑定，检查当前请求是否有 openid 用户（游客模式）

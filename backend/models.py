@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-数据库模型
+数据库模型 + 认证服务
 使用SQLAlchemy ORM
 """
 
-from datetime import datetime
+import jwt
+import requests
+import time
+import uuid
+from datetime import datetime, timedelta
+from functools import wraps
+from flask import request, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Index
+from config import get_config
+
 
 db = SQLAlchemy()
 
 
+# ==================== 数据库模型 ====================
+
 class User(db.Model):
     """用户表"""
     __tablename__ = 'users'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     openid = db.Column(db.String(128), unique=True, nullable=True, comment='微信openid')
     unionid = db.Column(db.String(128), unique=True, nullable=True, comment='微信unionid')
@@ -28,18 +38,15 @@ class User(db.Model):
     comb_hairs = db.Column(db.Integer, default=0, comment='梳子卡槽头发丝数量')
     total_recharge = db.Column(db.Numeric(10, 2), default=0.00, comment='累计充值金额')
     total_consumed_hairs = db.Column(db.Integer, default=0, comment='累计消耗头发丝')
+    user_type = db.Column(db.Enum('guest', 'registered'), default='registered', comment='用户类型')
     is_deactivated = db.Column(db.Boolean, default=False, comment='是否已注销')
     deactivated_at = db.Column(db.DateTime, nullable=True, comment='注销时间')
-
-    # 访客模式相关字段
-    user_type = db.Column(db.Enum('guest', 'registered'), default='guest', comment='用户类型：guest=游客（未注册），registered=已注册用户（含 VIP 会员）')
+    # 访客模式赠送追踪
     guest_bonus_used_count = db.Column(db.Integer, default=0, comment='游客免费额度使用次数')
     last_guest_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次游客赠送时间')
-
-    # 普通用户/会员赠送相关字段
+    # 普通用户/会员赠送追踪
     registered_bonus_used_count = db.Column(db.Integer, default=0, comment='普通用户/会员免费额度使用次数')
     last_registered_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次普通用户/会员赠送时间')
-
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -55,6 +62,7 @@ class User(db.Model):
 
     def to_dict(self):
         """转换为字典"""
+        from auth import is_developer
         return {
             'id': self.id,
             'openid': self.openid,
@@ -69,17 +77,20 @@ class User(db.Model):
             'total_hairs': self.scissor_hairs + self.comb_hairs,
             'total_recharge': float(self.total_recharge),
             'total_consumed_hairs': self.total_consumed_hairs,
+            'user_type': self.user_type,
             'is_vip': self.is_vip(),
             'is_member_expired': self.is_member_expired(),
-            'user_type': self.user_type,
+            'guest_bonus_used_count': self.guest_bonus_used_count,
+            'last_guest_bonus_time': self.last_guest_bonus_time.isoformat() if self.last_guest_bonus_time else None,
             'registered_bonus_used_count': self.registered_bonus_used_count,
-            'last_registered_bonus_time': self.last_registered_bonus_time.isoformat() if self.last_registered_bonus_time else None
+            'last_registered_bonus_time': self.last_registered_bonus_time.isoformat() if self.last_registered_bonus_time else None,
+            'is_developer': is_developer(self.id)
         }
-    
+
     def is_vip(self):
         """是否为vip 会员"""
         return self.member_level == 'vip' and not self.is_member_expired()
-    
+
 
     def is_premium(self):
         """是否为 premium 会员（陪跑会员）"""
@@ -92,11 +103,11 @@ class User(db.Model):
         if not self.member_expire_at:
             return True
         return datetime.now() > self.member_expire_at
-    
+
     def get_total_hairs(self):
         """获取总头发丝数量"""
         return self.scissor_hairs + self.comb_hairs
-    
+
     def has_enough_hairs(self, required):
         """检查头发丝是否足够"""
         return self.get_total_hairs() >= required
@@ -105,22 +116,22 @@ class User(db.Model):
 class RechargeRecord(db.Model):
     """充值记录表"""
     __tablename__ = 'recharge_records'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     order_no = db.Column(db.String(64), unique=True, nullable=False, comment='订单号')
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='充值金额')
     scissor_hairs = db.Column(db.Integer, nullable=False, comment='剪刀卡槽增加头发丝')
     comb_hairs = db.Column(db.Integer, nullable=False, comment='梳子卡槽增加头发丝')
-    payment_method = db.Column(db.Enum('wechat', 'alipay'), nullable=False, comment='支付方式')
+    payment_method = db.Column(db.Enum('wechat', 'alipay', 'unionpay', 'wechat_virtual'), nullable=False, comment='支付方式')
     payment_status = db.Column(db.Enum('pending', 'success', 'failed', 'refunded'), default='pending', comment='支付状态')
     transaction_id = db.Column(db.String(128), nullable=True, comment='第三方交易号')
     paid_at = db.Column(db.DateTime, nullable=True, comment='支付时间')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('recharge_records', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
@@ -128,7 +139,7 @@ class RechargeRecord(db.Model):
         Index('idx_payment_status', 'payment_status'),
         {'comment': '充值记录表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -150,30 +161,30 @@ class RechargeRecord(db.Model):
 class MemberOrder(db.Model):
     """会员订单表"""
     __tablename__ = 'member_orders'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     order_no = db.Column(db.String(64), unique=True, nullable=False, comment='订单号')
     member_level = db.Column(db.String(20), nullable=False, default='vip', comment='会员等级')
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='会员费用')
     bonus_hairs = db.Column(db.Integer, default=0, comment='赠送头发丝')
-    payment_method = db.Column(db.Enum('wechat', 'alipay'), nullable=False, comment='支付方式')
+    payment_method = db.Column(db.Enum('wechat', 'alipay', 'unionpay', 'wechat_virtual'), nullable=False, comment='支付方式')
     payment_status = db.Column(db.Enum('pending', 'success', 'failed'), default='pending', comment='支付状态')
     transaction_id = db.Column(db.String(128), nullable=True, comment='第三方交易号')
     paid_at = db.Column(db.DateTime, nullable=True, comment='支付时间')
     expire_at = db.Column(db.DateTime, nullable=True, comment='会员到期时间')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('member_orders', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
         Index('idx_order_no', 'order_no'),
         {'comment': '会员订单表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -195,7 +206,7 @@ class MemberOrder(db.Model):
 class ConsumptionRecord(db.Model):
     """消费记录表"""
     __tablename__ = 'consumption_records'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     task_id = db.Column(db.String(64), nullable=False, comment='任务ID')
@@ -207,10 +218,10 @@ class ConsumptionRecord(db.Model):
     result_url = db.Column(db.String(500), nullable=True, comment='结果图片URL')
     sketch_url = db.Column(db.String(500), nullable=True, comment='素描图片URL')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('consumption_records', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
@@ -218,7 +229,7 @@ class ConsumptionRecord(db.Model):
         Index('idx_created_at', 'created_at'),
         {'comment': '消费记录表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -239,7 +250,7 @@ class ConsumptionRecord(db.Model):
 class HistoryRecord(db.Model):
     """历史记录表（仅vip 会员）"""
     __tablename__ = 'history_records'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     task_id = db.Column(db.String(64), nullable=False, comment='任务ID')
@@ -252,10 +263,10 @@ class HistoryRecord(db.Model):
     face_blend_ratio = db.Column(db.Numeric(3, 2), nullable=True, comment='脸型融合权重')
     expire_at = db.Column(db.DateTime, nullable=False, comment='过期时间（45天后自动删除）')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('history_records', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
@@ -263,7 +274,7 @@ class HistoryRecord(db.Model):
         Index('idx_task_id', 'task_id'),
         {'comment': '历史记录表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -285,24 +296,24 @@ class HistoryRecord(db.Model):
 class MemberReminder(db.Model):
     """会员到期提醒表"""
     __tablename__ = 'member_reminders'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     member_expire_at = db.Column(db.DateTime, nullable=False, comment='会员到期时间')
     reminder_type = db.Column(db.Enum('15days', '7days', '1day'), nullable=False, comment='提醒类型')
     sent_at = db.Column(db.DateTime, default=datetime.now, comment='发送时间')
     status = db.Column(db.Enum('sent', 'failed'), default='sent', comment='状态')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('member_reminders', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
         Index('idx_member_expire_at', 'member_expire_at'),
         {'comment': '会员到期提醒表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -318,7 +329,7 @@ class MemberReminder(db.Model):
 class InsufficientReminder(db.Model):
     """余额不足提醒表"""
     __tablename__ = 'insufficient_reminders'
-    
+
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
     reminded_at = db.Column(db.DateTime, default=datetime.now, comment='提醒时间')
@@ -326,17 +337,17 @@ class InsufficientReminder(db.Model):
     bonus_hairs = db.Column(db.Integer, default=0, comment='赠送头发丝数量')
     bonus_added_at = db.Column(db.DateTime, nullable=True, comment='赠送时间')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
-    
+
     # 关联
     user = db.relationship('User', backref=db.backref('insufficient_reminders', lazy=True))
-    
+
     # 索引
     __table_args__ = (
         Index('idx_user_id', 'user_id'),
         Index('idx_reminded_at', 'reminded_at'),
         {'comment': '余额不足提醒表'}
     )
-    
+
     def to_dict(self):
         """转换为字典"""
         return {
@@ -350,23 +361,57 @@ class InsufficientReminder(db.Model):
         }
 
 
+class Device(db.Model):
+    """设备管理表"""
+    __tablename__ = 'devices'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
+    device_id = db.Column(db.String(64), unique=True, nullable=False, comment='设备ID')
+    device_name = db.Column(db.String(100), nullable=False, comment='设备名称')
+    device_type = db.Column(db.String(20), nullable=True, comment='设备类型')
+    is_primary = db.Column(db.Boolean, default=False, comment='是否主设备')
+    bound_at = db.Column(db.DateTime, default=datetime.now, comment='绑定时间')
+    last_active_at = db.Column(db.DateTime, default=datetime.now, comment='最后活跃时间')
+
+    # 关联
+    user = db.relationship('User', backref=db.backref('devices', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_device_id', 'device_id'),
+        {'comment': '设备管理表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'device_id': self.device_id,
+            'device_name': self.device_name,
+            'device_type': self.device_type,
+            'is_primary': self.is_primary,
+            'bound_at': self.bound_at.isoformat() if self.bound_at else None,
+            'last_active_at': self.last_active_at.isoformat() if self.last_active_at else None
+        }
+
+
 class GuestBonusRecord(db.Model):
     """游客免费额度赠送记录表"""
     __tablename__ = 'guest_bonus_records'
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    openid = db.Column(db.String(128), nullable=False, index=True, comment='游客 openid（未注册用户）')
-
-    bonus_type = db.Column(db.Enum('initial', 'auto_renew'), nullable=False, comment='赠送类型：initial=首次赠送，auto_renew=4 小时续赠')
-    hairs_added = db.Column(db.Integer, default=0, comment='赠送数量')
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
+    openid = db.Column(db.String(128), nullable=False, comment='微信openid')
+    bonus_type = db.Column(db.Enum('initial', 'auto_renew'), nullable=False, comment='赠送类型')
+    hairs_added = db.Column(db.Integer, default=0, comment='赠送头发丝数量')
     trigger_reason = db.Column(db.String(50), default='insufficient_balance', comment='触发原因')
-
-    reminded_at = db.Column(db.DateTime, nullable=False, comment='余额不足提醒时间')
-    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='实际赠送时间')
-    next_check_time = db.Column(db.DateTime, nullable=True, comment='下次检查时间（提醒时间 +4 小时）')
-    is_completed = db.Column(db.Boolean, default=False, comment='是否已完成赠送')
-
+    reminded_at = db.Column(db.DateTime, nullable=False, comment='提醒时间')
+    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='赠送时间')
+    next_check_time = db.Column(db.DateTime, nullable=True, comment='下次检查时间')
+    is_completed = db.Column(db.Boolean, default=False, comment='是否已完成')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -392,37 +437,28 @@ class GuestBonusRecord(db.Model):
             'bonus_type': self.bonus_type,
             'hairs_added': self.hairs_added,
             'trigger_reason': self.trigger_reason,
-            'reminded_at': self.reminded_at.isoformat(),
+            'reminded_at': self.reminded_at.isoformat() if self.reminded_at else None,
             'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
             'next_check_time': self.next_check_time.isoformat() if self.next_check_time else None,
             'is_completed': self.is_completed,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 
 class UserBonusRecord(db.Model):
-    """普通用户/会员用户免费额度赠送记录表"""
+    """普通用户/会员免费额度赠送记录表"""
     __tablename__ = 'user_bonus_records'
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, index=True, comment='用户 ID')
-
-    # 用户类型：registered=普通用户，vip=会员（记录赠送时的用户类型）
-    user_type_at_bonus = db.Column(db.Enum('normal', 'vip'), nullable=False, index=True, comment='赠送时用户类型')
-
-    # 赠送信息
-    bonus_type = db.Column(db.Enum('auto_renew'), nullable=False, comment='赠送类型：auto_renew=4 小时续赠')
-    hairs_added = db.Column(db.Integer, default=0, comment='赠送数量（188 或 98）')
-
-    # 时间追踪
-    reminded_at = db.Column(db.DateTime, nullable=False, index=True, comment='余额不足提醒时间')
-    next_check_time = db.Column(db.DateTime, nullable=True, index=True, comment='下次检查时间（提醒时间 +4 小时）')
-    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='实际赠送时间')
-    is_completed = db.Column(db.Boolean, default=False, index=True, comment='是否已完成赠送')
-
-    # 触发条件追踪
-    has_consumption_before_bonus = db.Column(db.Boolean, default=False, comment='赠送前是否有消费记录')
-
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
+    user_type_at_bonus = db.Column(db.Enum('normal', 'vip'), nullable=False, comment='赠送时用户类型')
+    bonus_type = db.Column(db.Enum('auto_renew'), nullable=False, comment='赠送类型')
+    hairs_added = db.Column(db.Integer, default=0, comment='赠送头发丝数量')
+    reminded_at = db.Column(db.DateTime, nullable=False, comment='提醒时间')
+    next_check_time = db.Column(db.DateTime, nullable=True, comment='下次检查时间')
+    bonus_added_at = db.Column(db.DateTime, nullable=True, comment='赠送时间')
+    is_completed = db.Column(db.Boolean, default=False, comment='是否已完成')
+    has_consumption_before_bonus = db.Column(db.Boolean, default=False, comment='赠送前是否有消费')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -444,49 +480,12 @@ class UserBonusRecord(db.Model):
             'user_type_at_bonus': self.user_type_at_bonus,
             'bonus_type': self.bonus_type,
             'hairs_added': self.hairs_added,
-            'reminded_at': self.reminded_at.isoformat(),
-            'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
+            'reminded_at': self.reminded_at.isoformat() if self.reminded_at else None,
             'next_check_time': self.next_check_time.isoformat() if self.next_check_time else None,
+            'bonus_added_at': self.bonus_added_at.isoformat() if self.bonus_added_at else None,
             'is_completed': self.is_completed,
             'has_consumption_before_bonus': self.has_consumption_before_bonus,
-            'created_at': self.created_at.isoformat()
-        }
-
-
-class Device(db.Model):
-    """设备管理表 - 跟踪用户绑定的设备"""
-    __tablename__ = 'devices'
-
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户 ID')
-    device_id = db.Column(db.String(64), unique=True, nullable=False, index=True, comment='设备唯一标识（固定不变）')
-    device_name = db.Column(db.String(100), nullable=False, comment='设备名称（如 iPhone 13、MacBook Pro）')
-    device_type = db.Column(db.String(20), nullable=True, comment='设备类型：mobile/tablet/desktop')
-    is_primary = db.Column(db.Boolean, default=False, comment='是否为主设备')
-    bound_at = db.Column(db.DateTime, default=datetime.now, comment='绑定时间')
-    last_active_at = db.Column(db.DateTime, default=datetime.now, comment='最后活跃时间')
-
-    # 关联
-    user = db.relationship('User', backref=db.backref('devices', lazy=True))
-
-    # 索引
-    __table_args__ = (
-        Index('idx_user_id', 'user_id'),
-        Index('idx_device_id', 'device_id'),
-        {'comment': '设备管理表'}
-    )
-
-    def to_dict(self):
-        """转换为字典"""
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'device_id': self.device_id,
-            'device_name': self.device_name,
-            'device_type': self.device_type,
-            'is_primary': self.is_primary,
-            'bound_at': self.bound_at.isoformat(),
-            'last_active_at': self.last_active_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 
@@ -513,9 +512,234 @@ class Message(db.Model):
             'name': self.name,
             'phone': self.phone,
             'content': self.content,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 
+# ==================== 认证服务 ====================
+
+class AuthService:
+    """认证服务"""
+
+    def __init__(self):
+        self.config = get_config()
+        self.jwt_secret_key = self.config.JWT_SECRET_KEY
+        self.jwt_access_token_expires = self.config.JWT_ACCESS_TOKEN_EXPIRES
+
+    def generate_token(self, user_id):
+        """生成 JWT Token"""
+        payload = {
+            "user_id": user_id,
+            "exp": datetime.utcnow() + timedelta(seconds=self.jwt_access_token_expires),
+            "iat": datetime.utcnow(),
+        }
+        token = jwt.encode(payload, self.jwt_secret_key, algorithm="HS256")
+        return token
+
+    def decode_token(self, token):
+        """解码 JWT Token"""
+        try:
+            payload = jwt.decode(token, self.jwt_secret_key, algorithms=["HS256"])
+            return payload
+        except jwt.ExpiredSignatureError:
+            return None
+        except jwt.InvalidTokenError:
+            return None
+
+    def get_current_user(self):
+        """获取当前登录用户"""
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            return None
+
+        payload = self.decode_token(token)
+        if not payload:
+            return None
+
+        user_id = payload.get("user_id")
+        if not user_id:
+            return None
+
+        user = User.query.get(user_id)
+        return user
+
+    def wechat_login(self, code, device_info=None, nickname=None, avatar_url=None):
+        """微信登录（支持游客模式、普通用户模式、会员模式）"""
+        config = get_config()
+
+        # 调用微信API获取openid
+        if config.WECHAT_APP_ID and config.WECHAT_APP_SECRET:
+            url = (
+                f"https://api.weixin.qq.com/sns/jscode2session"
+                f"?appid={config.WECHAT_APP_ID}"
+                f"&secret={config.WECHAT_APP_SECRET}"
+                f"&js_code={code}"
+                f"&grant_type=authorization_code"
+            )
+            resp = requests.get(url, timeout=10)
+            wx_data = resp.json()
+
+            if "errcode" in wx_data and wx_data["errcode"] != 0:
+                return None, {"error": "微信登录失败", "code": 4001}
+
+            openid = wx_data.get("openid")
+            unionid = wx_data.get("unionid")
+        else:
+            # 开发模式：使用测试openid
+            openid = f"test_openid_{code}"
+            unionid = None
+
+        # 查找用户
+        user = User.query.filter_by(openid=openid).first()
+
+        if user:
+            # 老用户
+            is_new_user = False
+            # 更新昵称和头像（如果前端传来）
+            if nickname:
+                user.nickname = nickname
+            if avatar_url:
+                user.avatar_url = avatar_url
+            db.session.commit()
+        else:
+            # 新用户：注册（赠送1000头发丝）
+            is_new_user = True
+            user = register_user(
+                openid=openid,
+                unionid=unionid,
+                nickname=nickname,
+                avatar_url=avatar_url,
+            )
+
+        # 生成token
+        token = self.generate_token(user.id)
+
+        # 更新设备信息
+        if device_info:
+            self._update_device(user.id, device_info)
+
+        return user, {
+            "token": token,
+            "user": user.to_dict(),
+            "is_new_user": is_new_user,
+        }
+
+    def _update_device(self, user_id, device_info):
+        """更新设备信息"""
+        device_id = device_info.get("device_id")
+        if not device_id:
+            return
+
+        device = Device.query.filter_by(device_id=device_id).first()
+        if device:
+            device.last_active_at = datetime.now()
+            device.user_id = user_id
+        else:
+            device = Device(
+                user_id=user_id,
+                device_id=device_id,
+                device_name=device_info.get("device_name", "Unknown"),
+                device_type=device_info.get("device_type", "unknown"),
+                is_primary=False,
+            )
+            db.session.add(device)
+
+        db.session.commit()
 
 
+def login_required(f):
+    """登录验证装饰器"""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+
+        if not user:
+            return jsonify({"error": "未登录或登录已过期", "code": 401}), 401
+
+        # 检查是否注销
+        if user.is_deactivated:
+            return jsonify({"error": "账号已注销", "code": 403}), 403
+
+        g.current_user = user
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def register_user(openid=None, unionid=None, phone=None, nickname=None, avatar_url=None):
+    """注册新用户（赠送1000头发丝）"""
+    from config import INITIAL_BONUS_HAIR_COUNT
+
+    user = User(
+        openid=openid,
+        unionid=unionid,
+        phone=phone,
+        nickname=nickname,
+        avatar_url=avatar_url,
+        scissor_hairs=INITIAL_BONUS_HAIR_COUNT,
+        comb_hairs=0,
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+def grant_guest_initial_bonus(user_id, hairs=198):
+    """赠送游客初始头发丝（用于首次进入）"""
+    user = User.query.get(user_id)
+    if not user:
+        return False
+
+    user.comb_hairs += hairs
+    db.session.commit()
+    return True
+
+
+# ==================== 开发者权限 ====================
+
+def is_developer_mode_enabled():
+    """判断开发者模式是否已启用"""
+    from config import DEVELOPER_MODE_ENABLED
+    return DEVELOPER_MODE_ENABLED
+
+
+def is_developer(user_id=None):
+    """判断是否为开发者测试账号"""
+    from config import DEVELOPER_ACCOUNTS
+
+    if not is_developer_mode_enabled():
+        return False
+
+    if not DEVELOPER_ACCOUNTS:
+        return False
+
+    if user_id is None:
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+        if not user:
+            return False
+        user_id = user.id
+
+    return user_id in DEVELOPER_ACCOUNTS
+
+
+def developer_required(f):
+    """开发者权限装饰器"""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+
+        if not user:
+            return jsonify({"error": "未登录或登录已过期", "code": 401}), 401
+
+        if not is_developer(user.id):
+            return jsonify({"error": "此功能仅限开发者账号使用", "code": 403}), 403
+
+        g.current_user = user
+        return f(*args, **kwargs)
+
+    return decorated_function

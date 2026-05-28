@@ -1641,3 +1641,191 @@ def get_messages():
         return jsonify({'error': str(e)}), 500
 
 
+
+# ==================== 微信虚拟支付 API（iOS端）====================
+
+@api_bp.route("/virtual-pay/create-order", methods=["POST"])
+@login_required
+def create_virtual_pay_order():
+    """创建虚拟支付订单（iOS端），用于购买头发丝充值或VIP会员"""
+    try:
+        import uuid
+        from datetime import timedelta
+        from virtual_payment_service import WeChatVirtualPayService
+        from models import RechargeRecord, MemberOrder
+        from config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
+
+        user = g.current_user
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "请求参数不能为空"}), 400
+
+        order_type = data.get("order_type")  # 'recharge' 或 'member'
+        amount = data.get("amount")  # 金额（元）
+        goods_key = data.get("goods_key")  # 商品键，如 recharge_10, member_vip
+
+        if not order_type or not amount or not goods_key:
+            return jsonify({"error": "参数不完整"}), 400
+
+        # 检查虚拟支付是否已启用
+        virtual_pay_service = WeChatVirtualPayService()
+        if not virtual_pay_service.is_virtual_pay_enabled():
+            return jsonify({
+                "error": "虚拟支付功能暂未开通",
+                "code": "VIRTUAL_PAY_NOT_ENABLED"
+            }), 503
+
+        # 获取虚拟商品 ID
+        goods_id = virtual_pay_service.get_goods_id(goods_key)
+        if not goods_id:
+            return jsonify({"error": "商品配置错误"}), 400
+
+        # 生成订单号
+        order_no = f"VP{int(time.time())}{str(uuid.uuid4().hex[:8])}"
+
+        # 开发者模式：直接标记为成功
+        is_developer = DEVELOPER_MODE_ENABLED and user.id in DEVELOPER_ACCOUNTS
+        payment_status = "success" if is_developer else "pending"
+
+        # 根据订单类型创建记录
+        if order_type == "recharge":
+            # 计算头发丝数量（1元=10根）
+            hairs = int(amount * 10)
+            order = RechargeRecord(
+                user_id=user.id,
+                order_no=order_no,
+                amount=amount,
+                scissor_hairs=hairs,
+                comb_hairs=0,
+                payment_method="wechat_virtual",
+                payment_status=payment_status,
+            )
+            db.session.add(order)
+            
+            # 开发者模式：立即充值
+            if is_developer:
+                user.comb_hairs += hairs
+        elif order_type == "member":
+            order = MemberOrder(
+                user_id=user.id,
+                order_no=order_no,
+                member_level="vip",
+                amount=amount,
+                bonus_hairs=1000,
+                payment_method="wechat_virtual",
+                payment_status=payment_status,
+            )
+            db.session.add(order)
+            
+            # 开发者模式：立即开通会员
+            if is_developer:
+                user.member_level = "vip"
+                user.member_expire_at = datetime.now() + timedelta(days=365)
+                user.comb_hairs += 1000
+        else:
+            return jsonify({"error": "不支持的订单类型"}), 400
+
+        db.session.commit()
+
+        # 生成虚拟支付参数（开发者模式下也需要返回，前端逻辑保持一致）
+        body = "发型迁移充值" if order_type == "recharge" else "发型迁移陪跑会员"
+        pay_params = virtual_pay_service.create_virtual_pay_order(
+            user_openid=user.openid,
+            order_no=order_no,
+            amount_yuan=amount,
+            goods_id=goods_id,
+            body=body,
+        )
+
+        return jsonify({
+            "success": True,
+            "order_no": order_no,
+            "virtual_pay_params": pay_params,
+            "is_developer_mode": is_developer,  # 前端可根据此字段决定是否轮询
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f"创建虚拟支付订单失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/virtual-pay/callback", methods=["POST"])
+def virtual_pay_callback():
+    """虚拟支付回调接口，微信服务器在用户完成支付后调用"""
+    try:
+        from virtual_payment_service import WeChatVirtualPayService
+        from payment_service import PaymentService
+
+        virtual_pay_service = WeChatVirtualPayService()
+        payment_service = PaymentService()
+
+        callback_data = request.get_json()
+
+        # 验证回调签名
+        verified_data = virtual_pay_service.verify_callback(callback_data)
+        if not verified_data:
+            return jsonify({"return_code": "FAIL", "return_msg": "签名验证失败"}), 400
+
+        order_no = verified_data.get("out_trade_no")
+        if not order_no:
+            return jsonify({"return_code": "FAIL", "return_msg": "订单号缺失"}), 400
+
+        # 检查支付状态
+        pay_status = verified_data.get("result_code")  # SUCCESS 或 FAIL
+
+        if pay_status == "SUCCESS":
+            # 查找订单并处理成功
+            order = RechargeRecord.query.filter_by(order_no=order_no).first()
+            if order:
+                payment_service.process_recharge_success(order_no)
+            else:
+                order = MemberOrder.query.filter_by(order_no=order_no).first()
+                if order:
+                    payment_service.process_member_success(order_no)
+
+            return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
+        else:
+            # 支付失败，更新状态
+            order = RechargeRecord.query.filter_by(order_no=order_no).first() or \
+                    MemberOrder.query.filter_by(order_no=order_no).first()
+            if order:
+                order.payment_status = "failed"
+                db.session.commit()
+
+            return jsonify({"return_code": "FAIL", "return_msg": "支付失败"})
+
+    except Exception as e:
+        import logging
+        logging.error(f"虚拟支付回调处理失败: {e}")
+        return jsonify({"return_code": "FAIL", "return_msg": str(e)}), 500
+
+
+@api_bp.route("/virtual-pay/order-status/<order_no>", methods=["GET"])
+@login_required
+def get_virtual_pay_order_status(order_no):
+    """查询虚拟支付订单状态，前端轮询使用"""
+    try:
+        from models import RechargeRecord, MemberOrder
+
+        user = g.current_user
+
+        # 查找订单
+        order = RechargeRecord.query.filter_by(order_no=order_no, user_id=user.id).first()
+        if not order:
+            order = MemberOrder.query.filter_by(order_no=order_no, user_id=user.id).first()
+
+        if not order:
+            return jsonify({"error": "订单不存在"}), 404
+
+        return jsonify({
+            "success": True,
+            "order_no": order.order_no,
+            "payment_status": order.payment_status,
+            "amount": float(order.amount),
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -63,6 +63,19 @@ class Config:
     WECHAT_PAY_API_V3_KEY = os.getenv("WECHAT_PAY_API_V3_KEY")  # API v3密钥(32字节)
     WECHAT_NOTIFY_URL = os.getenv("WECHAT_NOTIFY_URL")
 
+    # 微信虚拟支付配置（iOS端）
+    WECHAT_VIRTUAL_PAY_MCH_ID = os.getenv("WECHAT_VIRTUAL_PAY_MCH_ID", "")  # 虚拟支付商户号
+    WECHAT_VIRTUAL_PAY_NOTIFY_URL = os.getenv("WECHAT_VIRTUAL_PAY_NOTIFY_URL", "")  # 虚拟支付回调URL
+    # 虚拟商品ID映射（充值档位和会员）
+    # 格式: {"10": "virtual_goods_id_10", "20": "virtual_goods_id_20", ...}
+    WECHAT_VIRTUAL_GOODS_IDS = {
+        "recharge_10": os.getenv("VIRTUAL_GOODS_RECHARGE_10", ""),      # 10元充值
+        "recharge_20": os.getenv("VIRTUAL_GOODS_RECHARGE_20", ""),      # 20元充值
+        "recharge_50": os.getenv("VIRTUAL_GOODS_RECHARGE_50", ""),      # 50元充值
+        "recharge_100": os.getenv("VIRTUAL_GOODS_RECHARGE_100", ""),    # 100元充值
+        "member_vip": os.getenv("VIRTUAL_GOODS_MEMBER_VIP", ""),        # VIP会员
+    }
+
     # 支付宝配置
     ALIPAY_APP_ID = os.getenv("ALIPAY_APP_ID")
     ALIPAY_PRIVATE_KEY = os.getenv("ALIPAY_PRIVATE_KEY")
