@@ -6,7 +6,7 @@
     <text class="app-version">v1.0.0</text>
     <text class="app-desc">基于 AI 的发型虚拟试戴应用</text>
     <view class="powered-by-group">
-      <text class="powered-by">AI 能力由 Claude 驱动</text>
+      <text class="powered-by">Powered by Claude Code CLI</text>
       <text class="powered-by">Powered by QoderCLI</text>
     </view>
   </view>
