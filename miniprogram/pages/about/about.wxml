@@ -1,0 +1,10 @@
+<!--pages/about/about.wxml-->
+<view class="about-container">
+  <view class="about-content">
+    <image class="app-logo" src="/images/icons/app-logo.png" mode="aspectFit"></image>
+    <text class="app-name">发型迁移</text>
+    <text class="app-version">v1.0.0</text>
+    <text class="app-desc">基于 AI 的发型虚拟试戴应用</text>
+    <text class="powered-by">Powered by QoderCLI</text>
+  </view>
+</view>
