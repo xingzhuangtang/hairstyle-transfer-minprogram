@@ -1094,6 +1094,49 @@ def download_history_record():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/history/delete', methods=['DELETE'])
+@vip_required
+def delete_history_record():
+    """删除历史记录（包括图片）"""
+    try:
+        record_id = request.args.get('record_id')
+        
+        if not record_id:
+            return jsonify({'error': '缺少record_id参数'}), 400
+        
+        user = g.current_user
+        record = HistoryRecord.query.filter_by(
+            id=record_id,
+            user_id=user.id
+        ).first()
+        
+        if not record:
+            return jsonify({'error': '记录不存在'}), 404
+        
+        # 删除图片文件
+        from member_service import MemberService
+        member_service = MemberService()
+        
+        if record.result_url:
+            member_service._delete_image_file(record.result_url)
+        
+        if record.sketch_url:
+            member_service._delete_image_file(record.sketch_url)
+        
+        # 删除数据库记录
+        db.session.delete(record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============================================
 # 账户服务相关接口
 # ============================================

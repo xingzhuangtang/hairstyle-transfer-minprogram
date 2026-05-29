@@ -20,7 +20,8 @@ Page({
     loading: false,
     page: 1,
     pageSize: 20,
-    hasMore: true
+    hasMore: true,
+    countdownTimer: null
   },
 
   onLoad() {
@@ -29,15 +30,28 @@ Page({
 
   onShow() {
     this.loadMemberInfo()
+    this.startCountdownTimer()
+  },
+
+  onHide() {
+    this.stopCountdownTimer()
+  },
+
+  onUnload() {
+    this.stopCountdownTimer()
   },
 
   async loadMemberInfo() {
     try {
       const res = await getMemberInfo()
-      if (res.success || res.is_vip !== undefined) {
-        const isVip = res.is_vip || false
+      console.log('会员信息API返回:', res)
+      
+      if (res.member_level !== undefined) {
+        // 后端返回的是 member_level: 'vip' 或 'normal'
+        const isVip = res.member_level === 'vip'
         const remainingDays = res.remaining_days || 0
 
+        console.log('isVip:', isVip, 'remainingDays:', remainingDays)
         this.setData({ isVip, remainingDays })
 
         if (isVip) {
@@ -59,17 +73,63 @@ Page({
 
       const res = await getHistoryRecords(currentPage, this.data.pageSize)
 
-      if (res.success) {
-        const newRecords = res.records.map(record => ({
-          ...record,
-          id: record.id,
-          result_image: record.result_image || record.result_url || '',
-          service_type: record.service_type || 'combined',
-          service_type_text: SERVICE_TYPE_MAP[record.service_type] || '发型迁移',
-          is_expired: record.is_expired || false,
-          created_at: this.formatDate(record.created_at)
-        }))
+      if (res.records !== undefined) {
+        console.log('历史记录API返回:', res)
+        
+        const newRecords = res.records.map(record => {
+          const resultImage = record.result_image || record.result_url || ''
+          const sketchImage = record.sketch_url || ''
+          
+          // 计算倒计时
+          let countdownText = ''
+          let countdownClass = 'valid'
+          let remainingHours = 0
+          
+          if (record.expire_at) {
+            const expireDate = new Date(record.expire_at)
+            const now = new Date()
+            const diffMs = expireDate - now
+            
+            if (diffMs <= 0) {
+              countdownText = '已过期'
+              countdownClass = 'expired'
+            } else {
+              const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+              const diffDays = Math.floor(diffHours / 24)
+              remainingHours = diffHours
+              
+              if (diffDays >= 1) {
+                countdownText = `剩余${diffDays}天`
+                if (diffDays <= 3) {
+                  countdownClass = 'warning'
+                }
+              } else {
+                countdownText = `剩余${diffHours}小时`
+                countdownClass = 'urgent'
+              }
+            }
+          }
+          
+          console.log('记录ID:', record.id, 'result_url:', record.result_url, 'sketch_url:', sketchImage)
+          
+          return {
+            ...record,
+            id: record.id,
+            result_image: resultImage,
+            sketch_image: sketchImage,
+            has_sketch: !!sketchImage,
+            service_type: record.service_type || 'combined',
+            service_type_text: SERVICE_TYPE_MAP[record.service_type] || '发型迁移',
+            is_expired: record.is_expired || false,
+            created_at: this.formatDate(record.created_at),
+            countdown_text: countdownText,
+            countdown_class: countdownClass,
+            remaining_hours: remainingHours
+          }
+        })
 
+        console.log('处理后的记录:', newRecords)
+        
         this.setData({
           records: refresh ? newRecords : [...this.data.records, ...newRecords],
           page: currentPage + 1,
@@ -77,6 +137,7 @@ Page({
           loading: false
         })
       } else {
+        console.error('API返回错误:', res)
         this.setData({ loading: false })
       }
     } catch (e) {
@@ -95,8 +156,9 @@ Page({
   },
 
   viewDetail(e) {
-    const recordId = e.currentTarget.dataset.id
-    const record = this.data.records.find(r => r.id === recordId)
+    const { id } = e.currentTarget.dataset
+    
+    const record = this.data.records.find(r => r.id === id)
     if (!record) return
     
     if (record.is_expired) {
@@ -104,15 +166,163 @@ Page({
       return
     }
 
-    // 预览结果图片
+    // 弹出操作菜单
+    const menuItems = ['预览所有图片']
+    if (record.result_image) menuItems.push('下载原图')
+    if (record.sketch_image) menuItems.push('下载素描')
+    if (record.result_image && record.sketch_image) menuItems.push('保存合并图片')
+    menuItems.push('删除记录')
+
+    wx.showActionSheet({
+      itemList: menuItems,
+      success: (res) => {
+        const action = menuItems[res.tapIndex]
+        
+        if (action === '预览所有图片') {
+          const imageUrls = []
+          if (record.result_image) imageUrls.push(record.result_image)
+          if (record.sketch_image) imageUrls.push(record.sketch_image)
+          if (imageUrls.length > 0) {
+            wx.previewImage({
+              urls: imageUrls,
+              current: imageUrls[0]
+            })
+          }
+        } else if (action === '下载原图') {
+          this.downloadImage(record.result_image, '原图')
+        } else if (action === '下载素描') {
+          this.downloadImage(record.sketch_image, '素描')
+        } else if (action === '保存合并图片') {
+          this.saveCombinedImage(record)
+        } else if (action === '删除记录') {
+          this.deleteRecord({ currentTarget: { dataset: { id } } })
+        }
+      }
+    })
+  },
+
+  saveCombinedImage(record) {
+    wx.showLoading({ title: '生成合并图片中...' })
+    
+    const ctx = wx.createCanvasContext('combinedCanvas', this)
+    
+    // 填充背景
+    ctx.setFillStyle('#ffffff')
+    ctx.fillRect(0, 0, 800, 1600)
+    
+    let loadedCount = 0
+    const totalImages = (record.result_image ? 1 : 0) + (record.sketch_image ? 1 : 0)
+    
+    const onLoadComplete = () => {
+      loadedCount++
+      if (loadedCount === totalImages) {
+        // 所有图片加载完成，调用 draw() 渲染
+        ctx.draw(false, () => {
+          // draw 完成后保存图片
+          setTimeout(() => {
+            wx.canvasToTempFilePath({
+              canvasId: 'combinedCanvas',
+              width: 800,
+              height: 1600,
+              destWidth: 1600,
+              destHeight: 3200,
+              success: (res) => {
+                wx.saveImageToPhotosAlbum({
+                  filePath: res.tempFilePath,
+                  success: () => {
+                    wx.hideLoading()
+                    wx.showToast({ title: '合并图片已保存到相册', icon: 'success' })
+                  },
+                  fail: () => {
+                    wx.hideLoading()
+                    wx.showToast({ title: '保存失败', icon: 'none' })
+                  }
+                })
+              },
+              fail: () => {
+                wx.hideLoading()
+                wx.showToast({ title: '生成失败', icon: 'none' })
+              }
+            }, this)
+          }, 1000) // 等待 1 秒确保渲染完成
+        })
+      }
+    }
+    
+    // 加载原图
     if (record.result_image) {
-      wx.previewImage({
-        urls: [record.result_image],
-        current: record.result_image
+      wx.downloadFile({
+        url: record.result_image,
+        success: (res) => {
+          if (res.statusCode === 200) {
+            ctx.drawImage(res.tempFilePath, 0, 0, 800, 800)
+            
+            // 添加标签
+            ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
+            ctx.fillRect(10, 760, 100, 30)
+            ctx.setFillStyle('#ffffff')
+            ctx.setFontSize(18)
+            ctx.fillText('原图', 30, 782)
+          }
+          onLoadComplete()
+        },
+        fail: () => onLoadComplete()
       })
     } else {
-      wx.showToast({ title: '暂无结果图片', icon: 'none' })
+      onLoadComplete()
     }
+    
+    // 加载素描图
+    if (record.sketch_image) {
+      wx.downloadFile({
+        url: record.sketch_image,
+        success: (res) => {
+          if (res.statusCode === 200) {
+            ctx.drawImage(res.tempFilePath, 0, 800, 800, 800)
+            
+            // 添加标签
+            ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
+            ctx.fillRect(10, 1560, 100, 30)
+            ctx.setFillStyle('#ffffff')
+            ctx.setFontSize(18)
+            ctx.fillText('素描', 30, 1582)
+          }
+          onLoadComplete()
+        },
+        fail: () => onLoadComplete()
+      })
+    } else {
+      onLoadComplete()
+    }
+  },
+
+  downloadCombinedImage(e) {
+    const { id } = e.currentTarget.dataset
+    const record = this.data.records.find(r => r.id === id)
+    if (!record) return
+
+    if (record.is_expired) {
+      wx.showToast({ title: '记录已过期，无法下载', icon: 'none' })
+      return
+    }
+
+    if (!record.result_image && !record.sketch_image) {
+      wx.showToast({ title: '暂无图片', icon: 'none' })
+      return
+    }
+
+    // 提示用户长按保存
+    wx.showModal({
+      title: '下载图片',
+      content: '点击"预览所有图片"后，长按图片即可保存到相册',
+      confirmText: '去预览',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) {
+          this.viewDetail({ currentTarget: { dataset: { id } } })
+        }
+      }
+    })
   },
 
   onImageError(e) {
@@ -124,8 +334,203 @@ Page({
     }
   },
 
+  onSketchError(e) {
+    const index = e.currentTarget.dataset.index
+    const records = this.data.records
+    if (records[index]) {
+      records[index].sketch_image = '/images/empty-device.svg'
+      this.setData({ records })
+    }
+  },
+
+  showDownloadMenu(e) {
+    const { id, type } = e.currentTarget.dataset
+    const record = this.data.records.find(r => r.id === id)
+    if (!record) return
+
+    if (record.is_expired) {
+      wx.showToast({ title: '记录已过期，无法下载', icon: 'none' })
+      return
+    }
+
+    const imageUrl = type === 'sketch' ? record.sketch_image : record.result_image
+    if (!imageUrl) {
+      wx.showToast({ title: '暂无图片', icon: 'none' })
+      return
+    }
+
+    wx.showActionSheet({
+      itemList: ['预览图片', '下载到手机'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          // 预览
+          wx.previewImage({
+            urls: [imageUrl],
+            current: imageUrl
+          })
+        } else if (res.tapIndex === 1) {
+          // 下载
+          this.downloadImage(imageUrl, type === 'sketch' ? '素描' : '结果')
+        }
+      }
+    })
+  },
+
+  downloadImage(imageUrl, imageType) {
+    wx.showLoading({ title: '下载中...' })
+    
+    wx.downloadFile({
+      url: imageUrl,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          wx.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => {
+              wx.hideLoading()
+              wx.showToast({ title: `${imageType}图片已保存到相册`, icon: 'success' })
+            },
+            fail: (err) => {
+              wx.hideLoading()
+              if (err.errMsg && err.errMsg.includes('auth deny')) {
+                wx.showModal({
+                  title: '提示',
+                  content: '需要授权访问相册',
+                  confirmText: '去授权',
+                  success: (modalRes) => {
+                    if (modalRes.confirm) {
+                      wx.openSetting()
+                    }
+                  }
+                })
+              } else {
+                wx.showToast({ title: '保存失败', icon: 'none' })
+              }
+            }
+          })
+        } else {
+          wx.hideLoading()
+          wx.showToast({ title: '下载失败', icon: 'none' })
+        }
+      },
+      fail: () => {
+        wx.hideLoading()
+        wx.showToast({ title: '下载失败', icon: 'none' })
+      }
+    })
+  },
+
   goToMember() {
     wx.switchTab({ url: '/pages/profile/profile' })
+  },
+
+  startCountdownTimer() {
+    this.stopCountdownTimer()
+    
+    this.data.countdownTimer = setInterval(() => {
+      this.updateCountdowns()
+    }, 60 * 60 * 1000) // 每小时更新一次
+  },
+
+  stopCountdownTimer() {
+    if (this.data.countdownTimer) {
+      clearInterval(this.data.countdownTimer)
+      this.setData({ countdownTimer: null })
+    }
+  },
+
+  updateCountdowns() {
+    const records = this.data.records.map(record => {
+      if (record.expire_at) {
+        const expireDate = new Date(record.expire_at)
+        const now = new Date()
+        const diffMs = expireDate - now
+        
+        let countdownText = ''
+        let countdownClass = 'valid'
+        let remainingHours = 0
+        
+        if (diffMs <= 0) {
+          countdownText = '已过期'
+          countdownClass = 'expired'
+        } else {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+          const diffDays = Math.floor(diffHours / 24)
+          remainingHours = diffHours
+          
+          if (diffDays >= 1) {
+            countdownText = `剩余${diffDays}天`
+            if (diffDays <= 3) {
+              countdownClass = 'warning'
+            }
+          } else {
+            countdownText = `剩余${diffHours}小时`
+            countdownClass = 'urgent'
+          }
+        }
+        
+        return {
+          ...record,
+          countdown_text: countdownText,
+          countdown_class: countdownClass,
+          remaining_hours: remainingHours
+        }
+      }
+      return record
+    })
+    
+    this.setData({ records })
+  },
+
+  deleteRecord(e) {
+    const { id } = e.currentTarget.dataset
+    
+    wx.showModal({
+      title: '确认删除',
+      content: '删除后无法恢复，是否继续？',
+      confirmColor: '#ff3b30',
+      success: (res) => {
+        if (res.confirm) {
+          this.executeDelete(id)
+        }
+      }
+    })
+  },
+
+  executeDelete(recordId) {
+    wx.showLoading({ title: '删除中...' })
+    
+    const token = wx.getStorageSync('token')
+    const API_BASE_URL = 'https://xn--gmq63iba0780e.com'
+    
+    wx.request({
+      url: `${API_BASE_URL}/api/history/delete`,
+      method: 'DELETE',
+      data: { record_id: recordId },
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      success: (res) => {
+        wx.hideLoading()
+        
+        if (res.statusCode === 200) {
+          wx.showToast({ title: '删除成功', icon: 'success' })
+          
+          // 从列表中移除
+          const records = this.data.records.filter(r => r.id !== recordId)
+          this.setData({ records })
+        } else {
+          wx.showToast({ 
+            title: res.data.error || '删除失败', 
+            icon: 'none' 
+          })
+        }
+      },
+      fail: () => {
+        wx.hideLoading()
+        wx.showToast({ title: '删除失败', icon: 'none' })
+      }
+    })
   },
 
   formatDate(dateStr) {

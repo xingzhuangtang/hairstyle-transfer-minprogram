@@ -151,6 +151,9 @@ class MemberService:
         定时任务：每天凌晨执行
         """
         try:
+            from config import get_config
+            import os
+            
             now = datetime.now()
             
             # 查询已过期历史记录
@@ -159,21 +162,77 @@ class MemberService:
             ).all()
             
             delete_count = len(expired_records)
+            deleted_files = []
             
-            # 删除过期记录
+            # 删除过期记录和对应图片
             for record in expired_records:
+                # 删除结果图片
+                if record.result_url:
+                    self._delete_image_file(record.result_url)
+                    deleted_files.append(record.result_url)
+                
+                # 删除素描图片
+                if record.sketch_url:
+                    self._delete_image_file(record.sketch_url)
+                    deleted_files.append(record.sketch_url)
+                
                 db.session.delete(record)
             
             db.session.commit()
             
             if delete_count > 0:
-                print(f"✅ 过期历史记录清理成功: {delete_count}条")
+                print(f"✅ 过期历史记录清理成功: {delete_count}条记录, {len(deleted_files)}个文件")
+                for f in deleted_files:
+                    print(f"  - 已删除: {f}")
             
         except Exception as e:
             db.session.rollback()
             print(f"❌ 过期历史记录清理失败: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _delete_image_file(self, image_url):
+        """
+        删除图片文件
+        支持本地文件和 OSS URL
+        """
+        try:
+            if not image_url:
+                return
+            
+            # 如果是 OSS URL，删除 OSS 文件
+            if image_url.startswith('http'):
+                # 提取文件路径
+                from config import get_config
+                config = get_config()
+                
+                if hasattr(config, 'OSS_BASE_URL') and config.OSS_BASE_URL:
+                    if image_url.startswith(config.OSS_BASE_URL):
+                        # 提取相对路径
+                        file_path = image_url.replace(config.OSS_BASE_URL, '')
+                        if file_path.startswith('/'):
+                            file_path = file_path[1:]
+                        
+                        # 删除 OSS 文件（需要实现）
+                        print(f"  [OSS] 待删除: {file_path}")
+                        # TODO: 实现 OSS 文件删除
+                        return
+            
+            # 如果是本地文件路径
+            if image_url.startswith('/static/') or image_url.startswith('static/'):
+                from config import get_config
+                config = get_config()
+                
+                # 获取静态文件目录
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                file_path = os.path.join(base_dir, image_url.lstrip('/'))
+                
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"  [本地] 已删除: {file_path}")
+            
+        except Exception as e:
+            print(f"  ⚠️ 删除文件失败: {image_url}, 错误: {e}")
     
     def _send_reminder(self, user, reminder_type, remaining_days):
         """
