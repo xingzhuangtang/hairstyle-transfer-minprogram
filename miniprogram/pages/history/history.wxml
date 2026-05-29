@@ -29,21 +29,43 @@
       <view class="loading-text">加载中...</view>
     </view>
 
-    <view wx:for="{{records}}" wx:key="id" class="history-item" bindtap="viewDetail" data-id="{{item.id}}">
-      <view class="item-preview">
-        <image src="{{item.result_image}}" mode="aspectFill" lazy-load binderror="onImageError" data-index="{{index}}" />
+    <view wx:for="{{records}}" wx:key="id" class="history-item">
+      <!-- 结果图片预览区域 -->
+      <view class="item-preview-group">
+        <!-- 原始结果图片 -->
+        <view class="preview-item" 
+              catchtap="showDownloadMenu" 
+              data-id="{{item.id}}" 
+              data-type="result">
+          <image src="{{item.result_image}}" mode="aspectFill" lazy-load binderror="onImageError" data-index="{{index}}" data-type="result" />
+          <view class="preview-label">结果</view>
+        </view>
+        
+        <!-- 素描图片（如果有） -->
+        <view wx:if="{{item.has_sketch}}" 
+              class="preview-item" 
+              catchtap="showDownloadMenu" 
+              data-id="{{item.id}}" 
+              data-type="sketch">
+          <image src="{{item.sketch_image}}" mode="aspectFill" lazy-load binderror="onSketchError" data-index="{{index}}" data-type="sketch" />
+          <view class="preview-label">素描</view>
+        </view>
+        <view wx:else class="preview-item preview-placeholder">
+          <view class="placeholder-text">无素描</view>
+        </view>
       </view>
+      
       <view class="item-info">
         <view class="item-title">
           <text class="service-type">{{item.service_type_text}}</text>
           <text class="record-id">#{{item.id}}</text>
         </view>
         <view class="item-time">{{item.created_at}}</view>
-        <view class="item-status {{item.is_expired ? 'expired' : 'valid'}}">
-          {{item.is_expired ? '已过期' : '有效期内'}}
+        <view class="item-countdown {{item.countdown_class}}">
+          {{item.countdown_text}}
         </view>
       </view>
-      <view class="item-arrow">></view>
+      <view class="item-arrow" bindtap="viewDetail" data-id="{{item.id}}">></view>
     </view>
   </view>
 
@@ -74,4 +96,7 @@
   <view class="load-more" wx:if="{{hasMore && isVip}}">
     <button class="load-more-btn" bindtap="loadMore">加载更多</button>
   </view>
+
+  <!-- 隐藏的canvas用于生成合并图片 -->
+  <canvas canvas-id="combinedCanvas" style="position:fixed;left:-9999px;top:-9999px;width:800px;height:1600px;"></canvas>
 </view>
