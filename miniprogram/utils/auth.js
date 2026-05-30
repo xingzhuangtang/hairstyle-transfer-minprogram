@@ -211,11 +211,12 @@ export function getUserMode(user) {
 /**
  * 手机号登录
  */
-export async function phoneLogin(phone, code) {
+export async function phoneLogin(phone, code, deviceInfo) {
   try {
     const res = await post('/api/auth/phone/login', {
       phone: phone,
-      code: code
+      code: code,
+      device_info: deviceInfo
     })
 
     if (res.success) {

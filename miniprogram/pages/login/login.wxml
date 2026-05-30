@@ -9,23 +9,15 @@
 
   <!-- 登录方式选择 -->
   <view class="login-methods">
-    <!-- 微信登录 - 头像选择 + 昵称输入 -->
+    <!-- 微信登录 -->
     <view class="wechat-profile-section">
-      <!-- 头像选择 -->
-      <button class="avatar-picker-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image class="avatar-preview" src="{{avatarUrl || '/images/icons/default-avatar.png'}}" mode="aspectFill"></image>
-        <text class="avatar-hint">点击选择微信头像</text>
-      </button>
-      
-      <!-- 昵称输入 -->
-      <view class="nickname-input-group">
+      <view class="input-group">
+        <image class="input-icon" src="/images/icons/device.png"></image>
         <input
-          class="nickname-input"
-          type="nickname"
+          class="input"
           placeholder="请输入你的昵称"
           value="{{nickName}}"
-          bindinput="onNickNameInput"
-          bindblur="onNickNameBlur" />
+          bindinput="onNickNameInput" />
       </view>
     </view>
 
@@ -74,6 +66,45 @@
         loading="{{phoneLoading}}">
         登录
       </button>
+    </view>
+  </view>
+
+  <!-- 手机号绑定弹窗（微信登录后如果没有手机号则弹出） -->
+  <view class="bind-phone-modal" wx:if="{{showBindPhoneModal}}">
+    <view class="modal-mask"></view>
+    <view class="modal-content">
+      <view class="modal-title">绑定手机号</view>
+      <view class="modal-desc">为了账号安全，请绑定手机号</view>
+      <view class="input-group">
+        <image class="input-icon" src="/images/icons/phone.png"></image>
+        <input
+          class="input"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          value="{{bindPhone}}"
+          bindinput="onBindPhoneInput" />
+      </view>
+      <view class="input-group">
+        <image class="input-icon" src="/images/icons/code.png"></image>
+        <input
+          class="input code-input"
+          type="number"
+          maxlength="6"
+          placeholder="请输入验证码"
+          value="{{bindCode}}"
+          bindinput="onBindCodeInput" />
+        <button
+          class="code-btn"
+          bindtap="sendBindCode"
+          disabled="{{bindCounting}}">
+          {{bindCounting ? bindCountDown + 's' : '获取验证码'}}
+        </button>
+      </view>
+      <view class="modal-buttons">
+        <button class="modal-btn skip" bindtap="skipBindPhone">暂不绑定</button>
+        <button class="modal-btn confirm" bindtap="confirmBindPhone" loading="{{bindLoading}}">绑定并继续</button>
+      </view>
     </view>
   </view>
 

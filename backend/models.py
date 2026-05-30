@@ -30,6 +30,7 @@ class User(db.Model):
     openid = db.Column(db.String(128), unique=True, nullable=True, comment='微信openid')
     unionid = db.Column(db.String(128), unique=True, nullable=True, comment='微信unionid')
     phone = db.Column(db.String(20), unique=True, nullable=True, comment='手机号')
+    device_id = db.Column(db.String(64), nullable=True, comment='主设备追踪ID（永不改变）')
     nickname = db.Column(db.String(100), nullable=True, comment='昵称')
     avatar_url = db.Column(db.String(500), nullable=True, comment='头像URL')
     member_level = db.Column(db.Enum('normal', 'vip'), default='normal', comment='会员等级')
@@ -54,6 +55,7 @@ class User(db.Model):
     __table_args__ = (
         Index('idx_openid', 'openid'),
         Index('idx_phone', 'phone'),
+        Index('idx_device_id', 'device_id'),
         Index('idx_member_level', 'member_level'),
         Index('idx_is_deactivated', 'is_deactivated'),
         Index('idx_user_type', 'user_type'),
@@ -68,6 +70,7 @@ class User(db.Model):
             'openid': self.openid,
             'unionid': self.unionid,
             'phone': self.phone,
+            'device_id': self.device_id,
             'nickname': self.nickname,
             'avatar_url': self.avatar_url,
             'member_level': self.member_level,

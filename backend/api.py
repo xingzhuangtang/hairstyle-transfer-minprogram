@@ -84,12 +84,13 @@ def phone_login():
         data = request.get_json()
         phone = data.get('phone')
         code = data.get('code')
+        device_info = data.get('device_info')
         
         if not phone or not code:
             return jsonify({'error': '缺少phone或code参数'}), 400
         
         auth_service = AuthService()
-        result = auth_service.phone_login(phone, code)
+        result = auth_service.phone_login(phone, code, device_info=device_info)
         
         if result['success']:
             return jsonify(result)
@@ -103,7 +104,7 @@ def phone_login():
 @api_bp.route('/auth/bind-phone', methods=['POST'])
 @login_required
 def bind_phone():
-    """绑定手机号"""
+    """绑定手机号（支持账号合并）"""
     try:
         data = request.get_json()
         phone = data.get('phone')
@@ -114,7 +115,32 @@ def bind_phone():
         
         user = g.current_user
         auth_service = AuthService()
-        result = auth_service.bind_phone(user.id, phone, code)
+        result = auth_service.bind_phone_with_merge(user.id, phone, code)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/auth/merge-account', methods=['POST'])
+@login_required
+def merge_account():
+    """合并账号（当手机号已被其他用户绑定时）"""
+    try:
+        data = request.get_json()
+        phone = data.get('phone')
+        code = data.get('code')
+        
+        if not phone or not code:
+            return jsonify({'error': '缺少phone或code参数'}), 400
+        
+        user = g.current_user
+        auth_service = AuthService()
+        result = auth_service.bind_phone_with_merge(user.id, phone, code)
         
         if result['success']:
             return jsonify(result)
@@ -350,6 +376,11 @@ def bind_device():
         )
         db.session.add(new_device)
         db.session.commit()
+
+        # 如果用户还没有 device_id，设置它（永不改变的金线）
+        if not user.device_id:
+            user.device_id = device_id
+            db.session.commit()
 
         return jsonify({
             'success': True,

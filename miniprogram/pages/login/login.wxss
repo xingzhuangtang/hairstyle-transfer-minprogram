@@ -244,3 +244,96 @@
 .login-btn[disabled] {
   opacity: 0.6;
 }
+
+/* 绑定手机号弹窗 */
+.bind-phone-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600rpx;
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx 40rpx;
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
+.modal-desc {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+  margin-bottom: 32rpx;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border: none;
+}
+
+.modal-btn.cancel {
+  background-color: #f8f8f8;
+  color: #666;
+}
+
+.modal-btn.cancel::after {
+  border: none;
+}
+
+.modal-btn.skip {
+  background-color: transparent;
+  color: #999;
+  border: 1rpx solid #ddd;
+}
+
+.modal-btn.skip::after {
+  border: none;
+}
+
+.modal-btn.confirm {
+  background-color: #667eea;
+  color: #ffffff;
+}
+
+.modal-btn.confirm::after {
+  border: none;
+}
+
+.modal-btn.full-width {
+  width: 100%;
+  flex: none;
+}
