@@ -5,6 +5,7 @@
 
 import { API_BASE_URL } from './constants.js'
 import { getToken, clearAuthInfo } from './storage.js'
+import { getDeviceId } from './device.js'
 
 /**
  * 网络请求基础函数
@@ -16,7 +17,8 @@ function request(options) {
 
     // 构建请求头
     const header = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Device-ID': getDeviceId()  // 始终附加设备 ID
     }
 
     // 添加 Token

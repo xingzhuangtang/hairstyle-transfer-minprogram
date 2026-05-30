@@ -2,6 +2,8 @@
 import { wechatLogin, phoneLogin as phoneLoginApi, sendVerificationCode, redirectAfterLogin } from '../../utils/auth.js'
 import { post, get } from '../../utils/request.js'
 import { API_BASE_URL } from '../../utils/constants.js'
+import { getDeviceInfo } from '../../utils/device.js'
+import { setToken, setUserInfo } from '../../utils/storage.js'
 
 Page({
   data: {
@@ -13,8 +15,18 @@ Page({
     counting: false,
     countDown: 60,
     timer: null,
-    avatarUrl: '',
-    nickName: ''
+    nickName: '',
+    // 手机号绑定相关
+    showBindPhoneModal: false,
+    bindPhone: '',
+    bindCode: '',
+    bindCounting: false,
+    bindCountDown: 60,
+    bindTimer: null,
+    bindLoading: false,
+    // 微信登录成功后暂存的 token 和用户信息
+    pendingToken: '',
+    pendingUserInfo: null
   },
 
   onLoad() {
@@ -26,15 +38,9 @@ Page({
     if (this.data.timer) {
       clearInterval(this.data.timer)
     }
-  },
-
-  /**
-   * 头像选择回调
-   */
-  onChooseAvatar(e) {
-    const { avatarUrl } = e.detail
-    console.log('选择的微信头像:', avatarUrl)
-    this.setData({ avatarUrl })
+    if (this.data.bindTimer) {
+      clearInterval(this.data.bindTimer)
+    }
   },
 
   /**
@@ -42,13 +48,6 @@ Page({
    */
   onNickNameInput(e) {
     this.setData({ nickName: e.detail.value })
-  },
-
-  /**
-   * 昵称失去焦点回调
-   */
-  onNickNameBlur(e) {
-    this.setData({ nickName: e.detail.value.trim() })
   },
 
   /**
@@ -91,24 +90,6 @@ Page({
       return
     }
 
-    // 检查是否选择了头像
-    if (!this.data.avatarUrl) {
-      wx.showToast({
-        title: '请先选择微信头像',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 检查是否输入了昵称
-    if (!this.data.nickName) {
-      wx.showToast({
-        title: '请输入昵称',
-        icon: 'none'
-      })
-      return
-    }
-
     this.setData({ wechatLoading: true })
 
     try {
@@ -118,53 +99,18 @@ Page({
         throw new Error('获取微信code失败')
       }
 
-      // 2. 获取设备信息
-      const systemInfo = wx.getSystemInfoSync()
-      const uniqueStr = `${systemInfo.brand}-${systemInfo.model}-${systemInfo.system}-${systemInfo.platform}`
-      let hash = 0
-      for (let i = 0; i < uniqueStr.length; i++) {
-        const char = uniqueStr.charCodeAt(i)
-        hash = ((hash << 5) - hash) + char
-        hash = hash & hash
-      }
-      const deviceId = `device_${Math.abs(hash).toString(16).padStart(8, '0')}`
-      const deviceInfo = {
-        device_id: deviceId,
-        device_name: `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`,
-        device_type: 'mobile'
-      }
+      // 2. 获取设备信息（使用共享模块）
+      const deviceInfo = getDeviceInfo()
 
-      // 3. 上传头像到后端获取 URL
-      let avatarUploadUrl = null
-      try {
-        const tempFilePath = this.data.avatarUrl
-        const uploadRes = await wx.uploadFile({
-          url: `${API_BASE_URL}/api/upload`,
-          filePath: tempFilePath,
-          name: 'file',
-          formData: { type: 'avatar' }
-        })
-        const uploadData = JSON.parse(uploadRes.data)
-        if (uploadData.success && uploadData.url) {
-          avatarUploadUrl = uploadData.url
-        }
-      } catch (uploadErr) {
-        console.warn('头像上传失败，使用本地临时路径:', uploadErr)
-      }
-
-      const finalAvatarUrl = avatarUploadUrl || this.data.avatarUrl
-
-      // 4. 调用后端微信登录 API，传递昵称和头像
+      // 3. 调用后端微信登录 API
       const res = await post('/api/auth/wechat/login', {
         code: loginRes.code,
         device_info: deviceInfo,
-        nickname: this.data.nickName,
-        avatar_url: finalAvatarUrl
+        nickname: this.data.nickName || '微信用户'
       })
 
       if (res.success) {
         // 保存 token 和用户信息
-        const { setToken, setUserInfo } = await import('../../utils/storage.js')
         setToken(res.token)
         setUserInfo(res.user)
 
@@ -179,10 +125,20 @@ Page({
           icon: 'success'
         })
 
-        // 延迟跳转
-        setTimeout(() => {
-          redirectAfterLogin()
-        }, 1500)
+        // 检查是否需要绑定手机号
+        if (res.needs_phone_bind) {
+          // 暂存 token 和用户信息，等待绑定
+          this.setData({
+            pendingToken: res.token,
+            pendingUserInfo: res.user,
+            showBindPhoneModal: true
+          })
+        } else {
+          // 已绑定手机号，直接跳转
+          setTimeout(() => {
+            redirectAfterLogin()
+          }, 1500)
+        }
       } else {
         wx.showToast({
           title: res.error || '登录失败',
@@ -280,7 +236,10 @@ Page({
     this.setData({ phoneLoading: true })
 
     try {
-      const res = await phoneLoginApi(this.data.phone, this.data.code)
+      // 生成设备信息（使用共享模块）
+      const deviceInfo = getDeviceInfo()
+
+      const res = await phoneLoginApi(this.data.phone, this.data.code, deviceInfo)
 
       if (res.success) {
         wx.showToast({
@@ -437,5 +396,172 @@ Page({
         })
       }
     })
+  },
+
+  /**
+   * 绑定手机号输入
+   */
+  onBindPhoneInput(e) {
+    this.setData({ bindPhone: e.detail.value })
+  },
+
+  /**
+   * 绑定验证码输入
+   */
+  onBindCodeInput(e) {
+    this.setData({ bindCode: e.detail.value })
+  },
+
+  /**
+   * 发送绑定验证码
+   */
+  async sendBindCode() {
+    const phone = this.data.bindPhone
+    if (!phone) {
+      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      return
+    }
+    const phoneReg = /^1[3-9]\d{9}$/
+    if (!phoneReg.test(phone)) {
+      wx.showToast({ title: '手机号格式不正确', icon: 'none' })
+      return
+    }
+
+    try {
+      const res = await sendVerificationCode(phone)
+      if (res.success) {
+        wx.showToast({ title: '验证码已发送', icon: 'success' })
+        this.startBindCountDown()
+      } else {
+        wx.showToast({ title: res.error || '发送失败', icon: 'none' })
+      }
+    } catch (e) {
+      wx.showToast({ title: '发送失败', icon: 'none' })
+    }
+  },
+
+  /**
+   * 跳过手机号绑定（降级路径）
+   * 用户仍可以游客身份继续使用
+   */
+  skipBindPhone() {
+    this.setData({ showBindPhoneModal: false })
+    if (this.data.pendingToken) {
+      redirectAfterLogin()
+    }
+  },
+
+  /**
+   * 确认绑定手机号
+   */
+  async confirmBindPhone() {
+    const phone = this.data.bindPhone
+    const code = this.data.bindCode
+
+    if (!phone) {
+      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      return
+    }
+    if (!code) {
+      wx.showToast({ title: '请输入验证码', icon: 'none' })
+      return
+    }
+
+    this.setData({ bindLoading: true })
+
+    try {
+      const res = await post('/api/auth/bind-phone', {
+        phone: phone,
+        code: code
+      })
+
+      if (res.success) {
+        wx.showToast({ title: '绑定成功', icon: 'success' })
+        
+        // 更新 token 和用户信息（可能合并到了已有账号）
+        setToken(res.token)
+        setUserInfo(res.user)
+
+        const app = getApp()
+        app.globalData.token = res.token
+        app.globalData.userInfo = res.user
+        app.globalData.isPremium = res.user.member_level === 'vip'
+
+        this.setData({
+          showBindPhoneModal: false,
+          pendingToken: '',
+          pendingUserInfo: null
+        })
+
+        setTimeout(() => {
+          redirectAfterLogin()
+        }, 1500)
+      } else {
+        // 如果是手机号已被其他用户绑定，询问是否合并
+        if (res.error && res.error.includes('已被绑定')) {
+          wx.showModal({
+            title: '账号合并提示',
+            content: '该手机号已绑定其他账号，是否合并到该账号？',
+            confirmText: '合并',
+            cancelText: '取消',
+            success: async (modalRes) => {
+              if (modalRes.confirm) {
+                // 调用合并接口
+                const mergeRes = await post('/api/auth/merge-account', {
+                  phone: phone,
+                  code: code
+                })
+                if (mergeRes.success) {
+                  wx.showToast({ title: '合并成功', icon: 'success' })
+                  setToken(mergeRes.token)
+                  setUserInfo(mergeRes.user)
+                  const app = getApp()
+                  app.globalData.token = mergeRes.token
+                  app.globalData.userInfo = mergeRes.user
+                  app.globalData.isPremium = mergeRes.user.member_level === 'vip'
+                  this.setData({ showBindPhoneModal: false, pendingToken: '', pendingUserInfo: null })
+                  setTimeout(() => redirectAfterLogin(), 1500)
+                } else {
+                  wx.showToast({ title: mergeRes.error || '合并失败', icon: 'none' })
+                }
+              }
+            }
+          })
+        } else {
+          wx.showToast({ title: res.error || '绑定失败', icon: 'none' })
+        }
+      }
+    } catch (e) {
+      console.error('绑定手机号失败:', e)
+      wx.showToast({ title: '绑定失败', icon: 'none' })
+    } finally {
+      this.setData({ bindLoading: false })
+    }
+  },
+
+  /**
+   * 开始绑定倒计时
+   */
+  startBindCountDown() {
+    this.setData({
+      bindCounting: true,
+      bindCountDown: 60
+    })
+
+    const timer = setInterval(() => {
+      const countDown = this.data.bindCountDown - 1
+      if (countDown <= 0) {
+        clearInterval(timer)
+        this.setData({
+          bindCounting: false,
+          bindCountDown: 60,
+          bindTimer: null
+        })
+      } else {
+        this.setData({ bindCountDown: countDown })
+      }
+    }, 1000)
+
+    this.setData({ bindTimer: timer })
   }
 })

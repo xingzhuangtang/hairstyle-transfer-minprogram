@@ -107,21 +107,24 @@ class AuthService:
             is_new_user = False
 
             if not user:
-                # 首次登录，创建游客账户
+                # 首次微信登录，创建待绑定手机号的账户
+                # guest = 有 openid 但未绑定手机号
+                # registered = 已绑定手机号
                 user = User(
                     openid=openid,
                     unionid=unionid,
-                    user_type='guest',  # 默认创建游客账户
+                    user_type='guest',  # 未绑定手机号前是 guest
                     member_level="normal",
                     scissor_hairs=0,
                     comb_hairs=0,
                     nickname=nickname,
                     avatar_url=avatar_url,
+                    device_id=device_info.get('device_id') if device_info else None,
                 )
                 db.session.add(user)
                 db.session.commit()
                 is_new_user = True
-                print(f"✅ 新用户注册（游客）: openid={openid}, nickname={nickname}")
+                print(f"✅ 新用户注册（微信待绑手机）: openid={openid}, nickname={nickname}, device_id={user.device_id}")
 
                 # 赠送新用户注册福利（1000 根梳子发丝）
                 from account_service import AccountService
@@ -141,6 +144,10 @@ class AuthService:
                     user.nickname = nickname
                 if avatar_url and not user.avatar_url:
                     user.avatar_url = avatar_url
+                # 如果老用户还没有 device_id，从当前设备信息补填
+                if not user.device_id and device_info and device_info.get('device_id'):
+                    user.device_id = device_info['device_id']
+                    print(f"✅ 补填老用户 device_id: user_id={user.id}, device_id={user.device_id}")
                 db.session.commit()
 
                 # 根据用户类型和会员等级判断模式
@@ -196,20 +203,22 @@ class AuthService:
                 "user_type": user.user_type,  # guest, registered
                 "member_level": user.member_level,  # normal, vip
                 "user": user.to_dict(),
-                "device_bound": device_bound
+                "device_bound": device_bound,
+                "needs_phone_bind": not user.phone  # 如果用户没有绑定手机号，需要绑定
             }
 
         except Exception as e:
             print(f"❌ 微信登录失败：{e}")
             return {"success": False, "error": str(e)}
 
-    def phone_login(self, phone, code):
+    def phone_login(self, phone, code, device_info=None):
         """
         手机号登录
 
         Args:
             phone: 手机号
             code: 验证码（兼容'verification_code'参数名）
+            device_info: 设备信息（可选）{device_id, device_name, device_type}
 
         Returns:
             dict: {success, user_id, token, is_new_user}
@@ -261,12 +270,16 @@ class AuthService:
                 else:
                     # 4. 没有 openid 用户，创建新用户
                     user = User(
-                        phone=phone, member_level="normal", scissor_hairs=0, comb_hairs=0
+                        phone=phone,
+                        member_level="normal",
+                        scissor_hairs=0,
+                        comb_hairs=0,
+                        device_id=device_info.get('device_id') if device_info else None,
                     )
                     db.session.add(user)
                     db.session.commit()
                     is_new_user = True
-                    print(f"✅ 新用户注册（手机号）: phone={phone}")
+                    print(f"✅ 新用户注册（手机号）: phone={phone}, device_id={user.device_id}")
 
             else:
                 # 手机号已绑定，检查用户状态
@@ -351,6 +364,108 @@ class AuthService:
 
         except Exception as e:
             print(f"❌ 绑定手机号失败：{e}")
+            return {"success": False, "error": str(e)}
+
+    def bind_phone_with_merge(self, user_id, phone, code):
+        """
+        绑定手机号（支持账号合并）
+        如果手机号已被其他用户绑定，则将当前用户的 openid 合并到该账号
+
+        Args:
+            user_id: 当前用户 ID
+            phone: 手机号
+            code: 验证码
+
+        Returns:
+            dict: {success, user, token, merged}
+        """
+        try:
+            from sms_service import SMSService
+            sms_service = SMSService()
+
+            if not sms_service.verify_code(phone, code):
+                return {"success": False, "error": "验证码错误或已过期"}
+
+            current_user = User.query.get(user_id)
+            if not current_user:
+                return {"success": False, "error": "用户不存在"}
+
+            # 检查手机号是否已被其他用户绑定
+            existing_user = User.query.filter_by(phone=phone).first()
+            if existing_user and existing_user.id != user_id:
+                # 账号合并：将当前用户的 openid 转移到已有账号
+                print(f"🔄 开始账号合并: user_id={user_id} -> target_user_id={existing_user.id}")
+                
+                if not existing_user.openid and current_user.openid:
+                    # 目标账号没有 openid，直接转移
+                    existing_user.openid = current_user.openid
+                    existing_user.unionid = current_user.unionid
+                elif existing_user.openid != current_user.openid:
+                    # 两个账号都有 openid，保留目标账号的 openid
+                    print(f"⚠️ 两个账号都有openid，保留目标账号的openid")
+
+                # 合并余额
+                existing_user.scissor_hairs = (existing_user.scissor_hairs or 0) + (current_user.scissor_hairs or 0)
+                existing_user.comb_hairs = (existing_user.comb_hairs or 0) + (current_user.comb_hairs or 0)
+
+                # 合并历史记录（将当前用户的历史记录转移到目标账号）
+                from models import ConsumptionRecord, HistoryRecord
+                ConsumptionRecord.query.filter_by(user_id=user_id).update({'user_id': existing_user.id})
+                HistoryRecord.query.filter_by(user_id=user_id).update({'user_id': existing_user.id})
+
+                # 合并设备绑定
+                Device.query.filter_by(user_id=user_id).update({'user_id': existing_user.id})
+
+                # 目标账号绑定手机号并升级为 registered
+                existing_user.user_type = 'registered'
+
+                # 取消当前用户的未完成游客续赠记录
+                from models import GuestBonusRecord
+                GuestBonusRecord.query.filter_by(
+                    user_id=user_id,
+                    bonus_type='auto_renew',
+                    is_completed=False
+                ).update({'is_completed': True})
+
+                # 删除当前用户（物理删除）
+                db.session.delete(current_user)
+                db.session.commit()
+
+                # 生成新 token
+                token = self.generate_token(existing_user.id)
+                print(f"✅ 账号合并成功: user_id={user_id} -> target_user_id={existing_user.id}")
+
+                return {
+                    "success": True,
+                    "user": existing_user.to_dict(),
+                    "token": token,
+                    "merged": True
+                }
+
+            # 手机号未被绑定，直接绑定到当前用户
+            current_user.phone = phone
+            # 只有 guest 用户绑定手机号时才升级为 registered 并取消未完成的游客续赠记录
+            if current_user.user_type == 'guest':
+                current_user.user_type = 'registered'
+                from models import GuestBonusRecord
+                GuestBonusRecord.query.filter_by(
+                    user_id=user_id,
+                    bonus_type='auto_renew',
+                    is_completed=False
+                ).update({'is_completed': True})
+            db.session.commit()
+
+            token = self.generate_token(current_user.id)
+            return {
+                "success": True,
+                "user": current_user.to_dict(),
+                "token": token,
+                "merged": False
+            }
+
+        except Exception as e:
+            print(f"❌ 绑定手机号（合并）失败：{e}")
+            db.session.rollback()
             return {"success": False, "error": str(e)}
 
     def get_current_user(self):

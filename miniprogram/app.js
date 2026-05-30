@@ -176,11 +176,18 @@ App({
         return
       }
 
-      // 调用后端微信登录接口
+      // 获取设备信息（使用共享模块）
+      const { getDeviceInfo } = await import('./utils/device.js')
+      const deviceInfo = getDeviceInfo()
+
+      // 调用后端微信登录接口，传递设备信息
       const res = await this.request({
         url: '/api/auth/wechat/login',
         method: 'POST',
-        data: { code: loginRes.code }
+        data: {
+          code: loginRes.code,
+          device_info: deviceInfo
+        }
       })
 
       if (res.success && res.user) {
@@ -190,7 +197,7 @@ App({
         this.globalData.token = res.token
         this.globalData.userInfo = res.user
 
-        console.log('游客自动登录成功，账号 ID:', res.user.id)
+        console.log('游客自动登录成功，账号 ID:', res.user.id, 'device_id:', res.user.device_id)
       }
     } catch (e) {
       console.log('游客自动登录失败:', e)
