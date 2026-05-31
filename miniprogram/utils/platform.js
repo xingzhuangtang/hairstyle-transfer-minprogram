@@ -67,8 +67,7 @@ function isDevTools() {
 
 /**
  * 是否需要使用虚拟支付
- * iOS 端需要使用虚拟支付，Android 使用普通微信支付
- * 开发者工具默认使用模拟支付
+ * iOS 端需要使用微信虚拟支付，Android 使用普通微信支付
  */
 function needsVirtualPay() {
   const platform = getPlatform()

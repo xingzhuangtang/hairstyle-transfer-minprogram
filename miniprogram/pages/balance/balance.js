@@ -209,20 +209,6 @@ Page({
         throw new Error(payRes.error || '获取支付参数失败')
       }
 
-      // 检查是否是 mock 支付
-      if (payRes.mock) {
-        wx.hideLoading()
-        wx.showModal({
-          title: '模拟支付',
-          content: '开发环境模拟支付成功，充值已到账',
-          showCancel: false,
-          success: () => {
-            this.checkOrderStatus(orderNo)
-          }
-        })
-        return
-      }
-
       wx.hideLoading()
 
       // 调起微信支付

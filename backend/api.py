@@ -532,24 +532,6 @@ def pay_recharge():
             if order.payment_status == 'cancelled':
                 return jsonify({'error': '订单已取消'}), 400
 
-            # 开发环境下返回模拟支付参数
-            from config import get_config
-            _config = get_config()
-            if _config.DEBUG:
-                return jsonify({
-                    'success': True,
-                    'prepay_id': 'mock_prepay_id',
-                    'wxpay_params': {
-                        'timeStamp': str(int(time.time())),
-                        'nonceStr': 'mock_nonce_str',
-                        'package': 'prepay_id=mock_prepay_id',
-                        'signType': 'RSA',
-                        'paySign': 'mock_pay_sign',
-                        'total_fee': float(order.amount) * 100  # 单位：分
-                    },
-                    'mock': True  # 标记为模拟支付
-                })
-
             # 创建微信支付订单
             wechat_service = WeChatPayService()
             result = wechat_service.create_jsapi_order(
@@ -872,24 +854,6 @@ def pay_member():
                 return jsonify({'error': '无权操作此订单'}), 403
             if order.payment_status == 'success':
                 return jsonify({'error': '订单已支付'}), 400
-
-            # 开发环境下返回模拟支付参数
-            from config import get_config
-            _config = get_config()
-            if _config.DEBUG:
-                return jsonify({
-                    'success': True,
-                    'prepay_id': 'mock_prepay_id',
-                    'wxpay_params': {
-                        'timeStamp': str(int(time.time())),
-                        'nonceStr': 'mock_nonce_str',
-                        'package': 'prepay_id=mock_prepay_id',
-                        'signType': 'RSA',
-                        'paySign': 'mock_pay_sign',
-                        'total_fee': float(order.amount) * 100  # 单位：分
-                    },
-                    'mock': True  # 标记为模拟支付
-                })
 
             wechat_service = WeChatPayService()
             result = wechat_service.create_jsapi_order(
