@@ -202,6 +202,15 @@ Page({
   },
 
   /**
+   * 跳转到我的惊喜（推广返佣）
+   */
+  goToReferral() {
+    wx.navigateTo({
+      url: '/pages/referral/referral'
+    })
+  },
+
+  /**
    * 退出登录
    */
   handleLogout() {

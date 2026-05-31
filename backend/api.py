@@ -1903,3 +1903,141 @@ def get_virtual_pay_order_status(order_no):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# 推广返佣相关接口
+# ============================================
+
+@api_bp.route('/referral/qrcode', methods=['POST'])
+@login_required
+def referral_qrcode():
+    """生成或获取用户的推广小程序码"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        user = g.current_user
+
+        result = referral_service.get_or_create_qrcode(user.id)
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({'error': result.get('error', '生成失败')}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/track', methods=['POST'])
+def referral_track():
+    """追踪扫码来源（新用户通过扫码进入时调用）"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        data = request.get_json()
+        scene = data.get('scene', '').strip()
+
+        if not scene:
+            return jsonify({'error': 'scene参数不能为空'}), 400
+
+        # 尝试获取当前用户（如果已登录）
+        from models import AuthService
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+
+        if not user:
+            return jsonify({'error': '请先登录', 'code': 401}), 401
+
+        result = referral_service.track_referral(user.id, scene)
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({'success': False, 'message': result.get('error', '追踪失败')})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/piggy-bank', methods=['GET'])
+@login_required
+def piggy_bank_stats():
+    """获取存钱罐统计数据"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        user = g.current_user
+
+        result = referral_service.get_piggy_bank_stats(user.id)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/consume-cash', methods=['POST'])
+@login_required
+def consume_cash():
+    """本地消费：用现金余额购买发丝"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        user = g.current_user
+        data = request.get_json()
+        amount = data.get('amount')
+
+        if not amount or amount <= 0:
+            return jsonify({'error': '请输入有效金额'}), 400
+
+        result = referral_service.consume_cash_for_hairs(user.id, amount)
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({'error': result.get('error', '消费失败')}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/withdraw', methods=['POST'])
+@login_required
+def withdraw_cash():
+    """提现到微信零钱"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        user = g.current_user
+        data = request.get_json()
+        amount = data.get('amount')
+
+        if not amount or amount <= 0:
+            return jsonify({'error': '请输入有效金额'}), 400
+
+        result = referral_service.withdraw_cash(user.id, amount)
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({'error': result.get('error', '提现失败')}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/withdrawal-records', methods=['GET'])
+@login_required
+def withdrawal_records():
+    """获取提现记录"""
+    try:
+        from models import CashWithdrawalRecord
+        user = g.current_user
+
+        records = CashWithdrawalRecord.query.filter_by(user_id=user.id)\
+            .order_by(CashWithdrawalRecord.created_at.desc())\
+            .limit(20).all()
+
+        return jsonify({
+            'success': True,
+            'records': [r.to_dict() for r in records]
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
