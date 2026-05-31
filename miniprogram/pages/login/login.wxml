@@ -74,7 +74,7 @@
     <view class="modal-mask"></view>
     <view class="modal-content">
       <view class="modal-title">绑定手机号</view>
-      <view class="modal-desc">为了账号安全，请绑定手机号</view>
+      <view class="modal-desc">微信登录需绑定手机号，请输入手机号并验证</view>
       <view class="input-group">
         <image class="input-icon" src="/images/icons/phone.png"></image>
         <input
@@ -102,7 +102,6 @@
         </button>
       </view>
       <view class="modal-buttons">
-        <button class="modal-btn skip" bindtap="skipBindPhone">暂不绑定</button>
         <button class="modal-btn confirm" bindtap="confirmBindPhone" loading="{{bindLoading}}">绑定并继续</button>
       </view>
     </view>

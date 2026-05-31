@@ -441,17 +441,6 @@ Page({
   },
 
   /**
-   * 跳过手机号绑定（降级路径）
-   * 用户仍可以游客身份继续使用
-   */
-  skipBindPhone() {
-    this.setData({ showBindPhoneModal: false })
-    if (this.data.pendingToken) {
-      redirectAfterLogin()
-    }
-  },
-
-  /**
    * 确认绑定手机号
    */
   async confirmBindPhone() {
