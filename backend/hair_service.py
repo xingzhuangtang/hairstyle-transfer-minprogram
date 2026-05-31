@@ -164,6 +164,15 @@ class HairService:
             db.session.add(consumption_record)
             db.session.commit()
             
+            # 检查并推广佣金发放（素描/组合消费触发）
+            if service_type in ('sketch', 'combined'):
+                try:
+                    from referral_service import ReferralService
+                    referral_service = ReferralService()
+                    referral_service.check_and_grant_commission(user.id)
+                except Exception as referral_error:
+                    print(f"⚠️ 推广佣金检查失败：{referral_error}")
+            
             # 如果是 vip 会员，保存历史记录
             if user.member_level == 'vip':
                 self._save_history_record(user, task_id, service_type, **kwargs)

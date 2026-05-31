@@ -7,6 +7,9 @@
 """
 
 import os
+import random
+import string
+from decimal import Decimal
 from wechatpayv3 import WeChatPayType, WeChatPay
 from config import get_config
 
@@ -302,6 +305,97 @@ class WeChatPayClient:
             'code': 'SUCCESS' if success else 'FAIL',
             'message': message
         }
+
+    def enterprise_transfer(self, openid, amount, partner_trade_no, desc="提现"):
+        """
+        企业付款到个人微信零钱（API v2 接口）
+        
+        Args:
+            openid: 用户openid
+            amount: 金额（元），最低1元
+            partner_trade_no: 商户订单号（唯一）
+            desc: 付款说明
+
+        Returns:
+            dict: {success, payment_no, error}
+        """
+        import hashlib
+        import xml.etree.ElementTree as ET
+        from config import get_config
+
+        config = get_config()
+        
+        # 企业付款使用 API v2 接口
+        amount_cents = int(Decimal(str(amount)) * 100)
+        
+        # 构建请求参数
+        params = {
+            'mch_appid': self.appid,
+            'mchid': self.mch_id,
+            'nonce_str': ''.join(random.choices(string.ascii_letters + string.digits, k=32)),
+            'partner_trade_no': partner_trade_no,
+            'openid': openid,
+            'check_name': 'NO_CHECK',
+            'amount': str(amount_cents),
+            'desc': desc,
+            'spbill_create_ip': '127.0.0.1',
+        }
+
+        # 生成签名（API v2 MD5签名）
+        sign = self._generate_v2_sign(params, config.WECHAT_API_KEY)
+        params['sign'] = sign
+
+        # 构建 XML
+        xml_data = self._dict_to_xml(params)
+
+        try:
+            # 企业付款接口URL（需要商户证书）
+            transfer_url = "https://api.mch.weixin.qq.com/mmpaymkttransfers/promotion/transfers"
+            
+            # 使用证书发送请求
+            import requests
+            cert_path = self.config.WECHAT_PAY_CERT_PATH
+            key_path = self.config.WECHAT_PAY_KEY_PATH
+            
+            resp = requests.post(
+                transfer_url,
+                data=xml_data.encode('utf-8'),
+                cert=(cert_path, key_path),
+                headers={'Content-Type': 'application/xml'},
+                timeout=15
+            )
+
+            # 解析响应XML
+            root = ET.fromstring(resp.content)
+            result = {elem.tag: elem.text for elem in root}
+
+            if result.get('return_code') == 'SUCCESS' and result.get('result_code') == 'SUCCESS':
+                return {
+                    'success': True,
+                    'payment_no': result.get('payment_no', ''),
+                    'partner_trade_no': partner_trade_no
+                }
+            else:
+                err_msg = result.get('err_code_des', result.get('return_msg', '提现失败'))
+                return {'success': False, 'error': err_msg}
+
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _generate_v2_sign(self, params, api_key):
+        """API v2 MD5签名"""
+        sorted_params = sorted(params.items())
+        sign_str = '&'.join([f"{k}={v}" for k, v in sorted_params if v])
+        sign_str += f"&key={api_key}"
+        return hashlib.md5(sign_str.encode('utf-8')).hexdigest().upper()
+
+    def _dict_to_xml(self, params):
+        """字典转XML"""
+        xml_parts = ['<xml>']
+        for k, v in params.items():
+            xml_parts.append(f'<{k}>{v}</{k}>')
+        xml_parts.append('</xml>')
+        return ''.join(xml_parts)
 
 
 # 测试代码
