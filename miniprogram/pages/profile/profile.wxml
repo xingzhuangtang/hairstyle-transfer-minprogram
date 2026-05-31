@@ -21,7 +21,12 @@
             <text class="nickname">{{userInfo.nickname || '未设置昵称'}}</text>
             <image wx:if="{{isPremium}}" class="vip-badge" src="/images/icons/vip.png"></image>
           </view>
-          <text class="phone">{{userInfo.phone || '未绑定手机'}}</text>
+          <view class="detail-row">
+            <text class="user-id">ID: {{userInfo.device_id || '未知'}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="phone">{{userInfo.phone || '未绑定手机'}}</text>
+          </view>
         </view>
       </view>
 

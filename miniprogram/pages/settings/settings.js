@@ -9,7 +9,8 @@ Page({
     originalNickname: '',
     originalAvatarUrl: '',
     saving: false,
-    hasChanged: false
+    hasChanged: false,
+    userId: ''
   },
 
   onLoad() {
@@ -28,7 +29,8 @@ Page({
           avatarUrl: user.avatar_url || '',
           nickname: user.nickname || '',
           originalAvatarUrl: user.avatar_url || '',
-          originalNickname: user.nickname || ''
+          originalNickname: user.nickname || '',
+          userId: user.device_id || ''
         })
       }
     } catch (e) {
