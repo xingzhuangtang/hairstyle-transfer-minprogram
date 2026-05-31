@@ -101,6 +101,15 @@
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
+
+      <!-- 我的惊喜 -->
+      <view class="menu-item" bindtap="goToReferral">
+        <view class="menu-left">
+          <image class="menu-icon" src="/images/icons/referral.png"></image>
+          <text class="menu-text">我的惊喜</text>
+        </view>
+        <image class="arrow" src="/images/icons/arrow-right.png"></image>
+      </view>
     </view>
 
     <!-- 其他设置 -->
