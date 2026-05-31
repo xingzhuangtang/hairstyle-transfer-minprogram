@@ -1,0 +1,276 @@
+/* pages/referral/referral.wxss */
+.container {
+  padding: 24rpx;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.tip-text {
+  font-size: 24rpx;
+  color: #ff6b6b;
+  background: linear-gradient(90deg, #ff6b6b, #ffa500, #4ecdc4, #45b7d1);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 24rpx;
+  line-height: 1.6;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+/* 二维码样式 */
+.qrcode-container {
+  display: flex;
+  justify-content: center;
+  margin: 20rpx 0;
+}
+
+.qrcode {
+  width: 400rpx;
+  height: 400rpx;
+}
+
+.qrcode-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300rpx;
+  background: #f9f9f9;
+  border-radius: 12rpx;
+  margin: 20rpx 0;
+}
+
+.placeholder-text {
+  color: #999;
+  font-size: 28rpx;
+}
+
+.qrcode-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+/* 按钮样式 */
+.btn {
+  flex: 1;
+  font-size: 28rpx;
+  border-radius: 8rpx;
+  padding: 16rpx 0;
+  text-align: center;
+}
+
+.btn-primary {
+  background: #07c160;
+  color: #fff;
+  border: none;
+}
+
+.btn-outline {
+  background: #fff;
+  color: #07c160;
+  border: 2rpx solid #07c160;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+}
+
+.btn-confirm {
+  background: #07c160;
+  color: #fff;
+  border: none;
+}
+
+/* 存钱罐样式 */
+.piggy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.piggy-label {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.piggy-balance {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #ff6b6b;
+}
+
+/* 进度条样式 */
+.progress-bar {
+  height: 24rpx;
+  background: #e0e0e0;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 8rpx;
+}
+
+.progress-bar.active .progress-fill {
+  background: #07c160;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #999;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20rpx;
+  color: #333;
+}
+
+.piggy-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #666;
+  margin-top: 12rpx;
+}
+
+/* 功能按钮样式 */
+.feature-card {
+  cursor: pointer;
+}
+
+.feature-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.feature-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.feature-icon {
+  font-size: 36rpx;
+}
+
+.feature-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.feature-status {
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.feature-status.locked {
+  background: #e0e0e0;
+  color: #999;
+}
+
+.feature-status.unlocked {
+  background: #e8f5e9;
+  color: #07c160;
+}
+
+.feature-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  width: 80%;
+  max-width: 600rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.modal-body {
+  margin-bottom: 24rpx;
+}
+
+.input-group {
+  margin-bottom: 16rpx;
+}
+
+.input-label {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.input {
+  border: 2rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 16rpx;
+  font-size: 32rpx;
+}
+
+.exchange-info,
+.withdraw-info {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16rpx;
+}
