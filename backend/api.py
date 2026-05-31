@@ -441,19 +441,32 @@ def unbind_device():
 def get_recharge_rules():
     """获取充值规则"""
     try:
-        from config import RECHARGE_RULES
-        
-        rules = []
-        for amount, rule in RECHARGE_RULES.items():
-            rules.append({
+        from config import RECHARGE_RULES, NORMAL_RECHARGE_RULES, VIP_RECHARGE_RULES
+
+        # 返回两种规则
+        rules = {
+            'normal': [],
+            'vip': []
+        }
+
+        for amount, rule in NORMAL_RECHARGE_RULES.items():
+            rules['normal'].append({
                 'amount': amount,
                 'scissor_hairs': rule['scissor_hairs'],
                 'comb_hairs': rule['comb_hairs'],
                 'total_hairs': rule['scissor_hairs'] + rule['comb_hairs']
             })
-        
-        return jsonify({'rules': rules})
-        
+
+        for amount, rule in VIP_RECHARGE_RULES.items():
+            rules['vip'].append({
+                'amount': amount,
+                'scissor_hairs': rule['scissor_hairs'],
+                'comb_hairs': rule['comb_hairs'],
+                'total_hairs': rule['scissor_hairs'] + rule['comb_hairs']
+            })
+
+        return jsonify({'success': True, 'rules': rules})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1952,6 +1965,7 @@ def referral_track():
         if result.get('success'):
             return jsonify(result)
         else:
+            # 推广关系不存在或无效时不报错，静默处理
             return jsonify({'success': False, 'message': result.get('error', '追踪失败')})
 
     except Exception as e:
@@ -2025,18 +2039,25 @@ def withdraw_cash():
 @api_bp.route('/referral/withdrawal-records', methods=['GET'])
 @login_required
 def withdrawal_records():
-    """获取提现记录"""
+    """获取提现记录列表"""
     try:
         from models import CashWithdrawalRecord
         user = g.current_user
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        page_size = min(page_size, 50)
 
-        records = CashWithdrawalRecord.query.filter_by(user_id=user.id)\
-            .order_by(CashWithdrawalRecord.created_at.desc())\
-            .limit(20).all()
+        query = CashWithdrawalRecord.query.filter_by(user_id=user.id).order_by(
+            CashWithdrawalRecord.created_at.desc()
+        )
+        total = query.count()
+        records = query.offset((page - 1) * page_size).limit(page_size).all()
 
         return jsonify({
             'success': True,
-            'records': [r.to_dict() for r in records]
+            'records': [r.to_dict() for r in records],
+            'total': total,
+            'page': page
         })
 
     except Exception as e:
