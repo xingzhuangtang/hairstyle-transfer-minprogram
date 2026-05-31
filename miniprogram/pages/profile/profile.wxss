@@ -34,7 +34,7 @@
 .name-row {
   display: flex;
   align-items: center;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
 }
 
 .nickname {
@@ -47,6 +47,16 @@
 .vip-badge {
   width: 60rpx;
   height: 28rpx;
+}
+
+.detail-row {
+  margin-bottom: 4rpx;
+}
+
+.user-id {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Courier New', monospace;
 }
 
 .phone {
