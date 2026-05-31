@@ -13,7 +13,8 @@
     "pages/message/message",
     "pages/message-admin/message-admin",
     "pages/about/about",
-    "pages/consumption/consumption"
+    "pages/consumption/consumption",
+    "pages/referral/referral"
   ],
   "window": {
     "backgroundTextStyle": "light",

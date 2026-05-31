@@ -42,6 +42,11 @@ class User(db.Model):
     user_type = db.Column(db.Enum('guest', 'registered'), default='registered', comment='用户类型')
     is_deactivated = db.Column(db.Boolean, default=False, comment='是否已注销')
     deactivated_at = db.Column(db.DateTime, nullable=True, comment='注销时间')
+    # 推广返佣相关字段
+    cash_balance = db.Column(db.Numeric(10, 2), default=0.00, comment='存钱罐余额(元)')
+    total_referral_earnings = db.Column(db.Numeric(10, 2), default=0.00, comment='累计推广收益(元)')
+    referral_code = db.Column(db.String(32), nullable=True, comment='用户专属推广码')
+    referral_count = db.Column(db.Integer, default=0, comment='成功推广人数')
     # 访客模式赠送追踪
     guest_bonus_used_count = db.Column(db.Integer, default=0, comment='游客免费额度使用次数')
     last_guest_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次游客赠送时间')
@@ -59,6 +64,7 @@ class User(db.Model):
         Index('idx_member_level', 'member_level'),
         Index('idx_is_deactivated', 'is_deactivated'),
         Index('idx_user_type', 'user_type'),
+        Index('idx_referral_code', 'referral_code'),
         {'comment': '用户表'}
     )
 
@@ -87,7 +93,11 @@ class User(db.Model):
             'last_guest_bonus_time': self.last_guest_bonus_time.isoformat() if self.last_guest_bonus_time else None,
             'registered_bonus_used_count': self.registered_bonus_used_count,
             'last_registered_bonus_time': self.last_registered_bonus_time.isoformat() if self.last_registered_bonus_time else None,
-            'is_developer': is_developer(self.id)
+            'is_developer': is_developer(self.id),
+            'cash_balance': float(self.cash_balance),
+            'total_referral_earnings': float(self.total_referral_earnings),
+            'referral_code': self.referral_code,
+            'referral_count': self.referral_count
         }
 
     def is_vip(self):
@@ -522,6 +532,142 @@ class Message(db.Model):
             'phone': self.phone,
             'content': self.content,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class ReferralRelation(db.Model):
+    """推广关系表"""
+    __tablename__ = 'referral_relations'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    referrer_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='推广人用户ID')
+    referee_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='被推广人用户ID')
+    scene = db.Column(db.String(128), nullable=False, comment='小程序码scene参数')
+    status = db.Column(db.Enum('pending', 'active', 'rewarded'), default='pending', comment='状态')
+    referee_registered_at = db.Column(db.DateTime, nullable=True, comment='被推广人注册时间')
+    commission_paid_at = db.Column(db.DateTime, nullable=True, comment='佣金发放时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+
+    # 关联
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_made', lazy='dynamic'))
+    referee = db.relationship('User', foreign_keys=[referee_id], backref=db.backref('referrals_received', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_referrer_id', 'referrer_id'),
+        Index('idx_scene', 'scene'),
+        Index('idx_status', 'status'),
+        {'comment': '推广关系表'}
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'referrer_id': self.referrer_id,
+            'referee_id': self.referee_id,
+            'scene': self.scene,
+            'status': self.status,
+            'referee_registered_at': self.referee_registered_at.isoformat() if self.referee_registered_at else None,
+            'commission_paid_at': self.commission_paid_at.isoformat() if self.commission_paid_at else None,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class CommissionRecord(db.Model):
+    """佣金记录表"""
+    __tablename__ = 'commission_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='推广人用户ID')
+    referee_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='好友用户ID')
+    referral_id = db.Column(db.BigInteger, db.ForeignKey('referral_relations.id'), nullable=False, comment='推广关系ID')
+    amount = db.Column(db.Numeric(10, 2), default=0.03, comment='佣金金额(元)')
+    reason = db.Column(db.String(100), default='friend_completed_2_sketches', comment='佣金原因')
+    status = db.Column(db.Enum('pending', 'paid'), default='paid', comment='状态')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('commission_records', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_referral_id', 'referral_id'),
+        {'comment': '佣金记录表'}
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'referee_id': self.referee_id,
+            'referral_id': self.referral_id,
+            'amount': float(self.amount),
+            'reason': self.reason,
+            'status': self.status,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class CashWithdrawalRecord(db.Model):
+    """提现记录表"""
+    __tablename__ = 'cash_withdrawal_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    status = db.Column(db.Enum('pending', 'processing', 'success', 'failed'), default='pending')
+    wechat_batch_no = db.Column(db.String(64), nullable=True, comment='微信批次号')
+    wechat_payment_no = db.Column(db.String(64), nullable=True, comment='微信企业付款单号')
+    fail_reason = db.Column(db.String(255), nullable=True, comment='失败原因')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    processed_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref=db.backref('cash_withdrawal_records', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_status', 'status'),
+        {'comment': '提现记录表'}
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'amount': float(self.amount),
+            'status': self.status,
+            'wechat_batch_no': self.wechat_batch_no,
+            'wechat_payment_no': self.wechat_payment_no,
+            'fail_reason': self.fail_reason,
+            'created_at': self.created_at.isoformat(),
+            'processed_at': self.processed_at.isoformat() if self.processed_at else None
+        }
+
+
+class CashConsumptionRecord(db.Model):
+    """存钱罐本地消费记录表"""
+    __tablename__ = 'cash_consumption_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    cash_spent = db.Column(db.Numeric(10, 2), nullable=False)
+    hairs_received = db.Column(db.Integer, nullable=False)
+    exchange_rate = db.Column(db.String(50), nullable=True, comment='兑换比例描述')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref=db.backref('cash_consumption_records', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        {'comment': '存钱罐本地消费记录表'}
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'cash_spent': float(self.cash_spent),
+            'hairs_received': self.hairs_received,
+            'exchange_rate': self.exchange_rate,
+            'created_at': self.created_at.isoformat()
         }
 
 

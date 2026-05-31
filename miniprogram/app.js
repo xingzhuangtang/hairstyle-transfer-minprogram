@@ -9,7 +9,7 @@ App({
     isPremium: false
   },
 
-  onLaunch() {
+  onLaunch(options) {
     console.log('小程序启动')
 
     // 检查本地是否已有登录信息
@@ -20,6 +20,15 @@ App({
     } else {
       // 已有 token，检查是否需要刷新用户信息
       this.refreshUserInfo()
+    }
+
+    // 检查推广扫码来源
+    if (options && options.scene) {
+      const scene = decodeURIComponent(options.scene)
+      console.log('推广扫码来源:', scene)
+      wx.setStorageSync('referral_scene', scene)
+      // 等待登录后再追踪
+      this.globalData.pendingReferralScene = scene
     }
 
     // 检查未完成订单（不阻塞页面加载，延迟执行）
@@ -198,6 +207,9 @@ App({
         this.globalData.userInfo = res.user
 
         console.log('游客自动登录成功，账号 ID:', res.user.id, 'device_id:', res.user.device_id)
+
+        // 检查是否有待处理的推广追踪
+        this.trackPendingReferral()
       }
     } catch (e) {
       console.log('游客自动登录失败:', e)
@@ -242,5 +254,29 @@ App({
     this.globalData.isPremium = false
     wx.removeStorageSync('token')
     wx.removeStorageSync('userInfo')
+  },
+
+  /**
+   * 追踪待处理的推广来源
+   */
+  async trackPendingReferral() {
+    const scene = this.globalData.pendingReferralScene
+    if (!scene) {
+      return
+    }
+
+    this.globalData.pendingReferralScene = null
+
+    try {
+      await this.request({
+        url: '/api/referral/track',
+        method: 'POST',
+        data: { scene: scene },
+        allowGuest: true
+      })
+      console.log('推广关系已追踪')
+    } catch (e) {
+      console.log('推广关系追踪失败:', e)
+    }
   }
 })
