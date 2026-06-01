@@ -147,8 +147,9 @@ Page({
       }
     } catch (e) {
       console.error('微信登录失败:', e)
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || '登录失败') : e
       wx.showToast({
-        title: e.error || e.message || '登录失败',
+        title: errMsg,
         icon: 'none'
       })
     } finally {
@@ -193,14 +194,15 @@ Page({
         this.startCountDown()
       } else {
         wx.showToast({
-          title: res.error || '发送失败',
+          title: (typeof res.error === 'string' ? res.error : '发送失败'),
           icon: 'none'
         })
       }
     } catch (e) {
       console.error('发送验证码失败:', e)
+      const errMsg = typeof e === 'object' ? (e.error || e.message || '发送失败') : e
       wx.showToast({
-        title: e.error || '发送失败',
+        title: errMsg,
         icon: 'none'
       })
     }
@@ -259,8 +261,9 @@ Page({
       }
     } catch (e) {
       console.error('手机号登录失败:', e)
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || '登录失败') : e
       wx.showToast({
-        title: e.error || '登录失败',
+        title: errMsg,
         icon: 'none'
       })
     } finally {
@@ -522,7 +525,8 @@ Page({
       }
     } catch (e) {
       console.error('绑定手机号失败:', e)
-      wx.showToast({ title: '绑定失败', icon: 'none' })
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || '绑定失败') : e
+      wx.showToast({ title: errMsg, icon: 'none' })
     } finally {
       this.setData({ bindLoading: false })
     }
