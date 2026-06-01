@@ -1295,11 +1295,23 @@ def upload_file():
         # 保存文件
         file.save(filepath)
 
-        # 返回完整URL
-        # 获取请求的协议和主机
-        protocol = request.scheme
-        host = request.host
-        url = f'{protocol}://{host}/static/uploads/{filename}'
+        # 上传到阿里云 OSS，获取公网可访问的 URL
+        try:
+            from app import upload_to_oss
+            oss_url = upload_to_oss(filepath)
+            print(f"   ✅ OSS上传成功: {oss_url}")
+
+            # 上传成功后删除本地临时文件
+            import os
+            os.remove(filepath)
+
+            url = oss_url
+        except Exception as oss_err:
+            # OSS 上传失败时，降级为本地URL（仅用于开发调试）
+            print(f"   ⚠️ OSS上传失败，使用本地URL: {oss_err}")
+            protocol = request.scheme
+            host = request.host
+            url = f'{protocol}://{host}/static/uploads/{filename}'
 
         print(f"   ✅ 返回URL: {url}")
 
