@@ -7,7 +7,7 @@
     <view class="device-item" wx:for="{{devices}}" wx:key="device_id">
       <view class="device-info">
         <view class="device-header">
-          <image class="device-icon" src="/images/{{item.device_type === 'mobile' ? 'phone' : item.device_type === 'tablet' ? 'tablet' : 'computer'}}.png" mode="aspectFit"></image>
+          <image class="device-icon" src="/images/{{item.device_type === 'mobile' ? 'icons/phone' : item.device_type === 'tablet' ? 'tablet' : 'computer'}}.png" mode="aspectFit"></image>
           <view class="device-name">{{item.device_name}}</view>
           <view class="device-badge" wx:if="{{item.is_primary}}">主设备</view>
         </view>
