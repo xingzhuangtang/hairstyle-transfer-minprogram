@@ -95,9 +95,12 @@ except ImportError as e:
 # Flask应用配置
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.urandom(24)
-app.config["UPLOAD_FOLDER"] = "static/uploads"
-app.config["RESULT_FOLDER"] = "static/results"
-app.config["HAIR_EXTRACTED_FOLDER"] = "static/hair_extracted"
+
+# 使用绝对路径，基于 app.py 所在位置
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app.config["UPLOAD_FOLDER"] = os.path.join(_BASE_DIR, "static", "uploads")
+app.config["RESULT_FOLDER"] = os.path.join(_BASE_DIR, "static", "results")
+app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_BASE_DIR, "static", "hair_extracted")
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20MB
 
 # 导入详细日志配置
