@@ -74,6 +74,12 @@ Page({
    * 下载图片到本地用于真机显示
    */
   downloadImageForDisplay(url, dataKey) {
+    // 先设置 URL 让图片组件渲染
+    this.setData({
+      [dataKey]: url
+    })
+    
+    // 然后尝试下载到本地临时文件（真机显示更稳定）
     wx.downloadFile({
       url: url,
       success: (res) => {
@@ -84,18 +90,11 @@ Page({
           })
         } else {
           console.error('图片下载失败:', dataKey, res.statusCode)
-          // 下载失败，使用原 URL
-          this.setData({
-            [dataKey]: url
-          })
         }
       },
       fail: (err) => {
         console.error('图片下载失败:', dataKey, err)
-        // 下载失败，使用原 URL
-        this.setData({
-          [dataKey]: url
-        })
+        // 下载失败，已使用原 URL，无需额外处理
       }
     })
   },
