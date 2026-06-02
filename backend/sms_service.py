@@ -162,10 +162,25 @@ class SMSService:
             response = client.send_sms_with_options(send_sms_request, runtime)
 
             if response.body.code == "OK":
-                # 缓存验证码
+                # 缓存验证码（同时存 Redis 和内存）
                 expire_time = datetime.now() + timedelta(
                     minutes=self.code_expire_minutes
                 )
+
+                # 使用 Redis 存储
+                if self.redis_client:
+                    expire_seconds = int(self.code_expire_minutes * 60)
+                    self.redis_client.hset(
+                        cache_key,
+                        mapping={
+                            "code": code,
+                            "send_time": str(time.time()),
+                            "expire_time": expire_time.isoformat(),
+                        },
+                    )
+                    self.redis_client.expire(cache_key, expire_seconds)
+
+                # 备用内存缓存
                 self.code_cache[cache_key] = {
                     "code": code,
                     "send_time": time.time(),
