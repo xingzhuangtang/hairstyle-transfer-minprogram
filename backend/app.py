@@ -635,6 +635,22 @@ def transfer_hairstyle():
             original_filename = original_hair_url.split("/")[-1]
         hairstyle_path = os.path.join(app.config["UPLOAD_FOLDER"], original_filename)
 
+        # 如果本地文件不存在且是OSS URL，先从OSS下载到本地
+        if not os.path.exists(hairstyle_path) and (original_hair_url.startswith("http://") or original_hair_url.startswith("https://")):
+            try:
+                import requests as req
+                print(f"   ⬇️  从OSS下载发型图到本地...")
+                resp = req.get(original_hair_url, timeout=30)
+                if resp.status_code == 200:
+                    os.makedirs(os.path.dirname(hairstyle_path), exist_ok=True)
+                    with open(hairstyle_path, 'wb') as f:
+                        f.write(resp.content)
+                    print(f"   ✅ 下载成功: {len(resp.content)} bytes")
+                else:
+                    print(f"   ❌ 下载失败: status={resp.status_code}")
+            except Exception as e:
+                print(f"    下载异常: {e}")
+
         if not os.path.exists(hairstyle_path):
             return jsonify({"error": "原始发型图不存在,请重新上传"}), 400
 
