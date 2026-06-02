@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta
 from alibabacloud_dysmsapi20170525.client import Client as DysmsClient
 from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_tea_util import models as util_models
 from alibabacloud_dysmsapi20170525 import models as dysms_models
 from config import get_config
 
@@ -157,7 +158,7 @@ class SMSService:
                 template_param=f'{{"code":"{code}"}}',
             )
 
-            runtime = open_api_models.RuntimeOptions()
+            runtime = util_models.RuntimeOptions()
             response = client.send_sms_with_options(send_sms_request, runtime)
 
             if response.body.code == "OK":
