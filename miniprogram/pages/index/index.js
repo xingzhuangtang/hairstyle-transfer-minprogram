@@ -738,6 +738,9 @@ Page({
             ? API_BASE_URL + res.result_url
             : res.result_url
 
+          console.log('分步模式 result_url:', res.result_url)
+          console.log('分步模式 fullResultUrl:', fullResultUrl)
+
           // 真机显示：下载图片到本地临时文件
           const self = this
           wx.downloadFile({
