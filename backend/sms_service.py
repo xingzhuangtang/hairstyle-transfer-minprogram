@@ -67,13 +67,18 @@ class SMSService:
         # 初始化内存缓存（备用）
         self.code_cache = {}
 
+        # 缓存短信客户端（避免每次发送都创建新连接）
+        self._sms_client = None
+
     def _create_client(self):
-        """创建阿里云短信客户端"""
-        config = open_api_models.Config(
-            access_key_id=self.access_key_id, access_key_secret=self.access_key_secret
-        )
-        config.endpoint = "dysmsapi.aliyuncs.com"
-        return DysmsClient(config)
+        """创建或获取缓存的阿里云短信客户端"""
+        if self._sms_client is None:
+            config = open_api_models.Config(
+                access_key_id=self.access_key_id, access_key_secret=self.access_key_secret
+            )
+            config.endpoint = "dysmsapi.aliyuncs.com"
+            self._sms_client = DysmsClient(config)
+        return self._sms_client
 
     def generate_code(self):
         """生成6位验证码"""

@@ -533,6 +533,12 @@ def pay_recharge():
                 return jsonify({'error': '订单已取消'}), 400
 
             # 创建微信支付订单
+            if not user.openid:
+                return jsonify({
+                    'error': '充值功能需要绑定微信账号，请先通过微信登录',
+                    'code': 'NEED_WECHAT_BIND'
+                }), 400
+
             wechat_service = WeChatPayService()
             result = wechat_service.create_jsapi_order(
                 order_no=order_no,
