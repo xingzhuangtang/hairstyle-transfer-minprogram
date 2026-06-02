@@ -124,7 +124,8 @@
 
   <!-- 提示信息 -->
   <view class="tips">
-    <text class="tip-text">• 新用户登录即赠送1000发丝</text>
+    <text class="tip-text">• 新用户请使用微信一键登录注册</text>
+    <text class="tip-text">• 已注册用户可使用手机号登录</text>
     <text class="tip-text">• 会员享受50%消费折扣</text>
   </view>
 </view>

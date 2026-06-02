@@ -255,53 +255,12 @@ class AuthService:
                 is_new_user = False
 
             if not user:
-                # 2. 手机号未绑定，检查当前请求是否有 openid 用户（游客模式）
-                current_user = self.get_current_user()
-
-                # 3. 如果有 openid 用户且未绑定手机号，直接绑定
-                if current_user and current_user.openid and not current_user.phone:
-                    user = current_user
-                    user.phone = phone
-                    # 游客绑定手机号后，更新用户类型为 registered
-                    if user.user_type == 'guest':
-                        user.user_type = 'registered'
-                    db.session.commit()
-                    print(f"✅ 游客绑定手机号：user_id={user.id}, openid={user.openid}, phone={phone}, user_type=registered")
-                else:
-                    # 4. 没有 openid 用户，创建新用户
-                    # 确保 device_id 不为空：如果前端没传，生成一个
-                    final_device_id = device_info.get('device_id') if device_info else None
-                    if not final_device_id:
-                        final_device_id = str(uuid.uuid4().hex)
-                        print(f"⚠️ 前端未传device_id，后端自动生成: {final_device_id}")
-
-                    user = User(
-                        phone=phone,
-                        member_level="normal",
-                        scissor_hairs=0,
-                        comb_hairs=0,
-                        device_id=final_device_id,
-                    )
-                    db.session.add(user)
-                    db.session.commit()
-                    is_new_user = True
-                    print(f"✅ 新用户注册（手机号）: phone={phone}, device_id={user.device_id}")
-
-                    # 自动创建设备记录
-                    if device_info and final_device_id:
-                        try:
-                            new_device = Device(
-                                user_id=user.id,
-                                device_id=final_device_id,
-                                device_name=device_info.get('device_name', '未知设备'),
-                                device_type=device_info.get('device_type', 'unknown'),
-                                is_primary=True
-                            )
-                            db.session.add(new_device)
-                            db.session.commit()
-                        except Exception as e:
-                            print(f"⚠️ 设备记录创建失败: {e}")
-                            db.session.rollback()
+                # 手机号未注册，不再支持纯手机号注册
+                # 新用户必须先通过微信登录获取 openid
+                return {
+                    "success": False,
+                    "error": "该手机号未注册，请先使用微信登录注册账号"
+                }
 
             else:
                 # 手机号已绑定，检查用户状态

@@ -254,10 +254,20 @@ Page({
           redirectAfterLogin()
         }, 1500)
       } else {
-        wx.showToast({
-          title: res.error || '登录失败',
-          icon: 'none'
-        })
+        const errorMsg = res.error || '登录失败'
+        if (errorMsg.includes('未注册')) {
+          wx.showModal({
+            title: '账号未注册',
+            content: '该手机号尚未注册，请先使用微信一键登录注册账号',
+            showCancel: false,
+            confirmText: '我知道了'
+          })
+        } else {
+          wx.showToast({
+            title: errorMsg,
+            icon: 'none'
+          })
+        }
       }
     } catch (e) {
       console.error('手机号登录失败:', e)
