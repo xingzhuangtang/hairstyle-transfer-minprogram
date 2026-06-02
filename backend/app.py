@@ -625,6 +625,23 @@ def transfer_hairstyle():
             customer_path = os.path.join(app.config["UPLOAD_FOLDER"], customer_filename)
             print(f"   客户图(URL): {customer_path}")
 
+        # 如果客户图本地文件不存在且是OSS URL，先从OSS下载到本地
+        if customer_image and (customer_image.startswith("http://") or customer_image.startswith("https://")):
+            if not os.path.exists(customer_path):
+                try:
+                    import requests as req
+                    print(f"   ️  从OSS下载客户图到本地...")
+                    resp = req.get(customer_image, timeout=30)
+                    if resp.status_code == 200:
+                        os.makedirs(os.path.dirname(customer_path), exist_ok=True)
+                        with open(customer_path, 'wb') as f:
+                            f.write(resp.content)
+                        print(f"   ✅ 下载成功: {len(resp.content)} bytes")
+                    else:
+                        print(f"   ❌ 下载失败: status={resp.status_code}")
+                except Exception as e:
+                    print(f"    下载异常: {e}")
+
         # 从URL获取原始发型图本地路径
         # original_hair_url格式可能是完整URL或相对路径
         if original_hair_url.startswith("http://") or original_hair_url.startswith(
