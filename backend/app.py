@@ -136,18 +136,22 @@ def get_full_url(relative_path):
         relative_path: 相对路径，如 '/static/hair_extracted/file.png'
 
     Returns:
-        str: 完整URL，如 'http://localhost:5003/static/hair_extracted/file.png'
+        str: 完整URL，如 'https://example.com/static/hair_extracted/file.png'
     """
-    # 在请求上下文中获取协议和主机
     from flask import request
 
     try:
-        protocol = request.scheme
+        # 生产环境始终使用 HTTPS
+        # 检查是否经过反向代理（Nginx）
+        forwarded_proto = request.headers.get('X-Forwarded-Proto')
+        if forwarded_proto:
+            protocol = forwarded_proto
+        else:
+            protocol = 'https'
         host = request.host
         return f"{protocol}://{host}{relative_path}"
     except RuntimeError:
-        # 如果不在请求上下文中（如测试），返回默认URL
-        return f"http://localhost:5003{relative_path}"
+        return f"https://localhost:5003{relative_path}"
 
 
 # 配置数据库
