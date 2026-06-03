@@ -170,13 +170,23 @@ Page({
   },
 
   /**
-   * 上传图片
+   * 上传图片（先压缩再上传）
    */
   async uploadImage(filePath, type) {
     wx.showLoading({ title: '上传中...' })
 
     try {
-      const res = await uploadFile(filePath)
+      // 先压缩图片（80%质量，显著减少体积）
+      const compressedPath = await new Promise((resolve, reject) => {
+        wx.compressImage({
+          src: filePath,
+          quality: 80,
+          success: (res) => resolve(res.tempFilePath),
+          fail: () => resolve(filePath) // 压缩失败则使用原图
+        })
+      })
+
+      const res = await uploadFile(compressedPath)
 
       if (res.success && res.url) {
         const displayKey = type === 'hairstyle' ? 'hairstyleUrl' : 'customerUrl'

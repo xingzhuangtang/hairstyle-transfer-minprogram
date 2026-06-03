@@ -211,14 +211,14 @@ class AliyunHairTransferFixed:
             print(f"❌ 人脸融合失败: {e}")
             raise
     
-    def download_image(self, url: str, save_path: Optional[str] = None, max_retries: int = 5) -> np.ndarray:
+    def download_image(self, url: str, save_path: Optional[str] = None, max_retries: int = 3) -> np.ndarray:
         """
         下载图像（带重试机制）
         
         Args:
             url: 图像URL
             save_path: 保存路径(可选)
-            max_retries: 最大重试次数
+            max_retries: 最大重试次数(默认3次)
         
         Returns:
             image: OpenCV格式的图像数组
@@ -230,8 +230,8 @@ class AliyunHairTransferFixed:
             try:
                 print(f"   尝试 {attempt + 1}/{max_retries}...")
                 
-                # 下载图像 - 增加超时时间和流式下载
-                response = requests.get(url, timeout=120, stream=True)
+                # 下载图像 - 连接超时5s，读取超时30s，流式下载
+                response = requests.get(url, timeout=(5, 30), stream=True)
                 response.raise_for_status()
                 
                 # 检查响应大小
@@ -290,7 +290,7 @@ class AliyunHairTransferFixed:
                 
                 # 如果不是最后一次尝试，等待后重试
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # 指数退避：2, 4, 8秒
+                    wait_time = 2  # 固定等待2秒
                     print(f"   等待 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
         
