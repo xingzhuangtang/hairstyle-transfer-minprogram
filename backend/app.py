@@ -323,7 +323,7 @@ def upload_to_oss(local_path: str, max_retries: int = 3) -> str:
 
             # 如果不是最后一次尝试，等待后重试
             if attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 5  # 5, 10, 15秒
+                wait_time = 3  # 固定等待3秒
                 print(f"   等待 {wait_time} 秒后重试...")
                 time.sleep(wait_time)
             else:
@@ -704,11 +704,16 @@ def transfer_hairstyle():
         else:
             print(f"   跳过预处理(模块不可用)")
 
-        # 上传到OSS获取URL
-        print(f"\n☁️  上传到OSS...")
+        # 上传到OSS获取URL（并发上传，节省50%时间）
+        print(f"\n☁️  并发上传到OSS...")
         try:
-            hairstyle_url = upload_to_oss(hairstyle_path)  # 使用原始发型图
-            customer_url = upload_to_oss(customer_path)
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                f1 = executor.submit(upload_to_oss, hairstyle_path)
+                f2 = executor.submit(upload_to_oss, customer_path)
+                hairstyle_url = f1.result()  # 使用原始发型图
+                customer_url = f2.result()
+            print(f"✅ OSS并发上传完成")
         except NotImplementedError as e:
             return jsonify(
                 {
