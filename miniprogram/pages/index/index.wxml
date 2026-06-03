@@ -167,11 +167,11 @@
     <view class="action-buttons" wx:if="{{modeIndex === 0}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         仅提取发型
-        <text class="cost">4 发丝</text>
+        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         仅迁移发型
-        <text class="cost">4 发丝</text>
+        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
       </button>
       <button class="action-btn primary" bindtap="processAll" disabled="{{processing}}">
         素描优化
@@ -183,11 +183,11 @@
     <view class="action-buttons" wx:if="{{modeIndex === 1}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         仅提取发型
-        <text class="cost">4 发丝</text>
+        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         生成发型
-        <text class="cost">4 发丝</text>
+        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
       </button>
       <button class="action-btn primary" bindtap="addSketchOnly" disabled="{{processing || !hasResult}}">
         素描优化
