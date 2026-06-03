@@ -186,6 +186,60 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def ensure_image_resolution(image_url, max_size=1990):
+    """
+    确保图片分辨率在阿里云API限制以内（低于2000x2000）
+    
+    Args:
+        image_url: 图片URL（HTTP或本地路径）
+        max_size: 最大边长，默认1990（留有余量）
+    
+    Returns:
+        str: 处理后的图片URL（如果需要压缩则返回新的OSS URL，否则返回原URL）
+    """
+    try:
+        import requests as req
+        import io
+        
+        # 下载图片
+        if image_url.startswith("http://") or image_url.startswith("https://"):
+            resp = req.get(image_url, timeout=10)
+            img = Image.open(io.BytesIO(resp.content))
+        else:
+            img = Image.open(image_url)
+        
+        width, height = img.size
+        print(f"   原始分辨率: {width}x{height}")
+        
+        # 检查是否需要压缩
+        if width <= max_size and height <= max_size:
+            print(f"   ✅ 分辨率符合要求，无需压缩")
+            return image_url
+        
+        # 计算缩放比例
+        scale = min(max_size / width, max_size / height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        print(f"   压缩到: {new_width}x{new_height}")
+        
+        # 缩放图片
+        img = img.resize((new_width, new_height), Image.LANCZOS)
+        
+        # 保存并上传到OSS
+        temp_path = f"/tmp/resized_{uuid.uuid4().hex[:8]}.jpg"
+        img.save(temp_path, format='JPEG', quality=90)
+        
+        new_url = upload_to_oss(temp_path)
+        os.remove(temp_path)
+        print(f"   ✅ 已上传压缩后的图片到OSS")
+        
+        return new_url
+        
+    except Exception as e:
+        print(f"   ⚠️ 图片分辨率检查失败: {e}，使用原始图片")
+        return image_url
+
+
 def save_upload_file(file, prefix="image"):
     """保存上传的文件并预处理"""
     if not file or not allowed_file(file.filename):
@@ -442,32 +496,43 @@ def extract_hair():
 
         # 处理发型参考图（URL或文件）
         print(f"\n📤 保存发型参考图...")
+        hairstyle_url = None
+        hairstyle_path = None  # 初始化，用于后续获取文件名
         if hairstyle_file:
             # 文件上传
             hairstyle_path = save_upload_file(hairstyle_file, "hairstyle")
             print(f"   发型图(文件上传): {hairstyle_path}")
+            # 上传到OSS获取URL
+            print(f"\n☁️  上传到OSS...")
+            try:
+                hairstyle_url = upload_to_oss(hairstyle_path)
+            except Exception as e:
+                return jsonify({"error": "OSS上传失败", "message": str(e)}), 500
         else:
-            # URL方式：已上传过，提取文件名
-            if hairstyle_image.startswith("http://") or hairstyle_image.startswith(
-                "https://"
-            ):
-                hairstyle_filename = hairstyle_image.split("/")[-1]
+            # URL方式
+            if hairstyle_image.startswith("http://") or hairstyle_image.startswith("https://"):
+                # 已经是完整的HTTP URL，直接使用
+                hairstyle_url = hairstyle_image
+                hairstyle_path = hairstyle_image  # 用于后续获取文件名
+                print(f"   发型图(OSS URL): {hairstyle_url}")
             else:
+                # 本地相对路径，需要拼接
                 hairstyle_filename = hairstyle_image.split("/")[-1]
-            hairstyle_path = os.path.join(
-                app.config["UPLOAD_FOLDER"], hairstyle_filename
-            )
-            print(f"   发型图(URL): {hairstyle_path}")
-
-        # 上传到OSS获取URL
-        print(f"\n☁️  上传到OSS...")
-        try:
-            hairstyle_url = upload_to_oss(hairstyle_path)
-        except Exception as e:
-            return jsonify({"error": "OSS上传失败", "message": str(e)}), 500
+                hairstyle_path = os.path.join(app.config["UPLOAD_FOLDER"], hairstyle_filename)
+                print(f"   发型图(本地路径): {hairstyle_path}")
+                # 上传到OSS获取URL
+                print(f"\n☁️  上传到OSS...")
+                try:
+                    hairstyle_url = upload_to_oss(hairstyle_path)
+                except Exception as e:
+                    return jsonify({"error": "OSS上传失败", "message": str(e)}), 500
 
         # 提取发型
         print(f"\n✂️  提取发型...")
+        
+        # 检查并压缩图片分辨率（阿里云API要求低于2000x2000）
+        hairstyle_url = ensure_image_resolution(hairstyle_url, max_size=1990)
+        
         hair_seg = HairSegmentation()
 
         # 调用头发分割API
