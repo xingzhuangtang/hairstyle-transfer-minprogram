@@ -25,6 +25,7 @@ Page({
     customerUrl: '',       // 显示用（临时文件路径）
     hairstyleHttpUrl: '',  // API 用（HTTP URL）
     customerHttpUrl: '',   // API 用（HTTP URL）
+    resultHttpUrl: '',     // 分步模式：API 用结果 HTTP URL
 
     // 参数
     modelVersions: ['脸型适配', '保持脸型'],
@@ -396,7 +397,7 @@ Page({
 
     try {
       const params = {
-        result_url: this.data.resultUrl,
+        result_url: this.data.resultHttpUrl || this.data.resultUrl,  // 优先使用 HTTP URL
         sketch_style: this.data.sketchStyles[this.data.sketchStyleIndex].value,
         step_by_step: true  // 分步模式第 2 步
       }
@@ -419,7 +420,7 @@ Page({
 
         // 跳转到结果页，显示原图和素描
         wx.navigateTo({
-          url: `/pages/result/result?resultUrl=${encodeURIComponent(fullSketchUrl)}&originalUrl=${encodeURIComponent(this.data.resultUrl)}&cost=${res.cost}&mode=sketch`
+          url: `/pages/result/result?resultUrl=${encodeURIComponent(fullSketchUrl)}&originalUrl=${encodeURIComponent(this.data.resultHttpUrl || this.data.resultUrl)}&cost=${res.cost}&mode=sketch`
         })
       } else {
         throw new Error(res.error || '处理失败')
@@ -760,6 +761,7 @@ Page({
                 self.setData({
                   hasResult: true,
                   resultUrl: downloadRes.tempFilePath,  // 使用临时文件路径显示
+                  resultHttpUrl: fullResultUrl,         // 保存 HTTP URL 用于 API 调用
                   resultTaskId: res.task_id,
                   enableSketch: true  // 自动开启素描效果开关
                 })
@@ -767,6 +769,7 @@ Page({
                 self.setData({
                   hasResult: true,
                   resultUrl: fullResultUrl,  // 下载失败，使用原 URL
+                  resultHttpUrl: fullResultUrl,
                   resultTaskId: res.task_id,
                   enableSketch: true
                 })
@@ -777,6 +780,7 @@ Page({
               self.setData({
                 hasResult: true,
                 resultUrl: fullResultUrl,  // 下载失败，使用原 URL
+                resultHttpUrl: fullResultUrl,
                 resultTaskId: res.task_id,
                 enableSketch: true
               })
