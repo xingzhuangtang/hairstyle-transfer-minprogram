@@ -257,10 +257,10 @@ Page({
         const errorMsg = res.error || '登录失败'
         if (errorMsg.includes('未注册')) {
           wx.showModal({
-            title: '账号未注册',
-            content: '该手机号尚未注册，请先使用微信一键登录注册账号',
+            title: '请先注册微信账号',
+            content: '该手机号尚未注册。请先点击"微信一键登录"完成注册并绑定微信，之后即可使用手机号登录。',
             showCancel: false,
-            confirmText: '我知道了'
+            confirmText: '去微信登录'
           })
         } else {
           wx.showToast({
