@@ -178,12 +178,12 @@ Page({
 
     try {
       // 先压缩图片（80%质量，显著减少体积）
-      const compressedPath = await new Promise((resolve, reject) => {
+      const compressedPath = await new Promise((resolve) => {
         wx.compressImage({
           src: filePath,
           quality: 80,
           success: (res) => resolve(res.tempFilePath),
-          fail: () => resolve(filePath) // 压缩失败则使用原图
+          fail: () => resolve(filePath)
         })
       })
 
