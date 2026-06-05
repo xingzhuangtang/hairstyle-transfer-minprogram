@@ -128,6 +128,14 @@ class WeChatPayClient:
             print(f"   SDK返回: status={status_code}")
             print(f"   响应内容: {result}")
 
+            # 处理返回值可能是 JSON 字符串的情况
+            if isinstance(result, str):
+                try:
+                    import json
+                    result = json.loads(result)
+                except:
+                    pass
+
             # 检查响应
             if isinstance(result, dict) and result.get('prepay_id'):
                 prepay_id = result['prepay_id']
