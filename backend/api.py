@@ -2262,3 +2262,190 @@ def refund_applications_list():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ==================== 实时聊天 API ====================
+
+@api_bp.route('/chat/send', methods=['POST'])
+@login_required
+def chat_send():
+    """用户发送聊天消息"""
+    try:
+        from chat_service import ChatService
+
+        user = g.current_user
+        data = request.get_json()
+        content = data.get('content', '').strip()
+
+        if not content:
+            return jsonify({'success': False, 'error': '消息内容不能为空'}), 400
+
+        success, message, chat_message = ChatService.send_message(user.id, content)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': chat_message.to_dict()
+            })
+        else:
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/chat/messages', methods=['GET'])
+@login_required
+def chat_get_messages():
+    """获取聊天消息（增量轮询）"""
+    try:
+        from chat_service import ChatService
+
+        user = g.current_user
+        since = request.args.get('since', None)
+        limit = request.args.get('limit', 50, type=int)
+
+        messages = ChatService.get_messages(user.id, since=since, limit=limit)
+        unread_count = ChatService.get_unread_count(user.id)
+
+        return jsonify({
+            'success': True,
+            'messages': [m.to_dict() for m in messages],
+            'unread_count': unread_count
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/chat/unread-count', methods=['GET'])
+@login_required
+def chat_unread_count():
+    """获取未读消息数"""
+    try:
+        from chat_service import ChatService
+
+        user = g.current_user
+        count = ChatService.get_unread_count(user.id)
+
+        return jsonify({
+            'success': True,
+            'unread_count': count
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/chat/reply', methods=['GET', 'POST'])
+def chat_reply():
+    """
+    管理员回复页面（H5）
+    GET: 显示回复表单
+    POST: 提交回复
+    """
+    from chat_service import verify_reply_token, ChatService
+    from flask import render_template_string
+
+    token = request.args.get('token', '') or (request.form.get('token', '') if request.form else '')
+
+    # 验证 token
+    user_id = verify_reply_token(token)
+    if not user_id:
+        return render_template_string('''
+            <html><head><meta charset="utf-8"><title>链接无效</title></head>
+            <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                <h2>链接已过期或无效</h2>
+                <p>请从企业微信中重新点击通知链接</p>
+            </body></html>
+        '''), 403
+
+    if request.method == 'POST':
+        content = request.form.get('content', '').strip()
+        if not content:
+            return render_template_string('''
+                <html><head><meta charset="utf-8"><title>回复失败</title></head>
+                <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                    <h2>回复内容不能为空</h2>
+                    <a href="javascript:history.back()">返回</a>
+                </body></html>
+            '''), 400
+
+        success, message, chat_message = ChatService.reply_message(user_id, content)
+        if success:
+            from models import User
+            user = User.query.get(user_id)
+            user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+
+            return render_template_string('''
+                <html><head><meta charset="utf-8"><title>回复成功</title></head>
+                <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                    <h2 style="color:#07c160;">✅ 回复成功</h2>
+                    <p>已回复给 {{ user_info }}</p>
+                    <p style="margin-top:30px;"><a href="javascript:history.back()">继续回复</a></p>
+                </body></html>
+            ''', user_info=user_info)
+        else:
+            return render_template_string('''
+                <html><head><meta charset="utf-8"><title>回复失败</title></head>
+                <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                    <h2 style="color:red;">回复失败</h2>
+                    <p>{{ error }}</p>
+                    <a href="javascript:history.back()">返回</a>
+                </body></html>
+            ''', error=message), 500
+
+    # GET: 显示回复表单
+    from models import User, ChatMessage
+    user = User.query.get(user_id)
+    user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+
+    # 获取最近的几条消息用于上下文
+    recent_messages = ChatMessage.query.filter_by(user_id=user_id)\
+        .order_by(ChatMessage.created_at.desc()).limit(10).all()
+    recent_messages.reverse()
+
+    return render_template_string('''
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>回复用户消息</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; }
+                .header { background: #07c160; color: white; padding: 16px; text-align: center; }
+                .header h2 { font-size: 18px; }
+                .user-info { background: white; padding: 12px 16px; border-bottom: 1px solid #eee; }
+                .user-info span { color: #666; font-size: 14px; }
+                .messages { padding: 16px; max-height: 400px; overflow-y: auto; }
+                .message { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; max-width: 80%; font-size: 14px; line-height: 1.5; }
+                .message.user { background: #95ec69; margin-left: auto; }
+                .message.admin { background: white; margin-right: auto; }
+                .message .time { font-size: 11px; color: #999; margin-top: 4px; }
+                .reply-form { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; }
+                .reply-form textarea { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: none; height: 44px; }
+                .reply-form button { padding: 0 20px; background: #07c160; color: white; border: none; border-radius: 6px; font-size: 14px; }
+                .reply-form button:active { background: #06ad56; }
+                .spacer { height: 80px; }
+            </style>
+        </head>
+        <body>
+            <div class="header"><h2>回复用户消息</h2></div>
+            <div class="user-info"><span>用户：{{ user_info }}</span></div>
+            <div class="messages">
+                {% for msg in messages %}
+                <div class="message {{ msg.sender_type }}">
+                    {{ msg.content }}
+                    <div class="time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="spacer"></div>
+            <form class="reply-form" method="POST" action="/api/chat/reply">
+                <input type="hidden" name="token" value="{{ token }}">
+                <textarea name="content" placeholder="输入回复..." required></textarea>
+                <button type="submit">发送</button>
+            </form>
+        </body>
+        </html>
+    ''', user_info=user_info, messages=recent_messages, token=token)

@@ -12,12 +12,14 @@ Page({
     totalHairs: 0,
     daysRemaining: 0,
     toggleLoading: false,
-    resetLoading: false
+    resetLoading: false,
+    chatUnreadCount: 0
   },
 
   onShow() {
     // 每次显示时刷新用户信息
     this.loadUserInfo()
+    this.loadChatUnreadCount()
   },
 
   /**
@@ -181,6 +183,28 @@ Page({
     wx.navigateTo({
       url: '/pages/settings/settings'
     })
+  },
+
+  /**
+   * 跳转到在线客服
+   */
+  goToChat() {
+    wx.navigateTo({
+      url: '/pages/chat/chat'
+    })
+  },
+
+  /**
+   * 加载聊天未读数
+   */
+  async loadChatUnreadCount() {
+    try {
+      const { getUnreadCount } = await import('../../api/chat.js')
+      const count = await getUnreadCount()
+      this.setData({ chatUnreadCount: count || 0 })
+    } catch (e) {
+      // 静默失败，不影响主功能
+    }
   },
 
   /**
