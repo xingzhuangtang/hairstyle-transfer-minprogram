@@ -98,6 +98,16 @@
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
 
+      <!-- 在线客服 -->
+      <view class="menu-item" bindtap="goToChat">
+        <view class="menu-left">
+          <image class="menu-icon" src="/images/icons/chat.png"></image>
+          <text class="menu-text">在线客服</text>
+          <text wx:if="{{chatUnreadCount > 0}}" class="unread-badge">{{chatUnreadCount > 99 ? '99+' : chatUnreadCount}}</text>
+        </view>
+        <image class="arrow" src="/images/icons/arrow-right.png"></image>
+      </view>
+
       <!-- 客户留言 -->
       <view class="menu-item" bindtap="goToMessage">
         <view class="menu-left">

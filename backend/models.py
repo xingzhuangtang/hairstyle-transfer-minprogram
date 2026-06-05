@@ -544,6 +544,37 @@ class Message(db.Model):
         }
 
 
+class ChatMessage(db.Model):
+    """实时聊天消息表"""
+    __tablename__ = 'chat_messages'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='关联用户ID')
+    sender_type = db.Column(db.Enum('user', 'admin'), nullable=False, comment='发送者类型')
+    content = db.Column(db.Text, nullable=False, comment='消息内容')
+    is_read = db.Column(db.Boolean, default=False, comment='是否已读（对admin消息而言）')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_user_unread', 'user_id', 'sender_type', 'is_read'),
+        {'comment': '实时聊天消息表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'sender_type': self.sender_type,
+            'content': self.content,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
 class ReferralRelation(db.Model):
     """推广关系表"""
     __tablename__ = 'referral_relations'

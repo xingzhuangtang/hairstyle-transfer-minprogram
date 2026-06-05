@@ -10,6 +10,7 @@
     "pages/legal/legal",
     "pages/settings/settings",
     "pages/device/device",
+    "pages/chat/chat",
     "pages/message/message",
     "pages/message-admin/message-admin",
     "pages/about/about",

@@ -186,6 +186,20 @@
   margin-left: 12rpx;
 }
 
+.unread-badge {
+  display: inline-block;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  background-color: #e64340;
+  color: #ffffff;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  margin-left: 12rpx;
+}
+
 .arrow {
   width: 24rpx;
   height: 24rpx;
