@@ -185,10 +185,13 @@ class MemberOrder(db.Model):
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='会员费用')
     bonus_hairs = db.Column(db.Integer, default=0, comment='赠送头发丝')
     payment_method = db.Column(db.Enum('wechat', 'alipay', 'unionpay', 'wechat_virtual'), nullable=False, comment='支付方式')
-    payment_status = db.Column(db.Enum('pending', 'success', 'failed'), default='pending', comment='支付状态')
+    payment_status = db.Column(db.Enum('pending', 'success', 'failed', 'refunded'), default='pending', comment='支付状态')
     transaction_id = db.Column(db.String(128), nullable=True, comment='第三方交易号')
     paid_at = db.Column(db.DateTime, nullable=True, comment='支付时间')
     expire_at = db.Column(db.DateTime, nullable=True, comment='会员到期时间')
+    refund_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='退款金额')
+    refunded_at = db.Column(db.DateTime, nullable=True, comment='退款时间')
+    refund_days = db.Column(db.Integer, nullable=True, comment='退款天数(会员剩余天数)')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
 
     # 关联
@@ -215,6 +218,9 @@ class MemberOrder(db.Model):
             'transaction_id': self.transaction_id,
             'paid_at': self.paid_at.isoformat() if self.paid_at else None,
             'expire_at': self.expire_at.isoformat() if self.expire_at else None,
+            'refund_amount': float(self.refund_amount) if self.refund_amount else None,
+            'refunded_at': self.refunded_at.isoformat() if self.refunded_at else None,
+            'refund_days': self.refund_days,
             'created_at': self.created_at.isoformat()
         }
 
@@ -670,6 +676,55 @@ class CashConsumptionRecord(db.Model):
             'cash_spent': float(self.cash_spent),
             'hairs_received': self.hairs_received,
             'exchange_rate': self.exchange_rate,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class RefundApplication(db.Model):
+    """退款申请表"""
+    __tablename__ = 'refund_applications'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
+    applicant_name = db.Column(db.String(50), nullable=False, comment='申请人姓名')
+    applicant_phone = db.Column(db.String(20), nullable=False, comment='申请人电话')
+    applicant_wechat_id = db.Column(db.String(100), nullable=True, comment='申请人微信号')
+    refund_type = db.Column(db.Enum('recharge', 'membership'), nullable=False, comment='退款类型')
+    refund_amount = db.Column(db.Numeric(10, 2), nullable=False, comment='申请退款金额')
+    reason = db.Column(db.Text, nullable=False, comment='退款原因')
+    consumption_summary = db.Column(db.JSON, nullable=True, comment='消费使用情况摘要')
+    suggestions = db.Column(db.Text, nullable=True, comment='对本项目的建议')
+    status = db.Column(db.Enum('pending', 'approved', 'rejected'), default='pending', comment='审批状态')
+    approved_by = db.Column(db.BigInteger, nullable=True, comment='审批人ID')
+    approved_at = db.Column(db.DateTime, nullable=True, comment='审批时间')
+    rejection_reason = db.Column(db.Text, nullable=True, comment='拒绝原因')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='申请时间')
+
+    user = db.relationship('User', backref=db.backref('refund_applications', lazy=True))
+
+    __table_args__ = (
+        Index('idx_user_id', 'user_id'),
+        Index('idx_status', 'status'),
+        Index('idx_created_at', 'created_at'),
+        {'comment': '退款申请表'}
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'applicant_name': self.applicant_name,
+            'applicant_phone': self.applicant_phone,
+            'applicant_wechat_id': self.applicant_wechat_id,
+            'refund_type': self.refund_type,
+            'refund_amount': float(self.refund_amount),
+            'reason': self.reason,
+            'consumption_summary': self.consumption_summary,
+            'suggestions': self.suggestions,
+            'status': self.status,
+            'approved_by': self.approved_by,
+            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
+            'rejection_reason': self.rejection_reason,
             'created_at': self.created_at.isoformat()
         }
 

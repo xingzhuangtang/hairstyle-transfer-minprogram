@@ -211,6 +211,15 @@ Page({
   },
 
   /**
+   * 跳转到退款申请
+   */
+  goToRefund() {
+    wx.navigateTo({
+      url: '/pages/refund/refund'
+    })
+  },
+
+  /**
    * 退出登录
    */
   handleLogout() {

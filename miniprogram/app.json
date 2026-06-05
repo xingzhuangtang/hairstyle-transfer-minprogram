@@ -14,7 +14,8 @@
     "pages/message-admin/message-admin",
     "pages/about/about",
     "pages/consumption/consumption",
-    "pages/referral/referral"
+    "pages/referral/referral",
+    "pages/refund/refund"
   ],
   "window": {
     "backgroundTextStyle": "light",
