@@ -2104,3 +2104,161 @@ def withdrawal_records():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================
+# 退款申请相关接口
+# ============================================
+
+@api_bp.route('/refund/apply', methods=['POST'])
+@login_required
+def apply_refund():
+    """用户提交退款申请"""
+    try:
+        from refund_service import RefundService
+        data = request.get_json()
+
+        refund_type = data.get('refund_type')
+        refund_amount = data.get('refund_amount')
+        reason = data.get('reason')
+        applicant_name = data.get('applicant_name')
+        applicant_phone = data.get('applicant_phone')
+        suggestions = data.get('suggestions')
+
+        if not all([refund_type, refund_amount, reason, applicant_name, applicant_phone]):
+            return jsonify({'error': '缺少必填参数'}), 400
+
+        if refund_type not in ('recharge', 'membership'):
+            return jsonify({'error': '退款类型不合法'}), 400
+
+        user = g.current_user
+        refund_service = RefundService()
+        result = refund_service.create_application(
+            user=user,
+            refund_type=refund_type,
+            refund_amount=float(refund_amount),
+            reason=reason,
+            applicant_name=applicant_name,
+            applicant_phone=applicant_phone,
+            suggestions=suggestions
+        )
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/refund/approve', methods=['GET'])
+def approve_refund():
+    """管理员审批退款申请（通过企业微信链接访问）"""
+    try:
+        from refund_service import RefundService
+
+        token = request.args.get('token')
+        action = request.args.get('action')
+        rejection_reason = request.args.get('reason', '')
+
+        if not token or not action:
+            return jsonify({'error': '参数不完整'}), 400
+
+        if action not in ('approve', 'reject'):
+            return jsonify({'error': '操作类型不合法'}), 400
+
+        # 验证 token
+        application_id, error = RefundService.verify_approval_token(token)
+        if error:
+            return jsonify({'error': error}), 400
+
+        # 执行审批（admin_user_id=0 表示系统管理员）
+        refund_service = RefundService()
+        result = refund_service.approve_application(
+            application_id=application_id,
+            admin_user_id=0,
+            rejection_reason=rejection_reason if action == 'reject' else None
+        )
+
+        if result['success']:
+            status_text = "同意" if result['status'] == 'approved' else "拒绝"
+            return f"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>退款审批结果</title>
+            <style>
+                body {{ font-family: -apple-system, sans-serif; padding: 40px 20px; text-align: center; background: #f5f5f5; }}
+                .card {{ background: white; border-radius: 12px; padding: 30px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                .icon {{ font-size: 48px; margin-bottom: 16px; }}
+                h2 {{ margin: 0 0 8px; color: #333; }}
+                p {{ color: #666; margin: 0; }}
+            </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">{'✅' if result['status'] == 'approved' else '❌'}</div>
+                    <h2>审批{status_text}</h2>
+                    <p>退款申请已{status_text}处理</p>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            return jsonify({'error': result['error']}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/refund/status/<int:application_id>', methods=['GET'])
+@login_required
+def refund_status(application_id):
+    """查询退款申请状态"""
+    try:
+        from models import RefundApplication
+
+        user = g.current_user
+        application = RefundApplication.query.filter_by(
+            id=application_id, user_id=user.id
+        ).first()
+
+        if not application:
+            return jsonify({'error': '申请不存在'}), 404
+
+        return jsonify({
+            'success': True,
+            'application': application.to_dict()
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/refund/applications', methods=['GET'])
+@login_required
+def refund_applications_list():
+    """获取当前用户的退款申请列表"""
+    try:
+        from models import RefundApplication
+
+        user = g.current_user
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+
+        query = RefundApplication.query.filter_by(user_id=user.id)\
+            .order_by(RefundApplication.created_at.desc())
+
+        total = query.count()
+        applications = query.offset((page - 1) * page_size).limit(page_size).all()
+
+        return jsonify({
+            'success': True,
+            'applications': [a.to_dict() for a in applications],
+            'total': total,
+            'page': page
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

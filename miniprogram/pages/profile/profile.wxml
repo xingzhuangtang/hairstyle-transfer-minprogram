@@ -115,6 +115,15 @@
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
+
+      <!-- 退款申请 -->
+      <view class="menu-item" bindtap="goToRefund">
+        <view class="menu-left">
+          <image class="menu-icon" src="/images/icons/refund.png"></image>
+          <text class="menu-text">退款申请</text>
+        </view>
+        <image class="arrow" src="/images/icons/arrow-right.png"></image>
+      </view>
     </view>
 
     <!-- 其他设置 -->
