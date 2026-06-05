@@ -298,6 +298,173 @@ class WeChatPayClient:
                 'error': str(e)
             }
 
+    def refund_order(self, order_no, refund_no, amount, reason='用户申请退款'):
+        """
+        发起退款请求 (API v3)
+
+        Args:
+            order_no: 原订单号 (out_trade_no)
+            refund_no: 退款单号 (商户生成，唯一)
+            amount: 退款金额（元）
+            reason: 退款原因
+
+        Returns:
+            dict: {
+                'success': bool,
+                'refund_id': str,  # 微信退款单号
+                'error': str
+            }
+        """
+        try:
+            refund_amount_cents = int(amount * 100)
+
+            print(f"\n💰 发起微信退款...")
+            print(f"   原订单号: {order_no}")
+            print(f"   退款单号: {refund_no}")
+            print(f"   退款金额: {amount} 元 ({refund_amount_cents} 分)")
+
+            # 调用退款API
+            response = self.client.refund(
+                out_trade_no=order_no,
+                out_refund_no=refund_no,
+                reason=reason,
+                amount={
+                    'refund': refund_amount_cents,
+                    'total': refund_amount_cents,
+                    'currency': 'CNY'
+                }
+            )
+
+            # 处理返回值
+            if isinstance(response, tuple):
+                status_code, result = response
+            else:
+                result = response
+                status_code = 200
+
+            # 处理返回值可能是 JSON 字符串
+            if isinstance(result, str):
+                try:
+                    import json
+                    result = json.loads(result)
+                except:
+                    pass
+
+            print(f"   SDK返回: status={status_code}")
+            print(f"   响应内容: {result}")
+
+            if isinstance(result, dict) and result.get('refund_id'):
+                print(f"✅ 退款发起成功: refund_id={result['refund_id']}")
+                return {
+                    'success': True,
+                    'refund_id': result['refund_id']
+                }
+            else:
+                error_msg = '退款失败：' + str(result) if result else '退款失败'
+                print(f"❌ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+
+        except Exception as e:
+            print(f"❌ 发起退款异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def verify_refund_callback(self, request_data):
+        """
+        验证退款回调 (API v3)
+
+        Args:
+            request_data: Flask request 对象或 dict
+
+        Returns:
+            dict: {
+                'success': bool,
+                'data': {
+                    'order_no': str,
+                    'refund_no': str,
+                    'refund_id': str,
+                    'status': str,  # SUCCESS/PROCESSING/ABNORMAL/CLOSED
+                    'amount': float
+                },
+                'error': str
+            }
+        """
+        try:
+            print(f"\n🔍 验证微信退款回调...")
+
+            if hasattr(request_data, 'get_json'):
+                callback_data = request_data.get_json()
+            else:
+                callback_data = request_data
+
+            # 使用SDK验证回调
+            code, message, decrypted_data = self.client.callback(
+                headers=request_data.headers if hasattr(request_data, 'headers') else {},
+                body=callback_data
+            )
+
+            if code == 200 and decrypted_data:
+                resource = decrypted_data.get('resource', {})
+                cipher_text = resource.get('ciphertext', '')
+                nonce = resource.get('nonce', '')
+                associated_data = resource.get('associated_data', '')
+
+                # 解密数据
+                decrypted = self.client.decrypt(
+                    ciphertext=cipher_text,
+                    nonce=nonce,
+                    associated_data=associated_data
+                )
+
+                import json
+                refund_data = json.loads(decrypted)
+
+                refund_status = refund_data.get('refund_status', '')
+                print(f"   退款状态: {refund_status}")
+                print(f"   原订单号: {refund_data.get('out_trade_no')}")
+                print(f"   退款单号: {refund_data.get('out_refund_no')}")
+                print(f"   微信退款单号: {refund_data.get('refund_id')}")
+
+                if refund_status == 'SUCCESS':
+                    return {
+                        'success': True,
+                        'data': {
+                            'order_no': refund_data.get('out_trade_no'),
+                            'refund_no': refund_data.get('out_refund_no'),
+                            'refund_id': refund_data.get('refund_id'),
+                            'status': refund_status,
+                            'amount': refund_data.get('amount', {}).get('refund', 0) / 100
+                        }
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': f"退款状态异常: {refund_status}"
+                    }
+            else:
+                error_msg = message or '退款回调签名验证失败'
+                print(f"❌ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+
+        except Exception as e:
+            print(f"❌ 验证退款回调异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def generate_response(self, success=True, message='OK'):
         """
         生成回调响应 (API v3 使用 JSON)

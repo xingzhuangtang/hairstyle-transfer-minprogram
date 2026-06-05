@@ -215,6 +215,78 @@ class PaymentService:
                 'success': False,
                 'error': str(e)
             }
+
+    def process_refund_success(self, order_no, refund_no, refund_amount):
+        """
+        处理退款成功（自动扣回发丝）
+
+        Args:
+            order_no: 原充值订单号
+            refund_no: 退款单号
+            refund_amount: 退款金额（元）
+
+        Returns:
+            dict: {success, error, deducted_hairs}
+        """
+        try:
+            # 查询原订单
+            order = RechargeRecord.query.filter_by(order_no=order_no).first()
+
+            if not order:
+                return {
+                    'success': False,
+                    'error': '原订单不存在'
+                }
+
+            if order.payment_status != 'success':
+                return {
+                    'success': False,
+                    'error': f'订单状态不允许退款，当前状态: {order.payment_status}'
+                }
+
+            # 检查是否已经退过款
+            if order.refund_status == 'refunded':
+                return {
+                    'success': False,
+                    'error': '该订单已退款'
+                }
+
+            # 扣回用户发丝
+            user = User.query.get(order.user_id)
+
+            # 按退款比例扣回发丝（支持部分退款）
+            refund_ratio = float(refund_amount) / float(order.amount)
+            deduct_scissor = int(order.scissor_hairs * refund_ratio)
+            deduct_comb = int(order.comb_hairs * refund_ratio)
+
+            user.scissor_hairs = max(0, user.scissor_hairs - deduct_scissor)
+            user.comb_hairs = max(0, user.comb_hairs - deduct_comb)
+
+            # 更新订单状态
+            order.payment_status = 'refunded'
+            order.refund_no = refund_no
+            order.refund_amount = refund_amount
+            order.refunded_at = datetime.now()
+
+            db.session.commit()
+
+            print(f"✅ 退款成功处理: order_no={order_no}, user_id={user.id}, "
+                  f"扣回 scissor={deduct_scissor}, comb={deduct_comb}")
+
+            return {
+                'success': True,
+                'user_id': user.id,
+                'deducted_scissor': deduct_scissor,
+                'deducted_comb': deduct_comb
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ 退款成功处理失败: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
     
     def process_member_success(self, order_no, transaction_id):
         """

@@ -746,6 +746,66 @@ def wechat_pay_callback():
         ))
 
 
+@api_bp.route('/recharge/callback/refund', methods=['POST'])
+def wechat_refund_callback():
+    """微信退款回调 - 自动扣回发丝"""
+    try:
+        from payment_service import WeChatPayService, PaymentService
+
+        request_data = request.get_json()
+
+        print(f"\n📨 收到微信退款回调")
+
+        wechat_service = WeChatPayService()
+        verify_result = wechat_service.verify_refund_callback(request_data)
+
+        if not verify_result['success']:
+            print(f"❌ 退款回调验证失败: {verify_result['error']}")
+            return jsonify(wechat_service.wechat_pay.generate_response(
+                success=False,
+                message=verify_result['error']
+            ))
+
+        order_no = verify_result['data']['order_no']
+        refund_no = verify_result['data']['refund_no']
+        refund_amount = verify_result['data']['amount']
+
+        print(f"   原订单号: {order_no}")
+        print(f"   退款单号: {refund_no}")
+        print(f"   退款金额: {refund_amount} 元")
+
+        payment_service = PaymentService()
+        process_result = payment_service.process_refund_success(
+            order_no=order_no,
+            refund_no=refund_no,
+            refund_amount=refund_amount
+        )
+
+        if process_result['success']:
+            print(f"✅ 退款回调处理成功")
+            return jsonify(wechat_service.wechat_pay.generate_response(
+                success=True,
+                message='OK'
+            ))
+        else:
+            print(f"❌ 处理退款失败: {process_result['error']}")
+            return jsonify(wechat_service.wechat_pay.generate_response(
+                success=False,
+                message=process_result['error']
+            ))
+
+    except Exception as e:
+        print(f"❌ 退款回调处理异常: {e}")
+        import traceback
+        traceback.print_exc()
+        from payment_service import WeChatPayService
+        wechat_service = WeChatPayService()
+        return jsonify(wechat_service.wechat_pay.generate_response(
+            success=False,
+            message=str(e)
+        ))
+
+
 @api_bp.route('/recharge/callback/alipay', methods=['POST'])
 def alipay_pay_callback():
     """支付宝支付回调 - 充值"""
