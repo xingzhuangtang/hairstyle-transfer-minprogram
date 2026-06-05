@@ -90,6 +90,11 @@ class Config:
     SMS_SIGN_NAME = os.getenv("SMS_SIGN_NAME")
     SMS_TEMPLATE_CODE = os.getenv("SMS_TEMPLATE_CODE")
 
+    # 企业微信配置（客服通知 + 退款审批）
+    WECHAT_CORP_ID = os.getenv("WECHAT_CORP_ID")
+    WECHAT_CORP_SECRET = os.getenv("WECHAT_CORP_SECRET")
+    WECHAT_AGENT_ID = os.getenv("WECHAT_AGENT_ID")
+
 
 class DevelopmentConfig(Config):
     """开发环境配置"""
