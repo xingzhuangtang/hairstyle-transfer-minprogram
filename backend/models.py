@@ -140,6 +140,9 @@ class RechargeRecord(db.Model):
     payment_status = db.Column(db.Enum('pending', 'success', 'failed', 'refunded'), default='pending', comment='支付状态')
     transaction_id = db.Column(db.String(128), nullable=True, comment='第三方交易号')
     paid_at = db.Column(db.DateTime, nullable=True, comment='支付时间')
+    refund_no = db.Column(db.String(64), nullable=True, comment='退款单号')
+    refund_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='退款金额')
+    refunded_at = db.Column(db.DateTime, nullable=True, comment='退款时间')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
 
     # 关联
