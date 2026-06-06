@@ -1099,23 +1099,25 @@ def get_history_records():
         user = g.current_user
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 20, type=int)
-        
+
         query = HistoryRecord.query.filter_by(user_id=user.id).order_by(
             HistoryRecord.created_at.desc()
         )
-        
+
         total = query.count()
         records = query.offset((page - 1) * page_size).limit(page_size).all()
-        
+
         return jsonify({
             'records': [r.to_dict() for r in records],
             'total': total,
             'page': page,
             'page_size': page_size
         })
-        
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logging.error(f'History list error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 @api_bp.route('/history/download', methods=['GET'])
@@ -1124,19 +1126,19 @@ def download_history_record():
     """下载历史记录图片"""
     try:
         record_id = request.args.get('record_id')
-        
+
         if not record_id:
             return jsonify({'error': '缺少record_id参数'}), 400
-        
+
         user = g.current_user
         record = HistoryRecord.query.filter_by(
             id=record_id,
             user_id=user.id
         ).first()
-        
+
         if not record:
             return jsonify({'error': '记录不存在'}), 404
-        
+
         image_type = request.args.get('type', 'result')  # result, sketch, original, customer
 
         # 根据类型获取对应的图片 URL
@@ -1153,19 +1155,21 @@ def download_history_record():
             return jsonify({'error': '不支持的图片类型'}), 400
 
         if not image_url:
-            return jsonify({'error': '该类型图片不存在'}, 404)
+            return jsonify({'error': '该类型图片不存在'}), 404
 
         # 这里需要返回图片URL或直接返回图片
-        
+
         return jsonify({
             'success': True,
             'download_url': image_url,
             'image_type': image_type,
             'record_id': record_id
         })
-        
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logging.error(f'History download error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 @api_bp.route('/history/delete', methods=['DELETE'])
@@ -1208,7 +1212,9 @@ def delete_history_record():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logging.error(f'History delete error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 # ============================================
@@ -1696,7 +1702,7 @@ def submit_message():
         name = data.get('name')
         phone = data.get('phone')
         content = data.get('content')
-        
+
         # 验证必填参数
         if not name:
             return jsonify({'error': '姓名不能为空'}), 400
@@ -1704,36 +1710,75 @@ def submit_message():
             return jsonify({'error': '联系电话不能为空'}), 400
         if not content:
             return jsonify({'error': '留言内容不能为空'}), 400
-        
+
         # 验证姓名长度
         if len(name) > 20:
             return jsonify({'error': '姓名最多20个字符'}), 400
-        
+
         # 验证电话格式（11位数字）
         if not phone.isdigit() or len(phone) != 11:
             return jsonify({'error': '请输入正确的11位手机号码'}), 400
-        
+
         # 验证内容长度
         if len(content) > 500:
             return jsonify({'error': '留言内容最多500个字符'}), 400
-        
-        # 创建留言记录（使用 SQLAlchemy ORM，自动防 SQL 注入）
+
+        # 尝试关联用户（通过手机号查找已注册用户）
+        matched_user = User.query.filter_by(phone=phone.strip()).first()
+        user_id = matched_user.id if matched_user else None
+
+        # 创建留言记录
         message = Message(
+            user_id=user_id,
             name=name.strip(),
             phone=phone.strip(),
             content=content.strip()
         )
         db.session.add(message)
         db.session.commit()
-        
+
+        # 如果关联到用户，同时创建一条聊天消息并发送企业微信通知
+        if matched_user:
+            try:
+                from chat_service import ChatService
+                success, msg_text, chat_msg = ChatService.send_message(
+                    user_id=matched_user.id,
+                    content=f"[留言] {content.strip()}"
+                )
+                if success:
+                    print(f"✅ 留言已同步到聊天系统: user_id={matched_user.id}")
+            except Exception as e:
+                print(f"⚠️ 留言同步到聊天系统失败: {e}")
+        else:
+            # 未关联到用户，直接发送企业微信通知（无聊天系统关联）
+            try:
+                from chat_notifier import ChatNotifier
+                from chat_service import generate_reply_token
+                # 使用手机号生成临时 token，管理员点击后可查看留言详情
+                notifier = ChatNotifier()
+                reply_token = generate_reply_token(phone)
+                reply_url = f"{notifier.base_url}/api/chat/reply?token={reply_token}"
+                preview = content[:100] + ("..." if len(content) > 100 else "")
+                notifier.send_template_card(
+                    title="新客户留言",
+                    desc=f"{name.strip()} 发来了一条留言",
+                    description=f"姓名: {name.strip()}\n电话: {phone.strip()}\n留言: {preview}",
+                    reply_url=reply_url
+                )
+                print(f"✅ 未关联用户的留言已通知企业微信: phone={phone}")
+            except Exception as e:
+                print(f"⚠️ 留言企业微信通知失败: {e}")
+
         return jsonify({
             'success': True,
             'message': '留言提交成功，感谢您的反馈！'
         })
-        
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logging.error(f'Message submit error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 @api_bp.route('/messages', methods=['GET'])
@@ -1768,6 +1813,44 @@ def get_messages():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/admin/refund/enable', methods=['POST'])
+def admin_enable_refund():
+    """管理员批准用户退款权限（开发者专用）"""
+    try:
+        from auth import is_developer
+
+        # 检查开发者权限
+        if not is_developer():
+            return jsonify({'error': '无权访问此接口'}), 403
+
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'error': '缺少user_id参数'}), 400
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+
+        # 开通退款权限
+        user.refund_enabled = True
+        db.session.commit()
+
+        print(f"✅ 已为用户开通退款权限: user_id={user_id}, phone={user.phone}")
+
+        return jsonify({
+            'success': True,
+            'message': f'已为用户 {user.nickname or user.phone} 开通退款权限'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f'Admin enable refund error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
@@ -2333,13 +2416,51 @@ def chat_unread_count():
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        import logging
+        logging.error(f'Chat unread count error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/chat/mark-read', methods=['POST'])
+@login_required
+def chat_mark_read():
+    """标记所有未读消息为已读（清除角标）"""
+    try:
+        from models import Message
+        from models import ChatMessage
+
+        user = g.current_user
+
+        # 1. 标记聊天消息为已读
+        ChatMessage.query.filter_by(
+            user_id=user.id,
+            sender_type='admin',
+            is_read=False
+        ).update({'is_read': True})
+
+        # 2. 标记留言为已处理（resolved）
+        Message.query.filter_by(
+            user_id=user.id,
+            status='processing'
+        ).update({'status': 'resolved'})
+
+        db.session.commit()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        import logging
+        logging.error(f'Chat mark-read error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
 @api_bp.route('/chat/reply', methods=['GET', 'POST'])
 def chat_reply():
     """
     管理员回复页面（H5）
+    支持两种来源：
+    1. 用户聊天消息（token = user_id）
+    2. 客户留言（token = phone）
     GET: 显示回复表单
     POST: 提交回复
     """
@@ -2349,8 +2470,8 @@ def chat_reply():
     token = request.args.get('token', '') or (request.form.get('token', '') if request.form else '')
 
     # 验证 token
-    user_id = verify_reply_token(token)
-    if not user_id:
+    identifier, id_type = verify_reply_token(token)
+    if not identifier:
         return render_template_string('''
             <html><head><meta charset="utf-8"><title>链接无效</title></head>
             <body style="padding:40px;text-align:center;font-family:sans-serif;">
@@ -2370,46 +2491,82 @@ def chat_reply():
                 </body></html>
             '''), 400
 
-        success, message, chat_message = ChatService.reply_message(user_id, content)
-        if success:
-            from models import User
-            user = User.query.get(user_id)
-            user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+        if id_type == 'user_id':
+            # 回复聊天消息
+            success, message, chat_message = ChatService.reply_message(identifier, content)
+            if success:
+                from models import User
+                user = User.query.get(identifier)
+                user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+                return render_template_string('''
+                    <html><head><meta charset="utf-8"><title>回复成功</title></head>
+                    <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                        <h2 style="color:#07c160;">✅ 回复成功</h2>
+                        <p>已回复给 {{ user_info }}</p>
+                        <p style="margin-top:30px;"><a href="javascript:history.back()">继续回复</a></p>
+                    </body></html>
+                ''', user_info=user_info)
+            else:
+                return render_template_string('''
+                    <html><head><meta charset="utf-8"><title>回复失败</title></head>
+                    <body style="padding:40px;text-align:center;font-family:sans-serif;">
+                        <h2 style="color:red;">回复失败</h2>
+                        <p>{{ error }}</p>
+                        <a href="javascript:history.back()">返回</a>
+                    </body></html>
+                ''', error=message), 500
+        else:
+            # 回复留言：标记为已处理
+            from models import Message
+            msg = Message.query.filter_by(phone=identifier, status='pending').order_by(
+                Message.created_at.desc()
+            ).first()
+            if msg:
+                msg.status = 'processing'
+                db.session.commit()
+                print(f"✅ 留言已标记为处理中: id={msg.id}, phone={identifier}")
 
             return render_template_string('''
-                <html><head><meta charset="utf-8"><title>回复成功</title></head>
+                <html><head><meta charset="utf-8"><title>已收到回复</title></head>
                 <body style="padding:40px;text-align:center;font-family:sans-serif;">
-                    <h2 style="color:#07c160;">✅ 回复成功</h2>
-                    <p>已回复给 {{ user_info }}</p>
-                    <p style="margin-top:30px;"><a href="javascript:history.back()">继续回复</a></p>
+                    <h2 style="color:#07c160;">✅ 已收到回复</h2>
+                    <p>该留言已标记为处理中，后续可通过电话 {{ phone }} 联系客户</p>
                 </body></html>
-            ''', user_info=user_info)
-        else:
-            return render_template_string('''
-                <html><head><meta charset="utf-8"><title>回复失败</title></head>
-                <body style="padding:40px;text-align:center;font-family:sans-serif;">
-                    <h2 style="color:red;">回复失败</h2>
-                    <p>{{ error }}</p>
-                    <a href="javascript:history.back()">返回</a>
-                </body></html>
-            ''', error=message), 500
+            ''', phone=identifier)
 
     # GET: 显示回复表单
-    from models import User, ChatMessage
-    user = User.query.get(user_id)
-    user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+    from models import User, ChatMessage, Message
 
-    # 获取最近的几条消息用于上下文
-    recent_messages = ChatMessage.query.filter_by(user_id=user_id)\
-        .order_by(ChatMessage.created_at.desc()).limit(10).all()
-    recent_messages.reverse()
+    if id_type == 'user_id':
+        user = User.query.get(identifier)
+        user_info = f"{user.nickname or '用户'}（{user.phone or '未绑定手机'}）" if user else '用户'
+        source_type = 'chat'
+
+        # 获取最近的聊天记录
+        recent_messages = ChatMessage.query.filter_by(user_id=identifier)\
+            .order_by(ChatMessage.created_at.desc()).limit(10).all()
+        recent_messages.reverse()
+    else:
+        # 留言来源
+        msg = Message.query.filter_by(phone=identifier).order_by(
+            Message.created_at.desc()
+        ).first()
+        if msg:
+            user_info = f"{msg.name}（{msg.phone}）"
+            if msg.status == 'pending':
+                msg.status = 'processing'
+                db.session.commit()
+        else:
+            user_info = f"留言用户（{identifier}）"
+        source_type = 'message'
+        recent_messages = []
 
     return render_template_string('''
         <html>
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>回复用户消息</title>
+            <title>{{ '回复留言' if source_type == 'message' else '回复用户消息' }}</title>
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; }
@@ -2427,28 +2584,48 @@ def chat_reply():
                 .reply-form button { padding: 0 20px; background: #07c160; color: white; border: none; border-radius: 6px; font-size: 14px; }
                 .reply-form button:active { background: #06ad56; }
                 .spacer { height: 80px; }
+                .message-content { background: white; padding: 16px; margin: 12px; border-radius: 8px; }
+                .message-content p { margin-bottom: 8px; font-size: 14px; line-height: 1.6; }
+                .message-content .label { color: #999; }
+                .message-content .value { color: #333; }
+                {% if source_type == 'message' %}
+                .phone-link { color: #07c160; text-decoration: none; }
+                .phone-link:active { color: #06ad56; }
+                {% endif %}
             </style>
         </head>
         <body>
-            <div class="header"><h2>回复用户消息</h2></div>
-            <div class="user-info"><span>用户：{{ user_info }}</span></div>
+            <div class="header"><h2>{{ '回复留言' if source_type == 'message' else '回复用户消息' }}</h2></div>
+            <div class="user-info"><span>来源：{{ user_info }}</span></div>
+            {% if source_type == 'message' %}
+            <div class="message-content">
+                {% if msg %}
+                <p><span class="label">姓名：</span><span class="value">{{ msg.name }}</span></p>
+                <p><span class="label">电话：</span><a class="phone-link" href="tel:{{ msg.phone }}">{{ msg.phone }}</a></p>
+                <p><span class="label">留言：</span></p>
+                <p style="white-space:pre-wrap;">{{ msg.content }}</p>
+                <p style="color:#999;font-size:12px;margin-top:8px;">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% endif %}
+            </div>
+            {% else %}
             <div class="messages">
-                {% for msg in messages %}
-                <div class="message {{ msg.sender_type }}">
-                    {{ msg.content }}
-                    <div class="time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                {% for m in messages %}
+                <div class="message {{ m.sender_type }}">
+                    {{ m.content }}
+                    <div class="time">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
                 </div>
                 {% endfor %}
             </div>
+            {% endif %}
             <div class="spacer"></div>
             <form class="reply-form" method="POST" action="/api/chat/reply">
                 <input type="hidden" name="token" value="{{ token }}">
-                <textarea name="content" placeholder="输入回复..." required></textarea>
-                <button type="submit">发送</button>
+                <textarea name="content" placeholder="{{ '输入回复备注（可选）' if source_type == 'message' else '输入回复...' }}" ></textarea>
+                <button type="submit">{{ '确认已处理' if source_type == 'message' else '发送' }}</button>
             </form>
         </body>
         </html>
-    ''', user_info=user_info, messages=recent_messages, token=token)
+    ''', user_info=user_info, messages=recent_messages, token=token, source_type=source_type, msg=msg if id_type == 'message' else None)
 
 
 # ==================== 财务流水 API ====================
@@ -2547,4 +2724,30 @@ def get_financial_summary():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import logging
+        logging.error(f'Financial summary error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
+
+
+# ============================================
+# 全局错误处理（防止堆栈泄漏）
+# ============================================
+
+@api_bp.errorhandler(500)
+def handle_internal_error(error):
+    """处理500错误，返回通用消息"""
+    import logging
+    logging.error(f'Internal server error: {error}')
+    return jsonify({'error': '服务器内部错误'}), 500
+
+
+@api_bp.errorhandler(404)
+def handle_not_found(error):
+    """处理404错误"""
+    return jsonify({'error': '请求的资源不存在'}), 404
+
+
+@api_bp.errorhandler(405)
+def handle_method_not_allowed(error):
+    """处理405错误"""
+    return jsonify({'error': '不支持的请求方法'}), 405

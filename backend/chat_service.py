@@ -60,7 +60,8 @@ def generate_reply_token(user_id):
 def verify_reply_token(token):
     """
     验证管理员回复链接的 HMAC 签名 token
-    返回 user_id 或 None
+    返回 (identifier, identifier_type) 或 (None, None)
+    identifier_type 为 'user_id' 或 'phone'
     """
     from config import get_config
     config = get_config()
@@ -69,18 +70,17 @@ def verify_reply_token(token):
     try:
         parts = token.split(':')
         if len(parts) != 3:
-            return None
+            return None, None
 
-        user_id_str, expire_str, signature = parts
-        user_id = int(user_id_str)
+        identifier_str, expire_str, signature = parts
         expire_time = int(expire_str)
 
         # 检查过期
         if time.time() > expire_time:
-            return None
+            return None, None
 
         # 验证签名
-        payload = f"{user_id_str}:{expire_str}"
+        payload = f"{identifier_str}:{expire_str}"
         expected_signature = hmac.new(
             secret.encode('utf-8'),
             payload.encode('utf-8'),
@@ -88,12 +88,23 @@ def verify_reply_token(token):
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
-            return None
+            return None, None
 
-        return user_id
+        # 判断是 user_id 还是 phone
+        try:
+            user_id = int(identifier_str)
+            # 检查是否真的是 user_id（数据库中是否存在）
+            user = User.query.get(user_id)
+            if user:
+                return user_id, 'user_id'
+        except (ValueError, TypeError):
+            pass
+
+        # 当作手机号处理
+        return identifier_str, 'phone'
 
     except (ValueError, TypeError):
-        return None
+        return None, None
 
 
 def sanitize_content(content):
@@ -171,23 +182,32 @@ class ChatService:
 
         messages = query.order_by(ChatMessage.created_at.asc()).limit(limit).all()
 
-        # 标记admin消息为已读
-        admin_messages = [m for m in messages if m.sender_type == 'admin' and not m.is_read]
-        for msg in admin_messages:
-            msg.is_read = True
-        if admin_messages:
-            db.session.commit()
-
+        # 注意：不在这里标记已读，由 /chat/mark-read 接口统一处理
         return messages
 
     @staticmethod
     def get_unread_count(user_id):
-        """获取未读admin消息数量"""
-        return ChatMessage.query.filter_by(
+        """
+        获取未读通知数量
+        包含两部分：
+        1. 聊天系统中 admin 回复的未读消息
+        2. 客户留言中已被标记为 processing（管理员已查看/处理）但用户还未读的消息
+        """
+        # admin 聊天消息未读数
+        chat_unread = ChatMessage.query.filter_by(
             user_id=user_id,
             sender_type='admin',
             is_read=False
         ).count()
+
+        # 留言已处理但未通知用户的数量（processing 状态代表管理员已介入）
+        from models import Message
+        msg_unread = Message.query.filter_by(
+            user_id=user_id,
+            status='processing'
+        ).count()
+
+        return chat_unread + msg_unread
 
     @staticmethod
     def reply_message(user_id, content, admin_id=None):

@@ -1,5 +1,7 @@
 // pages/chat/chat.js
-import { sendChatMessage, getChatMessages } from '../../api/chat.js'
+import { sendChatMessage, getChatMessages, getUnreadCount } from '../../api/chat.js'
+import { API_BASE_URL } from '../../utils/constants.js'
+import { getToken } from '../../utils/storage.js'
 
 const POLL_INTERVAL = 5000 // 5秒轮询
 const MAX_RETRY = 3 // 连续失败最大重试次数
@@ -23,14 +25,17 @@ Page({
 
   onShow() {
     this.startPolling()
+    this.refreshBadge()
   },
 
   onHide() {
     this.stopPolling()
+    this.markRead()
   },
 
   onUnload() {
     this.stopPolling()
+    this.markRead()
   },
 
   /**
@@ -229,5 +234,40 @@ Page({
     const hours = date.getHours().toString().padStart(2, '0')
     const minutes = date.getMinutes().toString().padStart(2, '0')
     return `${hours}:${minutes}`
+  },
+
+  /**
+   * 标记所有未读消息为已读
+   */
+  async markRead() {
+    try {
+      wx.request({
+        url: `${API_BASE_URL}/api/chat/mark-read`,
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data.success) {
+            this.setData({ chatUnreadCount: 0 })
+          }
+        }
+      })
+    } catch (e) {
+      console.error('标记已读失败:', e)
+    }
+  },
+
+  /**
+   * 刷新未读角标（返回 profile 页面时恢复显示）
+   */
+  async refreshBadge() {
+    try {
+      const count = await getUnreadCount()
+      this.setData({ chatUnreadCount: count || 0 })
+    } catch (e) {
+      // 静默失败
+    }
   }
 })
