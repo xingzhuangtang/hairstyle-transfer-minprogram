@@ -126,8 +126,8 @@
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
 
-      <!-- 退款申请 -->
-      <view class="menu-item" bindtap="goToRefund">
+      <!-- 退款申请（仅管理员批准后显示） -->
+      <view class="menu-item" bindtap="goToRefund" wx:if="{{refundEnabled}}">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/refund.png"></image>
           <text class="menu-text">退款申请</text>

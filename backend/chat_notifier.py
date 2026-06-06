@@ -111,3 +111,63 @@ class ChatNotifier:
         except Exception as e:
             print(f"❌ 发送企业微信通知异常: {e}")
             return False
+
+    def send_template_card(self, title, desc, description, reply_url):
+        """
+        发送自定义模板卡片通知到企业微信
+
+        Args:
+            title: 主标题
+            desc: 副标题描述
+            description: 详细内容
+            reply_url: 跳转链接
+
+        Returns:
+            bool: 是否发送成功
+        """
+        try:
+            access_token = self._get_access_token()
+
+            message_content = {
+                "touser": "@all",
+                "msgtype": "template_card",
+                "agentid": int(self.wechat_agent_id),
+                "template_card": {
+                    "card_type": "text_notice",
+                    "main_title": {
+                        "title": title,
+                        "desc": desc
+                    },
+                    "sub_title_text": description,
+                    "jump_list": [
+                        {
+                            "type": 1,
+                            "url": reply_url,
+                            "title": "立即回复"
+                        }
+                    ],
+                    "card_action": {
+                        "type": 1,
+                        "url": reply_url
+                    }
+                }
+            }
+
+            send_url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
+            response = requests.post(send_url, json=message_content, timeout=10)
+
+            if response.status_code != 200:
+                print(f"❌ 企业微信消息发送失败: HTTP {response.status_code}")
+                return False
+
+            result = response.json()
+            if result.get("errcode", -1) == 0:
+                print(f"✅ 模板卡片通知已发送到企业微信")
+                return True
+            else:
+                print(f"❌ 企业微信返回错误: {result}")
+                return False
+
+        except Exception as e:
+            print(f"❌ 发送企业微信模板卡片异常: {e}")
+            return False

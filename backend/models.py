@@ -53,6 +53,8 @@ class User(db.Model):
     # 普通用户/会员赠送追踪
     registered_bonus_used_count = db.Column(db.Integer, default=0, comment='普通用户/会员免费额度使用次数')
     last_registered_bonus_time = db.Column(db.DateTime, nullable=True, comment='上次普通用户/会员赠送时间')
+    # 退款权限（默认隐藏，管理员批准后显示）
+    refund_enabled = db.Column(db.Boolean, default=False, comment='退款申请权限')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -97,7 +99,8 @@ class User(db.Model):
             'cash_balance': float(self.cash_balance),
             'total_referral_earnings': float(self.total_referral_earnings),
             'referral_code': self.referral_code,
-            'referral_count': self.referral_count
+            'referral_count': self.referral_count,
+            'refund_enabled': self.refund_enabled
         }
 
     def is_vip(self):
@@ -522,14 +525,17 @@ class Message(db.Model):
     __tablename__ = 'messages'
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=True, comment='关联用户ID（如果已绑定）')
     name = db.Column(db.String(50), nullable=False, comment='用户姓名')
     phone = db.Column(db.String(20), nullable=False, comment='联系电话')
     content = db.Column(db.Text, nullable=False, comment='留言内容')
+    status = db.Column(db.Enum('pending', 'processing', 'resolved'), default='pending', comment='处理状态')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
 
     # 索引
     __table_args__ = (
         Index('idx_created_at', 'created_at'),
+        Index('idx_user_id', 'user_id'),
         {'comment': '客户留言表'}
     )
 
@@ -537,9 +543,11 @@ class Message(db.Model):
         """转换为字典"""
         return {
             'id': self.id,
+            'user_id': self.user_id,
             'name': self.name,
             'phone': self.phone,
             'content': self.content,
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

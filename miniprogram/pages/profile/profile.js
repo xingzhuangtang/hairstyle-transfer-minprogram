@@ -2,6 +2,7 @@
 import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip, getDeveloperModeInstructions } from '../../utils/auth.js'
 import { checkPremium, requireLogin } from '../../utils/auth.js'
 import { MEMBER_LEVEL_NAMES, API_BASE_URL } from '../../utils/constants.js'
+import { getUnreadCount } from '../../api/chat.js'
 
 Page({
   data: {
@@ -13,7 +14,8 @@ Page({
     daysRemaining: 0,
     toggleLoading: false,
     resetLoading: false,
-    chatUnreadCount: 0
+    chatUnreadCount: 0,
+    refundEnabled: false
   },
 
   onShow() {
@@ -50,7 +52,8 @@ Page({
           isDeveloper: isDeveloper,
           memberLevelName: (typeof MEMBER_LEVEL_NAMES !== 'undefined' && MEMBER_LEVEL_NAMES[userInfo.member_level]) || '普通用户',
           totalHairs: totalHairs,
-          daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+          daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+          refundEnabled: userInfo.refund_enabled || false
         })
       } else {
         // 未登录，显示默认状态（不跳转登录页）
@@ -60,7 +63,8 @@ Page({
           isDeveloper: false,
           memberLevelName: '游客',
           totalHairs: 0,
-          daysRemaining: 0
+          daysRemaining: 0,
+          refundEnabled: false
         })
       }
     } catch (e) {
@@ -72,7 +76,8 @@ Page({
         isDeveloper: false,
         memberLevelName: '游客',
         totalHairs: 0,
-        daysRemaining: 0
+        daysRemaining: 0,
+        refundEnabled: false
       })
     }
   },
@@ -199,7 +204,6 @@ Page({
    */
   async loadChatUnreadCount() {
     try {
-      const { getUnreadCount } = await import('../../api/chat.js')
       const count = await getUnreadCount()
       this.setData({ chatUnreadCount: count || 0 })
     } catch (e) {
