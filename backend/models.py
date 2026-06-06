@@ -760,6 +760,47 @@ class RefundApplication(db.Model):
         }
 
 
+class FinancialRecord(db.Model):
+    """财务流水记录表"""
+    __tablename__ = 'financial_records'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, comment='用户ID')
+    record_type = db.Column(db.Enum('recharge', 'member_purchase', 'refund', 'commission', 'withdrawal', 'cash_consumption'), nullable=False, comment='记录类型')
+    amount = db.Column(db.Numeric(10, 2), nullable=False, comment='金额(元)，正数=收入，负数=支出')
+    description = db.Column(db.String(255), nullable=False, comment='描述')
+    payment_method = db.Column(db.String(50), nullable=True, comment='支付方式')
+    related_id = db.Column(db.BigInteger, nullable=True, comment='关联记录ID')
+    related_type = db.Column(db.String(50), nullable=True, comment='关联记录类型')
+    hairs_changed = db.Column(db.Integer, nullable=True, comment='关联发丝变动数量')
+    status = db.Column(db.Enum('success', 'pending', 'failed'), default='success', comment='状态')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+
+    # 索引
+    __table_args__ = (
+        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_user_type', 'user_id', 'record_type'),
+        Index('idx_status', 'status'),
+        {'comment': '财务流水记录表'}
+    )
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'record_type': self.record_type,
+            'amount': float(self.amount),
+            'description': self.description,
+            'payment_method': self.payment_method,
+            'related_id': self.related_id,
+            'related_type': self.related_type,
+            'hairs_changed': self.hairs_changed,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
 # ==================== 认证服务 ====================
 
 class AuthService:

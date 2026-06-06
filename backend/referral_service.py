@@ -296,6 +296,17 @@ class ReferralService:
                     status='paid'
                 )
                 db.session.add(commission)
+
+                # 记录财务流水
+                from financial_service import FinancialService
+                FinancialService.record_commission(
+                    user_id=referrer.id,
+                    amount=float(self.COMMISSION_AMOUNT),
+                    referee_id=user_id,
+                    referral_id=relation.id,
+                    status='paid'
+                )
+
                 db.session.commit()
 
                 print(f"✅ 推广佣金已发放：referrer_id={referrer.id}, amount={self.COMMISSION_AMOUNT}")
@@ -364,6 +375,15 @@ class ReferralService:
             )
             db.session.add(record)
             db.session.commit()
+
+            # 记录财务流水
+            from financial_service import FinancialService
+            FinancialService.record_cash_consumption(
+                user_id=user_id,
+                cash_spent=float(amount),
+                hairs_received=hairs_received,
+                related_id=record.id
+            )
 
             return {
                 "success": True,
@@ -435,6 +455,15 @@ class ReferralService:
 
                 # 扣除余额
                 user.cash_balance = balance - amount
+
+                # 记录财务流水
+                from financial_service import FinancialService
+                FinancialService.record_withdrawal(
+                    user_id=user_id,
+                    amount=float(amount),
+                    withdrawal_id=withdrawal.id,
+                    status='success'
+                )
 
                 db.session.commit()
 

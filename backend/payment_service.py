@@ -196,6 +196,18 @@ class PaymentService:
             user.comb_hairs += order.comb_hairs
             user.total_recharge += order.amount
             
+            # 记录财务流水
+            from financial_service import FinancialService
+            FinancialService.record_recharge(
+                user_id=user.id,
+                amount=float(order.amount),
+                payment_method=order.payment_method,
+                scissor_hairs=order.scissor_hairs,
+                comb_hairs=order.comb_hairs,
+                order_no=order.order_no,
+                status='success'
+            )
+            
             db.session.commit()
             
             print(f"✅ 充值成功处理: order_no={order_no}, user_id={user.id}, "
@@ -245,7 +257,7 @@ class PaymentService:
                 }
 
             # 检查是否已经退过款
-            if order.refund_status == 'refunded':
+            if order.payment_status == 'refunded':
                 return {
                     'success': False,
                     'error': '该订单已退款'
@@ -267,6 +279,15 @@ class PaymentService:
             order.refund_no = refund_no
             order.refund_amount = refund_amount
             order.refunded_at = datetime.now()
+
+            # 记录财务流水
+            from financial_service import FinancialService
+            FinancialService.record_refund(
+                user_id=user.id,
+                refund_amount=refund_amount,
+                refund_type='recharge',
+                related_id=order.id
+            )
 
             db.session.commit()
 
@@ -339,6 +360,17 @@ class PaymentService:
             
             # 赠送头发丝
             user.comb_hairs += order.bonus_hairs
+            
+            # 记录财务流水
+            from financial_service import FinancialService
+            FinancialService.record_member_purchase(
+                user_id=user.id,
+                amount=float(order.amount),
+                payment_method=order.payment_method,
+                bonus_hairs=order.bonus_hairs,
+                order_no=order.order_no,
+                status='success'
+            )
             
             db.session.commit()
             
