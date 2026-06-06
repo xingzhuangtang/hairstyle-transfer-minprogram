@@ -1,13 +1,7 @@
 <!--pages/chat/chat.wxml-->
 <view class="chat-container">
   <!-- 消息列表 -->
-  <scroll-view
-    class="message-list"
-    scroll-y
-    scroll-into-view="{{scrollToView}}"
-    scroll-with-animation
-    bindscrolltoupper="onScrollToUpper"
-  >
+  <view class="message-list" scroll-y>
     <!-- 欢迎提示 -->
     <view class="welcome-tip" wx:if="{{messages.length === 0 && !loading}}">
       <text>您好！有什么可以帮助您的？</text>
@@ -35,7 +29,7 @@
     <view class="loading-more" wx:if="{{loading}}">
       <text>加载中...</text>
     </view>
-  </scroll-view>
+  </view>
 
   <!-- 输入区域 -->
   <view class="input-area">
