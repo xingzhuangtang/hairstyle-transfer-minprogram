@@ -27,6 +27,24 @@
 - ✅ 会员到期自动降级和提醒
 - ✅ 完整的用户协议和隐私政策
 
+### 客服与消息系统
+
+- 💬 **在线客服** - 实时聊天（消息轮询），支持未读角标提醒
+- 📝 **客户留言** - 留言自动通知企业微信，管理员可在企业微信内快捷回复
+- 🔔 **统一未读角标** - 客服回复 + 留言处理状态合并计数
+- 🔐 **HMAC 签名验证** - 企业微信回复 token 防伪造，支持过期检查
+
+### 退款与风控
+
+- 🛡️ **退款权限控制** - 默认隐藏"退款申请"，管理员可按用户单独授权
+- 🔄 **退款自动扣回发丝** - 退款审批后自动扣除对应发丝
+- 📋 **退款审批流程** - 企业微信审批 + 财务流水记录
+
+### 推广与商业化
+
+- 🎁 **推广返佣系统** - 用户专属推广码，成功推广存钱罐自动返现
+- 🏆 **微信虚拟支付** - iOS 端虚拟商品订单创建与回调
+
 ### 账号体系（设备 ID 贯穿全生命周期）
 
 - ✅ 设备 ID 自动生成（基于设备型号哈希，永不改变）
@@ -145,12 +163,19 @@ hairstyle-transfer-minprogram/
 │   ├── config.py              # 配置管理
 │   ├── auth.py                # 认证服务
 │   ├── payment_service.py     # 支付服务
+│   ├── virtual_payment_service.py  # 微信虚拟支付
 │   ├── hair_service.py        # 头发服务
 │   ├── member_service.py      # 会员服务
+│   ├── chat_service.py        # 在线客服服务
+│   ├── chat_notifier.py       # 企业微信通知
+│   ├── refund_service.py      # 退款服务
+│   ├── referral_service.py    # 推广返佣服务
 │   ├── wechat_pay.py          # 微信支付 SDK
 │   ├── aliyun_hair_transfer_fixed.py  # AI 服务
 │   ├── requirements.txt       # Python 依赖
 │   ├── .env.example           # 环境变量模板
+│   ├── migrate_*.py           # 数据库迁移脚本
+│   ├── test_*.py              # 测试脚本
 │   └── docs/                  # 文档
 ├── miniprogram/               # 微信小程序
 │   ├── pages/                 # 页面
@@ -160,11 +185,17 @@ hairstyle-transfer-minprogram/
 │   │   ├── balance/           # 余额充值
 │   │   ├── member/            # 会员中心
 │   │   ├── history/           # 历史记录
+│   │   ├── chat/              # 在线客服
+│   │   ├── message/           # 客户留言
+│   │   ├── refund/            # 退款申请
+│   │   ├── referral/          # 推广中心（我的惊喜）
 │   │   └── legal/             # 协议页面
 │   ├── utils/                 # 工具函数
+│   ├── api/                   # API 封装
 │   └── app.js                 # 小程序入口
 └── docs/                      # 文档
     ├── SECURITY_AUDIT.md      # 安全审查报告
+    ├── chat-system-design.md  # 聊天系统设计文档
     └── commercial_deployment_review.md  # 商业化部署审查
 ```
 
@@ -218,6 +249,10 @@ MYSQL_USER=root
 MYSQL_PASSWORD=your_password
 MYSQL_DATABASE=hairstyle_transfer
 
+# Redis 配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
 # 微信支付配置
 WECHAT_APP_ID=your_app_id
 WECHAT_APP_SECRET=your_app_secret
@@ -226,8 +261,17 @@ WECHAT_PAY_CERT_PATH=/path/to/cert.pem
 WECHAT_PAY_KEY_PATH=/path/to/key.pem
 WECHAT_PAY_API_V3_KEY=your_v3_key
 
+# 企业微信配置（客户留言通知）
+WECHAT_CORP_ID=your_corp_id
+WECHAT_CORP_SECRET=your_corp_secret
+WECHAT_AGENT_ID=your_agent_id
+
 # JWT 配置
 JWT_SECRET_KEY=your_secret_key
+
+# 开发者模式（调试用）
+DEVELOPER_MODE_ENABLED=false
+DEVELOPER_ACCOUNTS=1,2,3
 ```
 
 完整配置参考：[backend/.env.example](backend/.env.example)
@@ -237,11 +281,19 @@ JWT_SECRET_KEY=your_secret_key
 ## 🧪 测试
 
 ```bash
-# 运行测试
+cd backend
+
+# 综合测试（功能 + 安全，推荐）
+python test_comprehensive.py
+
+# 专项测试
 python test_ai_services.py
 python test_payment_gateways.py
 python test_virtual_currency.py
 python test_performance.py
+python test_refund_flow.py
+python test_pricing_rules.py
+python test_security.py
 ```
 
 ---
@@ -290,8 +342,9 @@ MIT License
 
 ## 📊 项目状态
 
-- 🚧 功能继续完善中
+- ✅ 核心功能已完成（发型迁移、素描转换、支付、会员、客服、退款、推广）
+- 🚧 持续优化中
 
 ---
 
-*最后更新：2026-05-29*
+*最后更新：2026-06-06*
