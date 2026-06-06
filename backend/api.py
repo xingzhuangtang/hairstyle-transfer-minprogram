@@ -2449,3 +2449,102 @@ def chat_reply():
         </body>
         </html>
     ''', user_info=user_info, messages=recent_messages, token=token)
+
+
+# ==================== 财务流水 API ====================
+
+@api_bp.route('/financial/records', methods=['GET'])
+@login_required
+def get_financial_records():
+    """获取用户财务流水记录"""
+    try:
+        from financial_service import FinancialService
+
+        user = g.current_user
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        record_type = request.args.get('record_type', None)  # 可选：按类型筛选
+
+        result = FinancialService.get_user_financial_records(
+            user_id=user.id,
+            page=page,
+            page_size=page_size,
+            record_type=record_type
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/financial/summary', methods=['GET'])
+@login_required
+def get_financial_summary():
+    """获取用户财务汇总统计"""
+    try:
+        from models import FinancialRecord
+        from decimal import Decimal
+
+        user = g.current_user
+
+        # 总收入（充值）
+        total_recharge = db.session.query(
+            db.func.sum(FinancialRecord.amount)
+        ).filter(
+            FinancialRecord.user_id == user.id,
+            FinancialRecord.record_type == 'recharge',
+            FinancialRecord.status == 'success'
+        ).scalar() or Decimal('0')
+
+        # 总支出（退款为负数，取绝对值）
+        total_refund = db.session.query(
+            db.func.sum(db.func.abs(FinancialRecord.amount))
+        ).filter(
+            FinancialRecord.user_id == user.id,
+            FinancialRecord.record_type == 'refund',
+            FinancialRecord.status == 'success'
+        ).scalar() or Decimal('0')
+
+        # 推广总收入
+        total_commission = db.session.query(
+            db.func.sum(FinancialRecord.amount)
+        ).filter(
+            FinancialRecord.user_id == user.id,
+            FinancialRecord.record_type == 'commission',
+            FinancialRecord.status == 'success'
+        ).scalar() or Decimal('0')
+
+        # 提现总支出
+        total_withdrawal = db.session.query(
+            db.func.sum(db.func.abs(FinancialRecord.amount))
+        ).filter(
+            FinancialRecord.user_id == user.id,
+            FinancialRecord.record_type == 'withdrawal',
+            FinancialRecord.status == 'success'
+        ).scalar() or Decimal('0')
+
+        # 本地消费支出
+        total_cash_consumption = db.session.query(
+            db.func.sum(db.func.abs(FinancialRecord.amount))
+        ).filter(
+            FinancialRecord.user_id == user.id,
+            FinancialRecord.record_type == 'cash_consumption',
+            FinancialRecord.status == 'success'
+        ).scalar() or Decimal('0')
+
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_recharge': float(total_recharge),
+                'total_refund': float(total_refund),
+                'total_commission': float(total_commission),
+                'total_withdrawal': float(total_withdrawal),
+                'total_cash_consumption': float(total_cash_consumption),
+                'net_recharge': float(total_recharge - total_refund),
+                'net_commission': float(total_commission - total_withdrawal - total_cash_consumption)
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

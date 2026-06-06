@@ -336,6 +336,15 @@ class RefundService:
         user.member_level = 'normal'
         user.member_expire_at = None
 
+        # 记录财务流水
+        from financial_service import FinancialService
+        FinancialService.record_refund(
+            user_id=user.id,
+            refund_amount=calculated_refund,
+            refund_type='membership',
+            related_id=order.id
+        )
+
         # 注意：会员赠送的 1000 发丝不扣回（已确认策略）
 
         db.session.commit()

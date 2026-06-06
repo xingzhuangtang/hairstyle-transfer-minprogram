@@ -5,6 +5,45 @@
   padding-bottom: 40rpx;
 }
 
+/* Tab 切换 */
+.tab-bar {
+  display: flex;
+  background: #ffffff;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: 30rpx;
+  color: #666666;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.tab-item.active {
+  color: #667eea;
+  font-weight: bold;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60rpx;
+  height: 6rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 3rpx;
+}
+
+.tab-content {
+  min-height: calc(100vh - 200rpx);
+}
+
 /* 统计卡片 */
 .stats-card {
   display: flex;
@@ -50,7 +89,8 @@
   overflow-x: auto;
 }
 
-.filter-item {
+.filter-item,
+.filter-tag {
   flex-shrink: 0;
   padding: 12rpx 24rpx;
   margin-right: 16rpx;
@@ -61,11 +101,13 @@
   transition: all 0.3s;
 }
 
-.filter-item:last-child {
+.filter-item:last-child,
+.filter-tag:last-child {
   margin-right: 0;
 }
 
-.filter-item.active {
+.filter-item.active,
+.filter-tag.active {
   color: #ffffff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
@@ -223,4 +265,37 @@
 .no-more-text {
   font-size: 24rpx;
   color: #cccccc;
+}
+
+/* 银两消费专用样式 */
+.money-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+  background: #f5f5f5;
+}
+
+.record-desc {
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 4rpx;
+}
+
+.amount-positive {
+  color: #07c160;
+}
+
+.amount-negative {
+  color: #ff4d4f;
+}
+
+.status-pending {
+  color: #faad14;
+  background: #fffbe6;
+  border: 1rpx solid #ffe58f;
 }
