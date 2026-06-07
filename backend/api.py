@@ -749,55 +749,141 @@ def wechat_pay_callback():
 @api_bp.route('/recharge/callback/refund', methods=['POST'])
 def wechat_refund_callback():
     """微信退款回调 - 自动扣回发丝"""
+    import logging
+    import json
+    from logging_config import log_security_event
+
+    refund_logger = logging.getLogger('refund')
+    refund_logger.setLevel(logging.INFO)
+
+    # 退款回调独立日志文件
+    if not refund_logger.handlers:
+        handler = logging.FileHandler('logs/refund_callback.log', encoding='utf-8')
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s [%(levelname)s] %(message)s'
+        ))
+        refund_logger.addHandler(handler)
+
     try:
         from payment_service import WeChatPayService, PaymentService
 
         request_data = request.get_json()
+        ip = request.remote_addr
 
-        print(f"\n📨 收到微信退款回调")
+        refund_logger.info(f"[REFUND_CALLBACK] 收到回调请求, IP={ip}")
 
         wechat_service = WeChatPayService()
         verify_result = wechat_service.verify_refund_callback(request_data)
 
         if not verify_result['success']:
-            print(f"❌ 退款回调验证失败: {verify_result['error']}")
+            error_msg = verify_result.get('error', '未知错误')
+            refund_logger.warning(f"[REFUND_CALLBACK] 验证失败: {error_msg}, IP={ip}")
+            log_security_event(
+                event_type='refund_callback_verify_failed',
+                details={'error': error_msg, 'ip': ip}
+            )
             return jsonify(wechat_service.wechat_pay.generate_response(
                 success=False,
-                message=verify_result['error']
+                message=error_msg
             ))
 
         order_no = verify_result['data']['order_no']
         refund_no = verify_result['data']['refund_no']
         refund_amount = verify_result['data']['amount']
+        refund_id = verify_result['data'].get('refund_id', '')
 
-        print(f"   原订单号: {order_no}")
-        print(f"   退款单号: {refund_no}")
-        print(f"   退款金额: {refund_amount} 元")
-
-        payment_service = PaymentService()
-        process_result = payment_service.process_refund_success(
-            order_no=order_no,
-            refund_no=refund_no,
-            refund_amount=refund_amount
+        refund_logger.info(
+            f"[REFUND_CALLBACK] 验证通过: order_no={order_no}, refund_no={refund_no}, "
+            f"refund_id={refund_id}, amount={refund_amount}"
         )
 
-        if process_result['success']:
-            print(f"✅ 退款回调处理成功")
-            return jsonify(wechat_service.wechat_pay.generate_response(
-                success=True,
-                message='OK'
-            ))
-        else:
-            print(f"❌ 处理退款失败: {process_result['error']}")
-            return jsonify(wechat_service.wechat_pay.generate_response(
-                success=False,
-                message=process_result['error']
-            ))
+        # 带重试的退款处理（最多3次）
+        payment_service = PaymentService()
+        max_retries = 3
+        last_error = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                process_result = payment_service.process_refund_success(
+                    order_no=order_no,
+                    refund_no=refund_no,
+                    refund_amount=refund_amount
+                )
+
+                if process_result['success']:
+                    user_id = process_result.get('user_id')
+                    deduct_scissor = process_result.get('deducted_scissor', 0)
+                    deduct_comb = process_result.get('deducted_comb', 0)
+
+                    refund_logger.info(
+                        f"[REFUND_CALLBACK] 处理成功: user_id={user_id}, "
+                        f"扣回 scissor={deduct_scissor}, comb={deduct_comb}, "
+                        f"attempt={attempt}"
+                    )
+
+                    return jsonify(wechat_service.wechat_pay.generate_response(
+                        success=True,
+                        message='OK'
+                    ))
+                else:
+                    last_error = process_result.get('error', '未知错误')
+                    # 如果是"已退款"则认为是正常重复回调
+                    if '已退款' in last_error:
+                        refund_logger.info(
+                            f"[REFUND_CALLBACK] 订单已退款（重复回调，正常）: order_no={order_no}"
+                        )
+                        return jsonify(wechat_service.wechat_pay.generate_response(
+                            success=True,
+                            message='OK'
+                        ))
+                    refund_logger.warning(
+                        f"[REFUND_CALLBACK] 处理失败 (attempt {attempt}/{max_retries}): {last_error}"
+                    )
+                    if attempt < max_retries:
+                        import time
+                        time.sleep(1)
+                        continue
+                    break
+
+            except Exception as e:
+                last_error = str(e)
+                refund_logger.warning(
+                    f"[REFUND_CALLBACK] 处理异常 (attempt {attempt}/{max_retries}): {last_error}"
+                )
+                if attempt < max_retries:
+                    import time
+                    time.sleep(1)
+
+        # 所有重试均失败
+        refund_logger.error(
+            f"[REFUND_CALLBACK] 退款处理最终失败: order_no={order_no}, "
+            f"refund_no={refund_no}, error={last_error}"
+        )
+        log_security_event(
+            event_type='refund_callback_process_failed',
+            details={
+                'order_no': order_no,
+                'refund_no': refund_no,
+                'refund_id': refund_id,
+                'amount': refund_amount,
+                'error': last_error
+            },
+            level='ERROR'
+        )
+        return jsonify(wechat_service.wechat_pay.generate_response(
+            success=False,
+            message=last_error or '处理失败'
+        ))
 
     except Exception as e:
-        print(f"❌ 退款回调处理异常: {e}")
+        refund_logger.error(f"[REFUND_CALLBACK] 回调处理异常: {e}")
         import traceback
         traceback.print_exc()
+        log_security_event(
+            event_type='refund_callback_exception',
+            details={'error': str(e)},
+            level='CRITICAL'
+        )
         from payment_service import WeChatPayService
         wechat_service = WeChatPayService()
         return jsonify(wechat_service.wechat_pay.generate_response(
