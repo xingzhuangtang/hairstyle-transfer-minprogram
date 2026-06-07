@@ -125,23 +125,23 @@ class HairService:
                             'available': user.get_total_hairs()
                         }
             
-            # 扣除头发丝（优先从梳子卡槽扣除）
+            # 扣除头发丝（优先从剪刀卡槽扣除 - 购买的发丝优先消费）
             comb_deducted = 0
             scissor_deducted = 0
             
-            # 先从梳子卡槽扣除
-            if user.comb_hairs >= required_hairs:
-                comb_deducted = required_hairs
-                user.comb_hairs -= required_hairs
+            # 先从剪刀卡槽扣除（付费购买的）
+            if user.scissor_hairs >= required_hairs:
+                scissor_deducted = required_hairs
+                user.scissor_hairs -= required_hairs
             else:
-                # 梳子卡槽不够，先扣完梳子卡槽
-                comb_deducted = user.comb_hairs
-                remaining = required_hairs - user.comb_hairs
-                user.comb_hairs = 0
+                # 剪刀卡槽不够，先扣完剪刀卡槽
+                scissor_deducted = user.scissor_hairs
+                remaining = required_hairs - user.scissor_hairs
+                user.scissor_hairs = 0
                 
-                # 再从剪刀卡槽扣除
-                scissor_deducted = remaining
-                user.scissor_hairs -= remaining
+                # 再从梳子卡槽扣除（赠送的）
+                comb_deducted = remaining
+                user.comb_hairs -= remaining
             
             # 更新累计消耗
             user.total_consumed_hairs += required_hairs
