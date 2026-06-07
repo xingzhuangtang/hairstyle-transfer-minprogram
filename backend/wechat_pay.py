@@ -114,7 +114,8 @@ class WeChatPayClient:
                 description=body,
                 out_trade_no=order_no,
                 amount={'total': total_fee, 'currency': 'CNY'},
-                payer={'openid': openid}
+                payer={'openid': openid},
+                notify_url=self.notify_url  # 显式传递回调地址
             )
 
             # 处理返回值 (可能是tuple或dict)
