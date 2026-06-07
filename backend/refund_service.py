@@ -250,9 +250,12 @@ class RefundService:
             return {'success': False, 'error': f'未知退款类型: {application.refund_type}'}
 
     def _process_recharge_refund(self, application, user):
-        """处理充值退款"""
+        """处理充值退款（带重试机制）"""
         from models import RechargeRecord
         from payment_service import WeChatPayService
+        import logging
+
+        refund_logger = logging.getLogger('refund')
 
         # 找到最近的成功充值订单
         order = RechargeRecord.query.filter_by(
@@ -262,18 +265,50 @@ class RefundService:
         if not order:
             return {'success': False, 'error': '找不到可退款的充值订单'}
 
-        # 发起微信退款
+        # 发起微信退款（带重试，最多3次）
         refund_no = f"RF{int(time.time())}{uuid.uuid4().hex[:8]}"
-        wechat_service = WeChatPayService()
-        refund_result = wechat_service.refund_order(
-            order_no=order.order_no,
-            refund_no=refund_no,
-            amount=float(application.refund_amount),
-            reason=f"用户退款申请 #{application.id}"
-        )
+        max_retries = 3
+        last_error = None
 
-        if not refund_result['success']:
-            return {'success': False, 'error': f'微信退款发起失败: {refund_result.get("error", "未知错误")}'}
+        for attempt in range(1, max_retries + 1):
+            wechat_service = WeChatPayService()
+            refund_result = wechat_service.refund_order(
+                order_no=order.order_no,
+                refund_no=refund_no,
+                amount=float(application.refund_amount),
+                reason=f"用户退款申请 #{application.id}"
+            )
+
+            if refund_result['success']:
+                break
+
+            last_error = refund_result.get('error', '未知错误')
+            refund_logger.warning(
+                f"[REFUND] 充值退款失败 (attempt {attempt}/{max_retries}): "
+                f"order_no={order.order_no}, error={last_error}"
+            )
+
+            # 如果是商户余额不足，直接失败，不重试
+            if '余额不足' in last_error:
+                refund_logger.error(
+                    f"[REFUND] 商户号余额不足，终止重试: order_no={order.order_no}"
+                )
+                return {'success': False, 'error': last_error}
+
+            # 如果是已退款，认为是成功
+            if '已退款' in last_error or '重复' in last_error:
+                refund_logger.info(f"[REFUND] 订单已退款（重复操作）: order_no={order.order_no}")
+                break
+
+            # 其他错误，等待后重试
+            if attempt < max_retries:
+                import time
+                wait_seconds = 2 * attempt  # 2s, 4s, 8s
+                refund_logger.info(f"[REFUND] {wait_seconds}s 后重试...")
+                time.sleep(wait_seconds)
+
+        if not refund_result.get('success'):
+            return {'success': False, 'error': f'微信退款发起失败: {last_error}'}
 
         # 更新申请状态
         application.status = 'approved'
@@ -281,6 +316,12 @@ class RefundService:
         db.session.commit()
 
         # 注意：实际扣回发丝在微信退款回调中处理（process_refund_success）
+
+        refund_logger.info(
+            f"[REFUND] 充值退款成功: application_id={application.id}, "
+            f"user_id={user.id}, amount={application.refund_amount}, "
+            f"refund_no={refund_no}"
+        )
 
         return {
             'success': True,
@@ -290,9 +331,12 @@ class RefundService:
         }
 
     def _process_membership_refund(self, application, user):
-        """处理会员退款"""
+        """处理会员退款（带重试机制）"""
         from models import MemberOrder
         from payment_service import WeChatPayService
+        import logging
+
+        refund_logger = logging.getLogger('refund')
 
         # 计算剩余天数
         remaining_days = (user.member_expire_at - datetime.now()).days
@@ -310,18 +354,51 @@ class RefundService:
         if not order:
             return {'success': False, 'error': '找不到会员订单'}
 
-        # 发起微信退款
+        # 发起微信退款（带重试，最多3次）
         refund_no = f"RF{int(time.time())}{uuid.uuid4().hex[:8]}"
-        wechat_service = WeChatPayService()
-        refund_result = wechat_service.refund_order(
-            order_no=order.order_no,
-            refund_no=refund_no,
-            amount=calculated_refund,
-            reason=f"会员退款申请 #{application.id}"
-        )
+        max_retries = 3
+        last_error = None
+        refund_result = {'success': False}
 
-        if not refund_result['success']:
-            return {'success': False, 'error': f'微信退款发起失败: {refund_result.get("error", "未知错误")}'}
+        for attempt in range(1, max_retries + 1):
+            wechat_service = WeChatPayService()
+            refund_result = wechat_service.refund_order(
+                order_no=order.order_no,
+                refund_no=refund_no,
+                amount=calculated_refund,
+                reason=f"会员退款申请 #{application.id}"
+            )
+
+            if refund_result['success']:
+                break
+
+            last_error = refund_result.get('error', '未知错误')
+            refund_logger.warning(
+                f"[REFUND] 会员退款失败 (attempt {attempt}/{max_retries}): "
+                f"order_no={order.order_no}, error={last_error}"
+            )
+
+            # 如果是商户余额不足，直接失败，不重试
+            if '余额不足' in last_error:
+                refund_logger.error(
+                    f"[REFUND] 商户号余额不足，终止重试: order_no={order.order_no}"
+                )
+                return {'success': False, 'error': last_error}
+
+            # 如果是已退款，认为是成功
+            if '已退款' in last_error or '重复' in last_error:
+                refund_logger.info(f"[REFUND] 会员订单已退款（重复操作）: order_no={order.order_no}")
+                break
+
+            # 其他错误，等待后重试
+            if attempt < max_retries:
+                import time
+                wait_seconds = 2 * attempt
+                refund_logger.info(f"[REFUND] {wait_seconds}s 后重试...")
+                time.sleep(wait_seconds)
+
+        if not refund_result.get('success'):
+            return {'success': False, 'error': f'微信退款发起失败: {last_error}'}
 
         # 更新申请状态和会员订单
         application.status = 'approved'
@@ -348,6 +425,12 @@ class RefundService:
         # 注意：会员赠送的 1000 发丝不扣回（已确认策略）
 
         db.session.commit()
+
+        refund_logger.info(
+            f"[REFUND] 会员退款成功: application_id={application.id}, "
+            f"user_id={user.id}, amount={calculated_refund}, "
+            f"remaining_days={remaining_days}"
+        )
 
         return {
             'success': True,

@@ -360,7 +360,7 @@ class WeChatPayClient:
                     'refund_id': result['refund_id']
                 }
             else:
-                error_msg = '退款失败：' + str(result) if result else '退款失败'
+                error_msg = self._parse_refund_error(result, status_code)
                 print(f"❌ {error_msg}")
                 return {
                     'success': False,
@@ -375,6 +375,36 @@ class WeChatPayClient:
                 'success': False,
                 'error': str(e)
             }
+
+    def _parse_refund_error(self, result, status_code):
+        """解析退款失败的具体原因"""
+        if not result:
+            return '退款失败'
+
+        error_msg = result.get('message', '') or result.get('code', '')
+
+        # 商户号余额不足
+        if any(kw in error_msg for kw in ['余额不足', 'balance not enough', 'NOTENOUGH']):
+            return '商户号余额不足，无法发起退款，请先充值到商户号'
+
+        # 订单已退款/重复退款
+        if any(kw in error_msg for kw in ['已退款', 'refund repeated', 'ORDERREFUNDED']):
+            return '该订单已退款，请勿重复操作'
+
+        # 订单不存在
+        if any(kw in error_msg for kw in ['订单不存在', 'order not found', 'ORDERNOTEXIST']):
+            return '原支付订单不存在'
+
+        # 退款金额超过订单金额
+        if any(kw in error_msg for kw in ['超过', 'exceed', 'AMOUNTNOTMATCH']):
+            return '退款金额超过原订单金额'
+
+        # API 调用频率限制
+        if status_code == 429 or 'frequency' in error_msg.lower():
+            return '退款 API 调用过于频繁，请稍后重试'
+
+        # 其他错误
+        return f'退款失败: {error_msg or str(result)}'
 
     def verify_refund_callback(self, request_data):
         """
