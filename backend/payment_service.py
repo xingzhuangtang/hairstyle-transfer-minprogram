@@ -240,36 +240,74 @@ class PaymentService:
         Returns:
             dict: {success, error, deducted_hairs}
         """
+        import logging
+        refund_logger = logging.getLogger('refund')
+
         try:
             # 查询原订单
             order = RechargeRecord.query.filter_by(order_no=order_no).first()
 
             if not order:
+                refund_logger.error(f"[REFUND] 订单不存在: order_no={order_no}")
                 return {
                     'success': False,
                     'error': '原订单不存在'
                 }
 
             if order.payment_status != 'success':
+                refund_logger.warning(
+                    f"[REFUND] 订单状态异常: order_no={order_no}, "
+                    f"status={order.payment_status}"
+                )
                 return {
                     'success': False,
                     'error': f'订单状态不允许退款，当前状态: {order.payment_status}'
                 }
 
-            # 检查是否已经退过款
+            # 检查是否已经退过款（幂等性保护）
             if order.payment_status == 'refunded':
+                refund_logger.info(f"[REFUND] 订单已退款（幂等）: order_no={order_no}")
                 return {
                     'success': False,
                     'error': '该订单已退款'
                 }
 
+            # 验证退款金额不超过原订单金额
+            refund_amount = float(refund_amount)
+            if refund_amount > float(order.amount):
+                refund_logger.error(
+                    f"[REFUND] 退款金额超过订单金额: order_no={order_no}, "
+                    f"refund={refund_amount}, order={order.amount}"
+                )
+                return {
+                    'success': False,
+                    'error': '退款金额超过原订单金额'
+                }
+
             # 扣回用户发丝
             user = User.query.get(order.user_id)
 
+            if not user:
+                refund_logger.error(f"[REFUND] 用户不存在: user_id={order.user_id}")
+                return {
+                    'success': False,
+                    'error': '用户不存在'
+                }
+
             # 按退款比例扣回发丝（支持部分退款）
-            refund_ratio = float(refund_amount) / float(order.amount)
+            refund_ratio = refund_amount / float(order.amount)
             deduct_scissor = int(order.scissor_hairs * refund_ratio)
             deduct_comb = int(order.comb_hairs * refund_ratio)
+
+            # 验证余额充足性
+            if user.scissor_hairs < deduct_scissor or user.comb_hairs < deduct_comb:
+                refund_logger.warning(
+                    f"[REFUND] 用户余额不足，按实际余额扣回: user_id={user.id}, "
+                    f"need scissor={deduct_scissor}/comb={deduct_comb}, "
+                    f"have scissor={user.scissor_hairs}/comb={user.comb_hairs}"
+                )
+                deduct_scissor = min(deduct_scissor, user.scissor_hairs)
+                deduct_comb = min(deduct_comb, user.comb_hairs)
 
             user.scissor_hairs = max(0, user.scissor_hairs - deduct_scissor)
             user.comb_hairs = max(0, user.comb_hairs - deduct_comb)
@@ -291,8 +329,11 @@ class PaymentService:
 
             db.session.commit()
 
-            print(f"✅ 退款成功处理: order_no={order_no}, user_id={user.id}, "
-                  f"扣回 scissor={deduct_scissor}, comb={deduct_comb}")
+            refund_logger.info(
+                f"[REFUND] 退款处理完成: order_no={order_no}, user_id={user.id}, "
+                f"ratio={refund_ratio:.2%}, 扣回 scissor={deduct_scissor}, comb={deduct_comb}, "
+                f"剩余 scissor={user.scissor_hairs}, comb={user.comb_hairs}"
+            )
 
             return {
                 'success': True,
@@ -303,7 +344,7 @@ class PaymentService:
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ 退款成功处理失败: {e}")
+            refund_logger.error(f"[REFUND] 退款处理异常: order_no={order_no}, error={e}")
             return {
                 'success': False,
                 'error': str(e)
