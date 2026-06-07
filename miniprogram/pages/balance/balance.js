@@ -13,7 +13,8 @@ Page({
     paymentMethod: 'wechat', // 默认微信支付
     currentOrderNo: null, // 当前订单号
     isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false // 是否在开发者工具
+    isDevTools: false, // 是否在开发者工具
+    isVip: false // 是否VIP会员
   },
 
   onLoad() {
@@ -55,7 +56,8 @@ Page({
         this.setData({
           scissorHairs: userInfo.scissor_hairs || 0,
           combHairs: userInfo.comb_hairs || 0,
-          totalHairs: totalHairs
+          totalHairs: totalHairs,
+          isVip: userInfo.member_level === 'vip' && !userInfo.is_member_expired
         })
       }
     } catch (e) {
