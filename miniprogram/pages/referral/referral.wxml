@@ -5,7 +5,7 @@
 
   <!-- 彩色提示文字 -->
   <view class="tip-text">
-    分享二维码，朋友注册账户成功并使用两次素描效果功能，就能迎娶人民币回家
+    甩出二维码，朋友注册账户成功，24小时以后，每使用两次素描效果功能，就能封顶99次，迎娶人民币回家！
   </view>
 
   <!-- 推广二维码卡片 -->
@@ -60,7 +60,7 @@
   <view class="card feature-card" bindtap="goWithdraw">
     <view class="feature-header">
       <view class="feature-left">
-        <text class="feature-icon">💸</text>
+        <text class="feature-icon"></text>
         <text class="feature-title">提成现金</text>
       </view>
       <view class="feature-status {{cashUnlocked ? 'unlocked' : 'locked'}}">
@@ -71,6 +71,23 @@
       <view class="progress-fill" style="width: {{progress}}%"></view>
     </view>
     <text class="feature-desc">提现到微信零钱</text>
+  </view>
+
+  <!-- 佣金明细 -->
+  <view class="card commission-card" wx:if="{{commissionHistory.length > 0}}">
+    <view class="card-title">佣金明细</view>
+    <view class="commission-list">
+      <view class="commission-item" wx:for="{{commissionHistory}}" wx:key="index">
+        <view class="commission-left">
+          <text class="commission-amount">+¥{{item.amount}}</text>
+          <text class="commission-reason">{{item.reason}}</text>
+          <text class="commission-time">{{item.formattedTime}}</text>
+        </view>
+        <view class="commission-right">
+          <text class="commission-nickname">{{item.refereeNickname}}</text>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 本地消费弹窗 -->
