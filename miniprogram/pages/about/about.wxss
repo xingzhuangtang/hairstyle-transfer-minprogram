@@ -31,7 +31,13 @@
 .app-version {
   font-size: 28rpx;
   color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 40rpx;
+  margin-bottom: 8rpx;
+}
+
+.app-delta {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 32rpx;
 }
 
 .app-desc {
