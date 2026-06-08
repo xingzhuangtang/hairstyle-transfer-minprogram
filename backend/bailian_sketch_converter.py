@@ -43,12 +43,70 @@ class BailianSketchConverter:
         self.endpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis"
 
         # 素描风格prompt模板 - 已重命名
+        # 每个prompt开头都增加了强保真度约束，确保AI不改变原图结构
         self.style_prompts = {
-            "pencil": "Convert this photo to detailed pencil sketch style, maintain facial features perfectly clear, fine delicate lines with varying thickness, soft realistic shadows and highlights, professional pencil drawing technique with cross-hatching for depth, natural skin texture with subtle shading, expressive eyes with detailed iris and reflections, elaborate hair texture showing individual strands and volume, high contrast black and white pencil drawing, masterful shading techniques creating depth and dimension, pure pencil sketch without any colors",
-            "anime": "Japanese anime style with intense vibrant anime color palette, clean precise linework with cel-shading technique, meticulously detailed hair with intensely saturated color strands showing vivid spatial depth, rich anime colors with professional technique, exquisite facial features with typical anime aesthetics and high-contrast skin tones, large expressive eyes with detailed highlights and intensely vibrant iris reflections, elaborate hair texture with vivid intensely colored layers clearly visible, professional anime art style with clean black outlines, intensely vivid multi-color palette with bright high-saturation hues, clear depth perception with overlapping intensely colored hair strands, masterful anime style with spatial hierarchy in vividly colored hair rendering, each hair layer at different depth planes with distinct intense colors creating dramatic color impact, intensely vibrant shading and highlights throughout portrait, highly saturated anime illustration without any color restraint",
-            "ink": "Modern fusion Chinese ink wash painting with gentle moderate color saturation, delicate brushwork with contemporary ink strokes in refined hues, elegant hair rendering with visible layered strands showing depth through gentle color variation, each hair layer clearly distinct with harmonious spatial sense between layers, artistic interpretation with modern refined ink strokes, masterful ink wash technique showing hair volume depth and dimensional layers with gentle color enhancement, refined facial features with delicate contemporary ink lines, expressive eyes with precise modern ink detailing, professional Sumi-e fusion style with refined gentle colors, dynamic hair strokes with natural gentle ink coloration from light to moderate, clear spatial relationships between hair strands with refined color layering effect, pronounced layering effect with foreground middle and background hair clearly separated, modern fusion Chinese ink painting with gentle harmonious color tones throughout",
-            "color": "Vibrant colored sketch style with 10 to 30 percent COLOR SATURATION, pencil sketch foundation with SUBTLE COLOR ACCENTS, maintaining clear sketch lines with LIGHT PASTEL COLOR TOUCHES, preserving character features with GENTLE COLOR HINTS, artistic beauty with RESTRAINED COLORFUL ELEMENTS, soft color wash over detailed pencil work, MUTED COLOR PALETTE with delicate hues, sketch texture visible through LIGHT COLOR LAYERS, balanced monochrome and SUBTLE COLOR combination",  # 彩色素描
-            "vivid": "Vibrant colored sketch style with 10 to 30 percent COLOR SATURATION, pencil sketch foundation with SUBTLE COLOR ACCENTS, maintaining clear sketch lines with LIGHT PASTEL COLOR TOUCHES, preserving character features with GENTLE COLOR HINTS, artistic beauty with RESTRAINED COLORFUL ELEMENTS, soft color wash over detailed pencil work, MUTED COLOR PALETTE with delicate hues, sketch texture visible through LIGHT COLOR LAYERS, balanced monochrome and SUBTLE COLOR combination",  # 兼容别名
+            "pencil": (
+                "STRICTLY preserve the original image structure, facial proportions, and features exactly as they appear. "
+                "NO distortion, NO reshaping, NO altering of face geometry. "
+                "The output must be a faithful pencil sketch reproduction of the input photo, "
+                "maintaining identical facial proportions, eye positions, nose shape, mouth shape, and hair structure. "
+                "Convert this photo to detailed pencil sketch style, maintain facial features perfectly clear, "
+                "fine delicate lines with varying thickness, soft realistic shadows and highlights, "
+                "professional pencil drawing technique with cross-hatching for depth, "
+                "natural skin texture with subtle shading, expressive eyes with detailed iris and reflections, "
+                "elaborate hair texture showing individual strands and volume, "
+                "high contrast black and white pencil drawing, masterful shading techniques creating depth and dimension, "
+                "pure pencil sketch without any colors"
+            ),
+            "anime": (
+                "STRICTLY preserve the original image structure and facial proportions. "
+                "NO distortion, NO reshaping of face features. Maintain exact eye positions, nose shape, mouth shape. "
+                "Japanese anime style with intense vibrant anime color palette, clean precise linework with cel-shading technique, "
+                "meticulously detailed hair with intensely saturated color strands showing vivid spatial depth, "
+                "rich anime colors with professional technique, exquisite facial features with typical anime aesthetics and high-contrast skin tones, "
+                "large expressive eyes with detailed highlights and intensely vibrant iris reflections, "
+                "elaborate hair texture with vivid intensely colored layers clearly visible, "
+                "professional anime art style with clean black outlines, intensely vivid multi-color palette with bright high-saturation hues, "
+                "clear depth perception with overlapping intensely colored hair strands, "
+                "masterful anime style with spatial hierarchy in vividly colored hair rendering, "
+                "each hair layer at different depth planes with distinct intense colors creating dramatic color impact, "
+                "intensely vibrant shading and highlights throughout portrait, highly saturated anime illustration without any color restraint"
+            ),
+            "ink": (
+                "STRICTLY preserve the original image structure and facial proportions. "
+                "NO distortion, NO reshaping of face features. Maintain exact facial geometry. "
+                "Modern fusion Chinese ink wash painting with gentle moderate color saturation, "
+                "delicate brushwork with contemporary ink strokes in refined hues, "
+                "elegant hair rendering with visible layered strands showing depth through gentle color variation, "
+                "each hair layer clearly distinct with harmonious spatial sense between layers, "
+                "artistic interpretation with modern refined ink strokes, "
+                "masterful ink wash technique showing hair volume depth and dimensional layers with gentle color enhancement, "
+                "refined facial features with delicate contemporary ink lines, "
+                "expressive eyes with precise modern ink detailing, "
+                "professional Sumi-e fusion style with refined gentle colors, "
+                "dynamic hair strokes with natural gentle ink coloration from light to moderate, "
+                "clear spatial relationships between hair strands with refined color layering effect, "
+                "pronounced layering effect with foreground middle and background hair clearly separated, "
+                "modern fusion Chinese ink painting with gentle harmonious color tones throughout"
+            ),
+            "color": (
+                "STRICTLY preserve the original image structure and facial proportions. "
+                "NO distortion, NO reshaping of face features. Maintain exact facial geometry. "
+                "Vibrant colored sketch style with 10 to 30 percent COLOR SATURATION, "
+                "pencil sketch foundation with SUBTLE COLOR ACCENTS, maintaining clear sketch lines with LIGHT PASTEL COLOR TOUCHES, "
+                "preserving character features with GENTLE COLOR HINTS, artistic beauty with RESTRAINED COLORFUL ELEMENTS, "
+                "soft color wash over detailed pencil work, MUTED COLOR PALETTE with delicate hues, "
+                "sketch texture visible through LIGHT COLOR LAYERS, balanced monochrome and SUBTLE COLOR combination"
+            ),
+            "vivid": (
+                "STRICTLY preserve the original image structure and facial proportions. "
+                "NO distortion, NO reshaping of face features. Maintain exact facial geometry. "
+                "Vibrant colored sketch style with 10 to 30 percent COLOR SATURATION, "
+                "pencil sketch foundation with SUBTLE COLOR ACCENTS, maintaining clear sketch lines with LIGHT PASTEL COLOR TOUCHES, "
+                "preserving character features with GENTLE COLOR HINTS, artistic beauty with RESTRAINED COLORFUL ELEMENTS, "
+                "soft color wash over detailed pencil work, MUTED COLOR PALETTE with delicate hues, "
+                "sketch texture visible through LIGHT COLOR LAYERS, balanced monochrome and SUBTLE COLOR combination"
+            ),
         }
 
         print(f"✅ 初始化百炼素描转换器(修复版)")
@@ -130,6 +188,10 @@ class BailianSketchConverter:
                 # 直接使用URL（暂时不支持）
                 raise ValueError("请提供本地文件路径")
 
+            # 基于图片内容生成确定性种子，确保相同输入产生相同输出
+            seed = self.get_deterministic_seed(local_file_path) if local_file_path else 42
+            print(f"   使用种子: {seed} (保证输出稳定性)")
+
             print(f"   📤 调用百炼API...")
 
             # 使用与bailian_image2image相同的调用方式
@@ -140,6 +202,8 @@ class BailianSketchConverter:
             }
 
             # 理发师专用请求体 (符合官方API规范)
+            # strength=0.6: 中等约束，保留原图结构的同时做艺术化处理
+            # seed: 固定种子保证相同输入产生相同输出
             request_data = {
                 "model": "wan2.5-i2i-preview",
                 "input": {
@@ -148,7 +212,12 @@ class BailianSketchConverter:
                         image_base64,  # 单一图像作为参考
                     ],
                 },
-                "parameters": {"n": 1, "watermark": watermark},
+                "parameters": {
+                    "n": 1,
+                    "watermark": watermark,
+                    "seed": seed,
+                    "strength": 0.6,  # 降低生成强度，更贴近原图（0=完全不变, 1=完全重绘）
+                },
             }
 
             response = requests.post(
