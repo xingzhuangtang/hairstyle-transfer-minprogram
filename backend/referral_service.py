@@ -27,6 +27,8 @@ class ReferralService:
     EXCHANGE_RATE = 100
     # 小程序码宽度
     QRCODE_WIDTH = 430
+    # 佣金发放封顶次数（每2次素描消费发一次，最多99次 = 198次素描消费）
+    MAX_COMMISSION_TIMES = 99
 
     def __init__(self):
         self.config = get_config()
@@ -253,26 +255,43 @@ class ReferralService:
     def check_and_grant_commission(self, user_id):
         """
         检查并推广佣金发放
-        当用户完成2次素描消费后调用，给推广人发放 ¥0.03
+        被推广人每完成2次素描消费，给推广人发放 ¥0.03
+        封顶 99 次（即被推广人最多 198 次素描消费触发佣金）
         在 hair_service.consume_hairs() 成功后调用
         """
-        # 查找该用户的待完成推广关系
+        # 查找该用户的推广关系
         relation = ReferralRelation.query.filter_by(
-            referee_id=user_id,
-            status='active'
+            referee_id=user_id
         ).first()
 
         if not relation:
-            return  # 无待完成的推广关系
+            return  # 无推广关系
 
-        # 统计该用户完成的素描/组合消费次数
-        sketch_count = ConsumptionRecord.query.filter(
+        # 检查是否已达 99 次封顶
+        commission_count = CommissionRecord.query.filter_by(
+            referral_id=relation.id,
+            status='paid'
+        ).count()
+
+        if commission_count >= self.MAX_COMMISSION_TIMES:
+            return  # 已达封顶，不再发放
+
+        # 计算上次发佣金之后的新增素描消费次数
+        last_paid_time = relation.commission_paid_at
+
+        # 查询自上次佣金发放后的素描/组合消费记录
+        query = ConsumptionRecord.query.filter(
             ConsumptionRecord.user_id == user_id,
             ConsumptionRecord.service_type.in_(('sketch', 'combined')),
             ConsumptionRecord.status == 'success'
-        ).count()
+        )
 
-        if sketch_count >= 2:
+        if last_paid_time:
+            query = query.filter(ConsumptionRecord.created_at > last_paid_time)
+
+        new_sketch_count = query.count()
+
+        if new_sketch_count >= 2:
             # 发放佣金
             referrer = User.query.get(relation.referrer_id)
             if not referrer:
@@ -284,7 +303,6 @@ class ReferralService:
                 referrer.total_referral_earnings = (referrer.total_referral_earnings or Decimal('0')) + self.COMMISSION_AMOUNT
                 referrer.referral_count = (referrer.referral_count or 0) + 1
 
-                relation.status = 'rewarded'
                 relation.commission_paid_at = datetime.now()
 
                 # 创建佣金记录
@@ -309,7 +327,8 @@ class ReferralService:
 
                 db.session.commit()
 
-                print(f"✅ 推广佣金已发放：referrer_id={referrer.id}, amount={self.COMMISSION_AMOUNT}")
+                print(f"✅ 推广佣金已发放：referrer_id={referrer.id}, amount={self.COMMISSION_AMOUNT}, "
+                      f"已发次数={commission_count + 1}/{self.MAX_COMMISSION_TIMES}")
 
             except Exception as e:
                 db.session.rollback()
