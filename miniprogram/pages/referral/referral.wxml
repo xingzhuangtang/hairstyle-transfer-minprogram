@@ -74,9 +74,9 @@
   </view>
 
   <!-- 佣金明细 -->
-  <view class="card commission-card" wx:if="{{commissionHistory.length > 0}}">
+  <view class="card commission-card">
     <view class="card-title">佣金明细</view>
-    <view class="commission-list">
+    <view wx:if="{{commissionHistory.length > 0}}" class="commission-list">
       <view class="commission-item" wx:for="{{commissionHistory}}" wx:key="index">
         <view class="commission-left">
           <text class="commission-amount">+¥{{item.amount}}</text>
@@ -87,6 +87,11 @@
           <text class="commission-nickname">{{item.refereeNickname}}</text>
         </view>
       </view>
+    </view>
+    <view wx:else class="empty-commission">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无佣金记录</text>
+      <text class="empty-hint">朋友使用素描效果后将在此显示佣金明细</text>
     </view>
   </view>
 
