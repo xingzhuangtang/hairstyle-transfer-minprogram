@@ -29,6 +29,8 @@ class ReferralService:
     QRCODE_WIDTH = 430
     # 佣金发放封顶次数（每2次素描消费发一次，最多99次 = 198次素描消费）
     MAX_COMMISSION_TIMES = 99
+    # 佣金冷却期：被推广人注册后24小时内的素描消费不计入佣金（防刷）
+    COMMISSION_COOLDOWN_HOURS = 24
 
     def __init__(self):
         self.config = get_config()
@@ -259,6 +261,8 @@ class ReferralService:
         封顶 99 次（即被推广人最多 198 次素描消费触发佣金）
         在 hair_service.consume_hairs() 成功后调用
         """
+        from datetime import timedelta
+
         # 查找该用户的推广关系
         relation = ReferralRelation.query.filter_by(
             referee_id=user_id
@@ -276,11 +280,20 @@ class ReferralService:
         if commission_count >= self.MAX_COMMISSION_TIMES:
             return  # 已达封顶，不再发放
 
+        # 【防刷】检查冷却期：注册后24小时内的素描消费不计入佣金
+        cooldown_end = relation.created_at + timedelta(hours=self.COMMISSION_COOLDOWN_HOURS)
+        if datetime.now() < cooldown_end:
+            remaining_hours = (cooldown_end - datetime.now()).total_seconds() / 3600
+            print(f"⏳ 推广佣金冷却中：referee_id={user_id}, 剩余{remaining_hours:.1f}小时")
+            return
+
         # 基于总素描消费次数计算应发佣金数（每2次消费发1次）
+        # 只统计冷却期结束后的消费
         total_sketch_count = ConsumptionRecord.query.filter(
             ConsumptionRecord.user_id == user_id,
             ConsumptionRecord.service_type.in_(('sketch', 'combined')),
-            ConsumptionRecord.status == 'success'
+            ConsumptionRecord.status == 'success',
+            ConsumptionRecord.created_at >= cooldown_end  # 只统计冷却期后的消费
         ).count()
 
         expected_commissions = total_sketch_count // 2
@@ -292,6 +305,14 @@ class ReferralService:
             if not referrer:
                 return
 
+            # 获取触发佣金的最近2次消费记录（用于来源追溯）
+            recent_consumptions = ConsumptionRecord.query.filter(
+                ConsumptionRecord.user_id == user_id,
+                ConsumptionRecord.service_type.in_(('sketch', 'combined')),
+                ConsumptionRecord.status == 'success',
+                ConsumptionRecord.created_at >= cooldown_end
+            ).order_by(ConsumptionRecord.created_at.desc()).limit(2).all()
+
             # 使用事务确保原子性
             try:
                 referrer.cash_balance = (referrer.cash_balance or Decimal('0')) + self.COMMISSION_AMOUNT
@@ -300,13 +321,14 @@ class ReferralService:
 
                 relation.commission_paid_at = datetime.now()
 
-                # 创建佣金记录
+                # 创建佣金记录（带来源追溯信息）
                 commission = CommissionRecord(
                     user_id=referrer.id,
                     referee_id=user_id,
                     referral_id=relation.id,
                     amount=self.COMMISSION_AMOUNT,
-                    status='paid'
+                    status='paid',
+                    reason=f'好友 #{user_id} 完成素描消费 (共{total_sketch_count}次)'
                 )
                 db.session.add(commission)
 
@@ -322,8 +344,8 @@ class ReferralService:
 
                 db.session.commit()
 
-                print(f"✅ 推广佣金已发放：referrer_id={referrer.id}, amount={self.COMMISSION_AMOUNT}, "
-                      f"已发次数={commission_count + 1}/{self.MAX_COMMISSION_TIMES}")
+                print(f"✅ 推广佣金已发放：referrer_id={referrer.id}, referee_id={user_id}, "
+                      f"amount={self.COMMISSION_AMOUNT}, 已发次数={commission_count + 1}/{self.MAX_COMMISSION_TIMES}")
 
             except Exception as e:
                 db.session.rollback()
@@ -331,8 +353,8 @@ class ReferralService:
 
     def get_piggy_bank_stats(self, user_id):
         """
-        获取存钱罐统计数据
-        返回: {balance, local_consumption_unlocked, cash_withdrawal_unlocked, total_earnings, referral_count}
+        获取存钱罐统计数据 + 佣金明细（带来源追溯）
+        返回: {balance, local_consumption_unlocked, cash_withdrawal_unlocked, total_earnings, referral_count, commission_history}
         """
         user = User.query.get(user_id)
         if not user:
@@ -341,6 +363,24 @@ class ReferralService:
         balance = user.cash_balance or Decimal('0')
         unlocked = balance >= self.UNLOCK_THRESHOLD
 
+        # 获取佣金明细（带来源追溯）
+        commission_records = CommissionRecord.query.filter_by(
+            user_id=user_id,
+            status='paid'
+        ).order_by(CommissionRecord.created_at.desc()).all()
+
+        commission_history = []
+        for record in commission_records:
+            # 查找被推广人信息
+            referee = User.query.get(record.referee_id)
+            commission_history.append({
+                'amount': float(record.amount),
+                'referee_id': record.referee_id,
+                'referee_nickname': referee.nickname if referee else '未知用户',
+                'reason': record.reason,
+                'created_at': record.created_at.isoformat() if record.created_at else None
+            })
+
         return {
             "success": True,
             "balance": float(balance),
@@ -348,7 +388,8 @@ class ReferralService:
             "cash_withdrawal_unlocked": unlocked,
             "total_earnings": float(user.total_referral_earnings or Decimal('0')),
             "referral_count": user.referral_count or 0,
-            "min_threshold": float(self.UNLOCK_THRESHOLD)
+            "min_threshold": float(self.UNLOCK_THRESHOLD),
+            "commission_history": commission_history  # 佣金明细（带来源追溯）
         }
 
     def consume_cash_for_hairs(self, user_id, amount):
