@@ -14,6 +14,8 @@ Page({
     progress: 0,
     localUnlocked: false,
     cashUnlocked: false,
+    // 佣金明细
+    commissionHistory: [],
     // 本地消费
     showConsumeModal: false,
     consumeAmount: '',
@@ -40,18 +42,50 @@ Page({
       const res = await get('/api/referral/piggy-bank')
       if (res.success) {
         const progress = Math.min((res.balance / 10) * 100, 100)
+
+        // 处理佣金明细，格式化时间
+        const commissionHistory = (res.commission_history || []).map(item => ({
+          ...item,
+          formattedTime: this.formatTime(item.created_at),
+          refereeNickname: item.referee_nickname || '未知用户'
+        }))
+
         this.setData({
           balance: res.balance.toFixed(2),
           totalEarnings: res.total_earnings.toFixed(2),
           referralCount: res.referral_count,
           progress: progress.toFixed(1),
           localUnlocked: res.local_consumption_unlocked,
-          cashUnlocked: res.cash_withdrawal_unlocked
+          cashUnlocked: res.cash_withdrawal_unlocked,
+          commissionHistory: commissionHistory
         })
       }
     } catch (e) {
       console.error('加载存钱罐失败:', e)
     }
+  },
+
+  /**
+   * 格式化时间
+   */
+  formatTime(timeStr) {
+    if (!timeStr) return ''
+    const date = new Date(timeStr)
+    const now = new Date()
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return '刚刚'
+    if (diffMins < 60) return `${diffMins}分钟前`
+    if (diffHours < 24) return `${diffHours}小时前`
+    if (diffDays < 7) return `${diffDays}天前`
+
+    // 超过7天显示具体日期
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    return `${month}月${day}日`
   },
 
   /**
