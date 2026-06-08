@@ -100,8 +100,8 @@ class ReferralService:
             payload = {
                 "path": "pages/index/index",
                 "query": f"scene={scene}",
-                "expire_type": 1,  # 永久有效
-                "expire_interval": 0,
+                "expire_type": 0,  # 到期时间模式
+                "expire_interval": 30,  # 30天到期
             }
 
             resp = requests.post(urlink_url, json=payload, timeout=30)
