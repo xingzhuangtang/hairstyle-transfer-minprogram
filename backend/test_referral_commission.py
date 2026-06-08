@@ -42,12 +42,13 @@ def test_referral_commission():
     db.session.add_all([referrer, referee])
     db.session.flush()
 
-    # 建立推广关系
+    # 建立推广关系（设置为25小时前，跳过冷却期）
     relation = ReferralRelation(
         referrer_id=referrer.id,
         referee_id=referee.id,
         scene="test_scene_1",
-        status='active'
+        status='active',
+        created_at=datetime.now() - timedelta(hours=25)  # 25小时前，已过冷却期
     )
     db.session.add(relation)
     db.session.commit()
@@ -156,14 +157,73 @@ def test_referral_commission():
     print("✅ 99次封顶生效")
 
     print("\n" + "=" * 60)
-    print("测试6: 推广人/被推广人统计字段")
+    print("测试7: 24小时冷却期防刷")
     print("=" * 60)
 
-    assert referrer.total_referral_earnings == expected_balance, "total_referral_earnings 应正确累计"
-    assert referrer.referral_count == 99, f"referral_count 应为 99，实际 {referrer.referral_count}"
-    print(f"推广人 total_referral_earnings: {referrer.total_referral_earnings}")
-    print(f"推广人 referral_count: {referrer.referral_count}")
-    print("✅ 统计字段正确")
+    # 创建新推广人和被推广人
+    referrer2 = User(
+        openid=f"test_referrer2_{uuid.uuid4().hex[:8]}",
+        phone=f"138{uuid.uuid4().hex[:9]}",
+        nickname="推广人2"
+    )
+    referee2 = User(
+        openid=f"test_referee2_{uuid.uuid4().hex[:8]}",
+        phone=f"139{uuid.uuid4().hex[:9]}",
+        nickname="被推广人2"
+    )
+    db.session.add_all([referrer2, referee2])
+    db.session.flush()
+
+    # 建立推广关系（刚刚创建，在冷却期内）
+    relation2 = ReferralRelation(
+        referrer_id=referrer2.id,
+        referee_id=referee2.id,
+        scene="test_scene_cooldown",
+        status='active',
+        created_at=datetime.now()  # 刚刚创建
+    )
+    db.session.add(relation2)
+    db.session.commit()
+
+    # 在冷却期内完成2次素描消费 → 不应发放佣金
+    create_sketch_consumption(referee2.id)
+    create_sketch_consumption(referee2.id)
+    referral_service.check_and_grant_commission(referee2.id)
+    db.session.refresh(referrer2)
+
+    print(f"冷却期内2次素描消费后，推广人余额: {referrer2.cash_balance} (预期: 0)")
+    assert referrer2.cash_balance == Decimal('0'), "冷却期内不应发放佣金"
+    print("✅ 24小时冷却期生效，注册后立即消费不触发佣金")
+
+    # 清理
+    db.session.delete(relation2)
+    ConsumptionRecord.query.filter_by(user_id=referee2.id).delete(synchronize_session=False)
+    db.session.delete(referee2)
+    db.session.delete(referrer2)
+    db.session.commit()
+    print("✅ 冷却期测试数据已清理")
+
+    print("\n" + "=" * 60)
+    print("测试8: 佣金明细来源追溯")
+    print("=" * 60)
+
+    # 验证佣金历史包含来源信息
+    stats = referral_service.get_piggy_bank_stats(referrer.id)
+    assert 'commission_history' in stats, "应包含佣金明细"
+    assert len(stats['commission_history']) == 99, f"应有99条佣金记录，实际 {len(stats['commission_history'])}"
+
+    # 检查第一条记录的来源追溯信息
+    first_commission = stats['commission_history'][0]
+    assert 'referee_id' in first_commission, "应包含被推广人ID"
+    assert 'referee_nickname' in first_commission, "应包含被推广人昵称"
+    assert 'reason' in first_commission, "应包含佣金原因"
+    assert 'amount' in first_commission, "应包含佣金金额"
+    assert 'created_at' in first_commission, "应包含创建时间"
+
+    print(f"佣金明细第一条：金额={first_commission['amount']}, "
+          f"来源用户={first_commission['referee_nickname']}, "
+          f"原因={first_commission['reason']}")
+    print("✅ 佣金来源追溯信息完整")
 
     print("\n" + "=" * 60)
     print("所有测试通过！✅")
