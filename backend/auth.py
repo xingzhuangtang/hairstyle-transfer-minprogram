@@ -136,8 +136,13 @@ class AuthService:
                 else:
                     print(f"⚠️ 新用户注册福利发放失败：{bonus_result.get('error')}")
             else:
-                # 老用户登录，更新 unionid（如果之前没有）
-                if unionid and not user.unionid:
+                # 老用户登录，更新 openid/unionid 为当前微信会话的值
+                # 这样当用户换微信登录时，支付时使用的 openid 会是当前微信的
+                if user.openid != openid:
+                    old_openid = user.openid
+                    user.openid = openid
+                    print(f"🔄 更新用户 openid: user_id={user.id}, {old_openid} -> {openid}")
+                if unionid:
                     user.unionid = unionid
                 # 更新昵称和头像（如果用户还没设置过）
                 if nickname and not user.nickname:
@@ -382,17 +387,16 @@ class AuthService:
                 
                 # 使用 no_autoflush 避免中间状态触发唯一约束冲突
                 with db.session.no_autoflush:
-                    # 只有当目标账号没有 openid 且当前账号有时才转移
-                    if not existing_user.openid and current_user.openid:
+                    # 始终使用当前登录微信的 openid（用于微信支付）
+                    if current_user.openid:
+                        if existing_user.openid != current_user.openid:
+                            print(f"   🔄 更新 openid: {existing_user.openid} -> {current_user.openid}")
                         existing_user.openid = current_user.openid
-                        existing_user.unionid = current_user.unionid
-                        print(f"   ✅ 转移 openid 到目标账号")
+                        existing_user.unionid = current_user.unionid or existing_user.unionid
                     elif existing_user.openid == current_user.openid:
-                        # 两个账号 openid 相同（同一微信），无需转移
                         print(f"   ℹ️ 两个账号 openid 相同，无需转移")
                     else:
-                        # 两个账号都有不同的 openid，保留目标账号的
-                        print(f"⚠️ 两个账号都有不同的 openid，保留目标账号的 openid")
+                        print(f"   ⚠️ 当前账号无 openid，保留目标账号的 openid")
 
                     # 合并余额
                     existing_user.scissor_hairs = (existing_user.scissor_hairs or 0) + (current_user.scissor_hairs or 0)
