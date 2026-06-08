@@ -276,22 +276,17 @@ class ReferralService:
         if commission_count >= self.MAX_COMMISSION_TIMES:
             return  # 已达封顶，不再发放
 
-        # 计算上次发佣金之后的新增素描消费次数
-        last_paid_time = relation.commission_paid_at
-
-        # 查询自上次佣金发放后的素描/组合消费记录
-        query = ConsumptionRecord.query.filter(
+        # 基于总素描消费次数计算应发佣金数（每2次消费发1次）
+        total_sketch_count = ConsumptionRecord.query.filter(
             ConsumptionRecord.user_id == user_id,
             ConsumptionRecord.service_type.in_(('sketch', 'combined')),
             ConsumptionRecord.status == 'success'
-        )
+        ).count()
 
-        if last_paid_time:
-            query = query.filter(ConsumptionRecord.created_at > last_paid_time)
+        expected_commissions = total_sketch_count // 2
 
-        new_sketch_count = query.count()
-
-        if new_sketch_count >= 2:
+        # 只发放未发放过的佣金
+        if expected_commissions > commission_count:
             # 发放佣金
             referrer = User.query.get(relation.referrer_id)
             if not referrer:
@@ -322,7 +317,7 @@ class ReferralService:
                     amount=float(self.COMMISSION_AMOUNT),
                     referee_id=user_id,
                     referral_id=relation.id,
-                    status='paid'
+                    status='success'
                 )
 
                 db.session.commit()

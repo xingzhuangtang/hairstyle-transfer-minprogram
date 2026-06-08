@@ -66,7 +66,7 @@ class FinancialService:
         return record
 
     @staticmethod
-    def record_commission(user_id, amount, referee_id, referral_id, status='paid'):
+    def record_commission(user_id, amount, referee_id, referral_id, status='success'):
         """记录推广佣金流水"""
         record = FinancialRecord(
             user_id=user_id,

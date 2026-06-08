@@ -164,12 +164,11 @@ class HairService:
             db.session.add(consumption_record)
             db.session.commit()
             
-            # 检查并推广佣金发放（素描/组合消费触发）
+            # 检查并推广佣金发放（仅素描/组合消费触发，且仅调用一次）
             if service_type in ('sketch', 'combined'):
                 try:
                     from referral_service import ReferralService
-                    referral_service = ReferralService()
-                    referral_service.check_and_grant_commission(user.id)
+                    ReferralService().check_and_grant_commission(user.id)
                 except Exception as referral_error:
                     print(f"⚠️ 推广佣金检查失败：{referral_error}")
             
@@ -179,13 +178,6 @@ class HairService:
             
             print(f"✅ 头发丝消费成功：user_id={user.id}, service_type={service_type}, "
                   f"consumed={required_hairs}, comb={comb_deducted}, scissor={scissor_deducted}")
-            
-            # 推广佣金检查：检查该用户的推广人是否应获得佣金
-            try:
-                from referral_service import ReferralService
-                ReferralService().check_and_grant_commission(user.id)
-            except Exception as e:
-                print(f"⚠️ 推广佣金检查失败: {e}")
             
             return {
                 'success': True,
