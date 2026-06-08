@@ -18,10 +18,19 @@ NC='\033[0m' # No Color
 # 配置
 SERVER_IP="${1:-139.196.105.33}"
 DEPLOY_PATH="${2:-/opt/hairstyle-transfer-v5.3-release}"
+FORCE_MODE="${3:-}"
 SSH_USER="root"
-SSH_PASS="dta_dtlc0513(.)"
+SSH_PASS="${SSH_PASS:-}"  # 从环境变量读取，不硬编码
 BACKEND_PORT=5003
 DOMAIN="xn--gmq63iba0780e.com"
+
+# 检查密码是否设置
+if [[ -z "$SSH_PASS" ]]; then
+    echo "错误: 未设置 SSH_PASS 环境变量"
+    echo "用法: export SSH_PASS='your_password' && ./deploy.sh"
+    echo "   或: SSH_PASS='your_password' ./deploy.sh"
+    exit 1
+fi
 
 # 本地路径
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -84,7 +93,7 @@ check_prerequisites() {
     if [[ -n $(cd "$GIT_ROOT" && git status --porcelain 2>/dev/null) ]]; then
         log_warn "检测到未提交的更改，建议先提交后再部署"
         log_warn "使用 --force 参数跳过此检查"
-        if [[ "${3:-}" != "--force" ]]; then
+        if [[ "$FORCE_MODE" != "--force" ]]; then
             log_info "部署已取消"
             exit 1
         fi
@@ -125,6 +134,7 @@ sync_code() {
         "financial_service.py"
         "bailian_sketch_converter.py"
         "aliyun_hair_transfer_fixed.py"
+        "scheduler.py"
         "debug_config.py"
     )
 
@@ -204,7 +214,7 @@ restart_services() {
 
     # 重启 Nginx (如果配置有更新)
     if [[ -f "$NGINX_CONFIG" ]]; then
-        remote_exec "killall nginx 2>/dev/null; sleep 1; nginx" && log_info "  Nginx 已重启"
+        remote_exec "nginx -s reload 2>/dev/null || (killall nginx 2>/dev/null; sleep 1; nginx)" && log_info "  Nginx 已重启"
     fi
 
     log_info "服务重启完成"
