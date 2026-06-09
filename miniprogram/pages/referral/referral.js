@@ -182,50 +182,98 @@ Page({
 
     console.log('保存图片 URL:', imageUrl)
 
-    // 使用 getImageInfo 下载并获取图片路径（更可靠）
+    // 使用 getImageInfo 下载图片
     wx.getImageInfo({
       src: imageUrl,
       success: (res) => {
         console.log('图片加载成功，路径:', res.path)
 
-        wx.saveImageToPhotosAlbum({
-          filePath: res.path,
-          success: () => {
-            wx.showToast({ title: '已保存到相册', icon: 'success' })
+        // 先保存到本地持久化目录，确保图片不被清理
+        wx.saveFile({
+          tempFilePath: res.path,
+          success: (saveRes) => {
+            console.log('saveFile 成功，持久化路径:', saveRes.savedFilePath)
+
+            // 使用持久化后的路径保存到相册
+            wx.saveImageToPhotosAlbum({
+              filePath: saveRes.savedFilePath,
+              success: () => {
+                wx.hideLoading()
+                // 提示用户去哪里查看
+                wx.showModal({
+                  title: '保存成功',
+                  content: '二维码已保存到相册\n\niPhone: 照片 App → 最近项目\nAndroid: 相册 → WeiXin 文件夹或 DCIM',
+                  showCancel: false,
+                  confirmText: '知道了'
+                })
+              },
+              fail: (err) => {
+                console.error('saveImageToPhotosAlbum 失败:', err)
+                wx.hideLoading()
+                // 持久化已保存，即使相册保存失败用户也能在本地找到
+                if (err.errMsg && err.errMsg.includes('auth')) {
+                  wx.showModal({
+                    title: '图片已保存',
+                    content: '已保存到本地，但需要相册权限才能在相册查看。\n\n请在系统设置中允许微信访问相册，然后重试。\n\n或者长按二维码选择"保存图片"',
+                    confirmText: '去设置',
+                    cancelText: '我知道了',
+                    success: (modalRes) => {
+                      if (modalRes.confirm) {
+                        wx.openSetting()
+                      }
+                    }
+                  })
+                } else {
+                  wx.showModal({
+                    title: '保存提示',
+                    content: '图片已保存到本地。\n\n如果相册未显示，请长按二维码选择"保存图片"',
+                    showCancel: false
+                  })
+                }
+              }
+            })
           },
           fail: (err) => {
-            console.error('saveImageToPhotosAlbum 失败:', err)
-            if (err.errMsg && err.errMsg.includes('auth')) {
-              wx.showModal({
-                title: '需要相册权限',
-                content: '需要相册保存权限，请前往设置开启',
-                confirmText: '去设置',
-                success: (modalRes) => {
-                  if (modalRes.confirm) {
-                    wx.openSetting()
-                  }
-                }
-              })
-            } else {
-              wx.showModal({
-                title: '保存失败',
-                content: '保存失败，请长按图片选择"保存图片"',
-                showCancel: false
-              })
-            }
+            console.error('saveFile 失败:', err)
+            // saveFile 失败时回退到直接用 tempFilePath
+            this._saveDirectToAlbum(res.path, imageUrl)
           }
         })
       },
       fail: (err) => {
         console.error('getImageInfo 失败:', err)
+        wx.hideLoading()
         wx.showModal({
           title: '加载失败',
-          content: '图片加载失败，请长按图片选择"保存图片"',
+          content: '图片加载失败，请长按二维码选择"保存图片"',
+          showCancel: false
+        })
+      }
+    })
+  },
+
+  /**
+   * 备用方案：直接保存到相册（无持久化）
+   */
+  _saveDirectToAlbum(filePath, originalUrl) {
+    wx.saveImageToPhotosAlbum({
+      filePath: filePath,
+      success: () => {
+        wx.hideLoading()
+        wx.showModal({
+          title: '保存成功',
+          content: '二维码已保存到相册\n\niPhone: 照片 App → 最近项目\nAndroid: 相册 → WeiXin 文件夹',
           showCancel: false
         })
       },
-      complete: () => {
+      fail: (err) => {
+        console.error('直接保存失败:', err)
         wx.hideLoading()
+        wx.showModal({
+          title: '保存失败',
+          content: '无法保存到相册。\n\n请点击二维码图片放大，然后长按选择"保存图片"',
+          showCancel: false
+        })
       }
     })
   },
