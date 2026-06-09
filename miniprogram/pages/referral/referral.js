@@ -125,22 +125,101 @@ Page({
    * 下载二维码
    */
   downloadQrcode() {
+    const qrcodeUrl = this.data.qrcodeUrl
+    if (!qrcodeUrl) {
+      wx.showToast({ title: '请先加载二维码', icon: 'none' })
+      return
+    }
+
+    console.log('开始保存二维码:', qrcodeUrl)
     wx.showLoading({ title: '保存中...' })
+
+    // 先检查相册授权状态
+    wx.getSetting({
+      success: (settingRes) => {
+        const hasWritePhotosAlbumAuth = settingRes.authSetting['scope.writePhotosAlbum']
+
+        if (hasWritePhotosAlbumAuth === false) {
+          // 用户明确拒绝过，需要引导到设置
+          wx.hideLoading()
+          wx.showModal({
+            title: '需要相册权限',
+            content: '您已拒绝相册访问权限，请前往设置开启后才能保存二维码',
+            confirmText: '去设置',
+            cancelText: '取消',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                wx.openSetting()
+              }
+            }
+          })
+          return
+        }
+
+        // 未授权或已授权，尝试下载并保存
+        this._saveQrcodeToAlbum(qrcodeUrl)
+      },
+      fail: () => {
+        // getSetting 失败，直接尝试保存
+        this._saveQrcodeToAlbum(qrcodeUrl)
+      }
+    })
+  },
+
+  /**
+   * 实际保存二维码到相册
+   */
+  _saveQrcodeToAlbum(url) {
+    // 如果是相对路径，转换为完整 URL
+    let downloadUrl = url
+    const { API_BASE_URL } = require('../../utils/constants.js')
+    if (url.startsWith('/static/')) {
+      downloadUrl = API_BASE_URL + url
+    }
+
+    console.log('下载二维码 URL:', downloadUrl)
+
     wx.downloadFile({
-      url: this.data.qrcodeUrl,
+      url: downloadUrl,
       success: (res) => {
+        console.log('downloadFile 成功:', res.statusCode, res.tempFilePath)
+        if (res.statusCode !== 200) {
+          wx.showToast({ title: '图片下载失败', icon: 'none' })
+          return
+        }
+
         wx.saveImageToPhotosAlbum({
           filePath: res.tempFilePath,
           success: () => {
             wx.showToast({ title: '已保存到相册', icon: 'success' })
           },
-          fail: () => {
-            wx.showToast({ title: '保存失败', icon: 'none' })
+          fail: (err) => {
+            console.error('saveImageToPhotosAlbum 失败:', err)
+            // 检查是否是权限问题
+            if (err.errMsg && err.errMsg.includes('auth')) {
+              wx.showModal({
+                title: '保存失败',
+                content: '需要相册保存权限，请前往设置开启',
+                confirmText: '去设置',
+                success: (modalRes) => {
+                  if (modalRes.confirm) {
+                    wx.openSetting()
+                  }
+                }
+              })
+            } else {
+              wx.showToast({ title: '保存失败，请长按图片保存', icon: 'none' })
+            }
           }
         })
       },
-      fail: () => {
-        wx.showToast({ title: '下载失败', icon: 'none' })
+      fail: (err) => {
+        console.error('downloadFile 失败:', err)
+        wx.showModal({
+          title: '下载失败',
+          content: `无法下载二维码图片\n错误：${err.errMsg || '未知错误'}\n\n提示：您可以长按二维码图片保存`,
+          showCancel: false
+        })
       },
       complete: () => {
         wx.hideLoading()
