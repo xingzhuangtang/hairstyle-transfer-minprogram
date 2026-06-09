@@ -147,11 +147,13 @@ sync_code() {
         fi
     done
 
-    # 同步 .env (如果存在)
-    if [[ -f "$BACKEND_DIR/.env" ]]; then
-        remote_scp "$BACKEND_DIR/.env" "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/.env"
-        log_info "  已同步: .env"
-    fi
+    # 注意: 不同步 .env，避免覆盖远程服务器的重要配置
+    # 如需更新远程 .env，请手动执行:
+    #   scp backend/.env root@SERVER:$DEPLOY_PATH/.env
+    # if [[ -f "$BACKEND_DIR/.env" ]]; then
+    #     remote_scp "$BACKEND_DIR/.env" "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/.env"
+    #     log_info "  已同步: .env"
+    # fi
 
     log_info "代码同步完成"
     echo ""
