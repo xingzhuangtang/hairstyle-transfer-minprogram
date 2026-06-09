@@ -18,6 +18,11 @@ NC='\033[0m' # No Color
 # 配置
 SERVER_IP="${1:-139.196.105.33}"
 DEPLOY_PATH="${2:-/opt/hairstyle-transfer-v5.3-release}"
+# 如果传入的不是绝对路径，自动拼接为绝对路径
+case "$DEPLOY_PATH" in
+    /*) ;; # 已经是绝对路径，不做处理
+    *) DEPLOY_PATH="/opt/$DEPLOY_PATH" ;;
+esac
 FORCE_MODE="${3:-}"
 SSH_USER="root"
 SSH_PASS="${SSH_PASS:-}"  # 从环境变量读取，不硬编码
