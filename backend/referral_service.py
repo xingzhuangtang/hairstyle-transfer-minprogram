@@ -182,9 +182,13 @@ class ReferralService:
         return {"success": False, "error": "二维码上传OSS失败"}
 
     def _generate_qr_image(self, content, size=10):
-        """使用 qrcode 库生成二维码图片"""
+        """使用 qrcode 库生成带水印的二维码图片（文字 + Logo）"""
         try:
             import qrcode
+            from PIL import Image, ImageDraw, ImageFont
+            import os
+
+            # 1. 生成原始二维码
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -193,18 +197,60 @@ class ReferralService:
             )
             qr.add_data(content)
             qr.make(fit=True)
-            return qr.make_image(fill_color="black", back_color="white")
-        except ImportError:
-            # 如果没有 qrcode 库，尝试用 pillow 手动生成
-            try:
-                from PIL import Image, ImageDraw
-                # 简单的黑白二维码
-                img = Image.new('RGB', (400, 400), 'white')
-                draw = ImageDraw.Draw(img)
-                # 简单网格模拟（实际还是需要 qrcode 库）
-                return None
-            except ImportError:
-                return None
+            qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGBA')
+
+            # 2. 创建带水印的画布（二维码 + 下方留白区域）
+            qr_width, qr_height = qr_img.size
+            bottom_height = 120  # 下方水印区域高度
+            canvas_width = qr_width
+            canvas_height = qr_height + bottom_height
+
+            canvas = Image.new('RGBA', (canvas_width, canvas_height), 'white')
+            canvas.paste(qr_img, (0, 0))
+
+            # 3. 在下方区域绘制文字和 Logo
+            draw = ImageDraw.Draw(canvas)
+
+            # 尝试加载字体（优先使用系统中文字体）
+            font = None
+            for font_path in [
+                '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',  # Ubuntu/Debian
+                '/System/Library/Fonts/PingFang.ttc',                     # macOS
+                'C:\\Windows\\Fonts\\msyh.ttc',                           # Windows
+                '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',           # CentOS
+            ]:
+                if os.path.exists(font_path):
+                    font = ImageFont.truetype(font_path, 24)
+                    break
+            if not font:
+                font = ImageFont.load_default()
+
+            # 绘制文字 "千人千面发型设计系统"
+            text = "千人千面发型设计系统"
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_x = (canvas_width - text_width) // 2
+            text_y = qr_height + 20
+            draw.text((text_x, text_y), text, fill='#666666', font=font)
+
+            # 4. 尝试加载并绘制 Logo（如果存在）
+            logo_path = os.path.join(os.path.dirname(__file__), 'static', 'images', 'qrqm_logo.png')
+            if os.path.exists(logo_path):
+                try:
+                    logo = Image.open(logo_path).convert('RGBA')
+                    logo_size = 60
+                    logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+                    logo_x = (canvas_width - logo_size) // 2
+                    logo_y = qr_height + 55
+                    canvas.paste(logo, (logo_x, logo_y), logo)
+                except Exception as e:
+                    print(f"⚠️ 加载 Logo 失败: {e}")
+
+            return canvas
+
+        except ImportError as e:
+            print(f" 生成二维码图片失败 (缺少依赖): {e}")
+            return None
         except Exception as e:
             print(f"❌ 生成二维码图片失败: {e}")
             return None
