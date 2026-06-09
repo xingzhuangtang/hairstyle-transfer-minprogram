@@ -171,34 +171,33 @@ Page({
    */
   _saveQrcodeToAlbum(url) {
     // 如果是相对路径，转换为完整 URL
-    let downloadUrl = url
+    let imageUrl = url
     const { API_BASE_URL } = require('../../utils/constants.js')
     if (url.startsWith('/static/')) {
-      downloadUrl = API_BASE_URL + url
+      imageUrl = API_BASE_URL + url
+    }
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      imageUrl = API_BASE_URL + url
     }
 
-    console.log('下载二维码 URL:', downloadUrl)
+    console.log('保存图片 URL:', imageUrl)
 
-    wx.downloadFile({
-      url: downloadUrl,
+    // 使用 getImageInfo 下载并获取图片路径（更可靠）
+    wx.getImageInfo({
+      src: imageUrl,
       success: (res) => {
-        console.log('downloadFile 成功:', res.statusCode, res.tempFilePath)
-        if (res.statusCode !== 200) {
-          wx.showToast({ title: '图片下载失败', icon: 'none' })
-          return
-        }
+        console.log('图片加载成功，路径:', res.path)
 
         wx.saveImageToPhotosAlbum({
-          filePath: res.tempFilePath,
+          filePath: res.path,
           success: () => {
             wx.showToast({ title: '已保存到相册', icon: 'success' })
           },
           fail: (err) => {
             console.error('saveImageToPhotosAlbum 失败:', err)
-            // 检查是否是权限问题
             if (err.errMsg && err.errMsg.includes('auth')) {
               wx.showModal({
-                title: '保存失败',
+                title: '需要相册权限',
                 content: '需要相册保存权限，请前往设置开启',
                 confirmText: '去设置',
                 success: (modalRes) => {
@@ -208,16 +207,20 @@ Page({
                 }
               })
             } else {
-              wx.showToast({ title: '保存失败，请长按图片保存', icon: 'none' })
+              wx.showModal({
+                title: '保存失败',
+                content: '保存失败，请长按图片选择"保存图片"',
+                showCancel: false
+              })
             }
           }
         })
       },
       fail: (err) => {
-        console.error('downloadFile 失败:', err)
+        console.error('getImageInfo 失败:', err)
         wx.showModal({
-          title: '下载失败',
-          content: `无法下载二维码图片\n错误：${err.errMsg || '未知错误'}\n\n提示：您可以长按二维码图片保存`,
+          title: '加载失败',
+          content: '图片加载失败，请长按图片选择"保存图片"',
           showCancel: false
         })
       },
