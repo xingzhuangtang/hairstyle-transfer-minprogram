@@ -253,7 +253,7 @@ class ReferralService:
                 '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
             ]:
                 if os.path.exists(font_path):
-                    font = ImageFont.truetype(font_path, 22)
+                    font = ImageFont.truetype(font_path, 12)
                     break
             if not font:
                 font = ImageFont.load_default()
