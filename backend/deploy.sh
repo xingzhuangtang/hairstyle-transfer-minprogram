@@ -135,6 +135,7 @@ sync_code() {
         "bailian_sketch_converter.py"
         "aliyun_hair_transfer_fixed.py"
         "scheduler.py"
+        "fix_financial_records.py"
         "debug_config.py"
     )
 
@@ -347,6 +348,15 @@ main() {
 
     health_check
     HEALTH_RESULT=$?
+
+    echo ""
+    log_info "============================================"
+    log_info "开始财务记录一致性检查..."
+    log_info "============================================"
+    echo ""
+
+    # 财务记录检查（不阻塞部署，只输出结果）
+    remote_exec "cd $DEPLOY_PATH && python3 fix_financial_records.py" 2>&1 || log_warn "财务记录检查失败"
 
     echo ""
     log_info "============================================"
