@@ -23,7 +23,7 @@
       </view>
       <view class="status-item">
         <text class="label">到期时间</text>
-        <text class="value">{{expireAt}}</text>
+        <text class="value">{{expireCountdownText}}</text>
       </view>
     </view>
   </view>

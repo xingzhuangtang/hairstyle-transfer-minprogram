@@ -119,8 +119,15 @@ sync_code() {
 
     # 需要同步的核心文件
     CORE_FILES=(
+        # --- 入口 & 路由 ---
         "app.py"
         "api.py"
+        # --- 顶层硬导入（缺失则启动崩溃）---
+        "logging_config.py"
+        "monitoring_config.py"
+        "member_service.py"
+        "account_service.py"
+        # --- 核心业务 ---
         "auth.py"
         "config.py"
         "models.py"
@@ -132,8 +139,17 @@ sync_code() {
         "chat_service.py"
         "chat_notifier.py"
         "financial_service.py"
+        # --- 延迟导入（缺失则特定功能不可用）---
+        "virtual_payment_service.py"
+        "refund_service.py"
+        "refund_notifier.py"
+        # --- AI / 图像处理 ---
         "bailian_sketch_converter.py"
         "aliyun_hair_transfer_fixed.py"
+        "hair_segmentation.py"
+        "image_preprocessor.py"
+        "sketch_converter.py"
+        # --- 运维 / 调度 ---
         "scheduler.py"
         "fix_financial_records.py"
         "debug_config.py"
@@ -179,12 +195,66 @@ sync_nginx_config() {
         if remote_exec "nginx -t" 2>&1 | grep -q "syntax is ok"; then
             log_info "  Nginx 配置验证通过"
         else
-            log_error "  Nginx 配置有误，已恢复备份"
-            remote_exec "cp /etc/nginx/conf.d/${DOMAIN}.conf.bak.* /etc/nginx/conf.d/${DOMAIN}.conf 2>/dev/null || true"
+            log_error "  Nginx 配置有误，已恢复最新备份"
+            remote_exec "LATEST=\$(ls -t /etc/nginx/conf.d/${DOMAIN}.conf.bak.* 2>/dev/null | head -1); [ -n \"\$LATEST\" ] && cp \"\$LATEST\" /etc/nginx/conf.d/${DOMAIN}.conf || true"
             exit 1
         fi
     else
         log_warn "  未找到 Nginx 配置文件 ($NGINX_CONFIG)，跳过"
+    fi
+
+    echo ""
+}
+
+# ============================================
+# 检查服务器 .env 配置完整性
+# ============================================
+
+check_env_completeness() {
+    log_info "检查服务器配置完整性..."
+
+    # 必需的配置项列表（按功能分组）
+    REQUIRED_VARS=(
+        # 基础配置
+        "MYSQL_HOST"
+        "MYSQL_DATABASE"
+        # 阿里云配置
+        "ALIBABA_CLOUD_ACCESS_KEY_ID"
+        "ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+        # 企业微信通知
+        "WECHAT_CORP_ID"
+        "WECHAT_CORP_SECRET"
+        "WECHAT_AGENT_ID"
+    )
+
+    MISSING_VARS=()
+
+    for var in "${REQUIRED_VARS[@]}"; do
+        if ! remote_exec "grep -q '^${var}=' $DEPLOY_PATH/.env 2>/dev/null"; then
+            MISSING_VARS+=("$var")
+        fi
+    done
+
+    if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
+        log_warn "发现 ${#MISSING_VARS[@]} 个缺失的配置项:"
+        for var in "${MISSING_VARS[@]}"; do
+            echo "  - $var"
+        done
+        echo ""
+        log_warn "缺失配置可能导致部分功能不可用"
+        log_warn "请手动登录服务器补充配置: ssh $SSH_USER@$SERVER_IP"
+        echo ""
+
+        if [[ "$FORCE_MODE" != "--force" ]]; then
+            read -p "是否继续部署? (y/N) " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "部署已取消"
+                exit 1
+            fi
+        fi
+    else
+        log_info "配置完整性检查通过"
     fi
 
     echo ""
@@ -202,7 +272,7 @@ restart_services() {
     log_info "  已清理 Python 缓存"
 
     # 重启后端
-    remote_exec "cd $DEPLOY_PATH && kill \$(lsof -ti:$BACKEND_PORT) 2>/dev/null; sleep 2; nohup python3 app.py > /tmp/backend.log 2>&1 &"
+    remote_exec "cd $DEPLOY_PATH && kill \$(lsof -ti:$BACKEND_PORT) 2>/dev/null || true; sleep 2; nohup python3 app.py > /tmp/backend.log 2>&1 </dev/null &"
     sleep 3
 
     # 检查后端是否启动成功
@@ -237,10 +307,10 @@ health_check() {
     # 检查后端健康
     if curl -sf "https://$DOMAIN/api/monitoring/health" > /dev/null 2>&1; then
         log_info "  ✅ 后端健康检查通过"
-        ((PASS++))
+        PASS=$((PASS + 1))
     else
         log_error "  ❌ 后端健康检查失败"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 
     # 检查静态文件可访问
@@ -254,26 +324,26 @@ health_check() {
         # 目录请求可能返回 403 或 404，这不算失败，只要不是连接错误就行
         if [[ "$code" != "000" ]]; then
             log_info "  ✅ 静态文件路径 $path 可访问 (HTTP $code)"
-            ((PASS++))
+            PASS=$((PASS + 1))
         else
             log_error "  ❌ 静态文件路径 $path 无法访问"
-            ((FAIL++))
+            FAIL=$((FAIL + 1))
         fi
     done
 
     # 检查数据库连接
     if remote_exec "cd $DEPLOY_PATH && python3 -c 'from models import db; print(db.session.execute(db.text(\"SELECT 1\")).fetchone())' 2>/dev/null" | grep -q "1"; then
         log_info "  ✅ 数据库连接正常"
-        ((PASS++))
+        PASS=$((PASS + 1))
     else
         log_error "  ❌ 数据库连接失败"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 
     # 检查 Redis
     if remote_exec "redis-cli ping" 2>/dev/null | grep -q "PONG"; then
         log_info "  ✅ Redis 连接正常"
-        ((PASS++))
+        PASS=$((PASS + 1))
     else
         log_warn "  ⚠️  Redis 连接失败 (如未使用可忽略)"
     fi
@@ -299,9 +369,19 @@ verify_sync() {
     MISMATCH=0
 
     CORE_FILES=(
-        "app.py" "api.py" "auth.py" "config.py" "models.py"
-        "payment_service.py" "hair_service.py" "sms_service.py"
+        "app.py" "api.py"
+        "logging_config.py" "monitoring_config.py"
+        "member_service.py" "account_service.py"
+        "auth.py" "config.py" "models.py"
+        "payment_service.py" "hair_service.py"
+        "wechat_pay.py" "sms_service.py"
         "referral_service.py" "chat_service.py"
+        "chat_notifier.py" "financial_service.py"
+        "virtual_payment_service.py" "refund_service.py"
+        "refund_notifier.py"
+        "bailian_sketch_converter.py" "aliyun_hair_transfer_fixed.py"
+        "hair_segmentation.py" "image_preprocessor.py" "sketch_converter.py"
+        "scheduler.py" "fix_financial_records.py" "debug_config.py"
     )
 
     for file in "${CORE_FILES[@]}"; do
@@ -313,7 +393,7 @@ verify_sync() {
                 log_info "  ✅ $file"
             else
                 log_error "  ❌ $file 不一致 (本地: ${local_md5:0:8}... vs 远程: ${remote_md5:0:8}...)"
-                ((MISMATCH++))
+                MISMATCH=$((MISMATCH + 1))
             fi
         fi
     done
@@ -338,6 +418,7 @@ main() {
     check_prerequisites "$@"
     sync_code
     sync_nginx_config
+    check_env_completeness
     restart_services
 
     echo ""
@@ -346,8 +427,8 @@ main() {
     log_info "============================================"
     echo ""
 
-    health_check
-    HEALTH_RESULT=$?
+    HEALTH_RESULT=0
+    health_check || HEALTH_RESULT=$?
 
     echo ""
     log_info "============================================"
