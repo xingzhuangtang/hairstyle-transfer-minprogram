@@ -21,7 +21,9 @@ Page({
     page: 1,
     pageSize: 20,
     hasMore: true,
-    countdownTimer: null
+    countdownTimer: null,
+    canvasWidth: 1080,
+    canvasHeight: 2000
   },
 
   onLoad() {
@@ -203,29 +205,73 @@ Page({
 
   saveCombinedImage(record) {
     wx.showLoading({ title: '生成合并图片中...' })
-    
-    const ctx = wx.createCanvasContext('combinedCanvas', this)
-    
-    // 填充背景
-    ctx.setFillStyle('#ffffff')
-    ctx.fillRect(0, 0, 800, 1600)
-    
-    let loadedCount = 0
-    const totalImages = (record.result_image ? 1 : 0) + (record.sketch_image ? 1 : 0)
-    
-    const onLoadComplete = () => {
-      loadedCount++
-      if (loadedCount === totalImages) {
-        // 所有图片加载完成，调用 draw() 渲染
+
+    const images = []
+    if (record.result_image) images.push({ url: record.result_image, label: '结果' })
+    if (record.sketch_image) images.push({ url: record.sketch_image, label: '素描' })
+
+    const TARGET_WIDTH = 1080
+    const LABEL_HEIGHT = 60
+    const GAP = 20
+    const downloaded = []
+
+    let completed = 0
+    const checkAllDone = () => {
+      completed++
+      if (completed < images.length) return
+
+      let totalHeight = 0
+      const drawInfos = []
+      for (let i = 0; i < downloaded.length; i++) {
+        const info = downloaded[i]
+        const scale = TARGET_WIDTH / info.width
+        const drawHeight = Math.round(info.height * scale)
+        drawInfos.push({
+          path: info.path,
+          label: info.label,
+          y: totalHeight,
+          drawWidth: TARGET_WIDTH,
+          drawHeight: drawHeight
+        })
+        totalHeight += drawHeight + LABEL_HEIGHT
+        if (i < downloaded.length - 1) totalHeight += GAP
+      }
+
+      const canvasWidth = TARGET_WIDTH
+      const canvasHeight = totalHeight
+
+      this.setData({
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight
+      }, () => {
+        const ctx = wx.createCanvasContext('combinedCanvas', this)
+
+        ctx.setFillStyle('#ffffff')
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+        for (const d of drawInfos) {
+          ctx.drawImage(d.path, 0, d.y, d.drawWidth, d.drawHeight)
+
+          ctx.setFillStyle('rgba(0, 0, 0, 0.5)')
+          ctx.fillRect(0, d.y + d.drawHeight, canvasWidth, LABEL_HEIGHT)
+          ctx.setFillStyle('#ffffff')
+          ctx.setFontSize(28)
+          ctx.setTextAlign('center')
+          ctx.fillText(d.label, canvasWidth / 2, d.y + d.drawHeight + 40)
+        }
+
         ctx.draw(false, () => {
-          // draw 完成后保存图片
           setTimeout(() => {
             wx.canvasToTempFilePath({
               canvasId: 'combinedCanvas',
-              width: 800,
-              height: 1600,
-              destWidth: 1600,
-              destHeight: 3200,
+              x: 0,
+              y: 0,
+              width: canvasWidth,
+              height: canvasHeight,
+              destWidth: canvasWidth,
+              destHeight: canvasHeight,
+              fileType: 'jpg',
+              quality: 0.92,
               success: (res) => {
                 wx.saveImageToPhotosAlbum({
                   filePath: res.tempFilePath,
@@ -244,56 +290,40 @@ Page({
                 wx.showToast({ title: '生成失败', icon: 'none' })
               }
             }, this)
-          }, 1000) // 等待 1 秒确保渲染完成
+          }, 500)
         })
-      }
-    }
-    
-    // 加载原图
-    if (record.result_image) {
-      wx.downloadFile({
-        url: record.result_image,
-        success: (res) => {
-          if (res.statusCode === 200) {
-            ctx.drawImage(res.tempFilePath, 0, 0, 800, 800)
-            
-            // 添加标签
-            ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
-            ctx.fillRect(10, 760, 100, 30)
-            ctx.setFillStyle('#ffffff')
-            ctx.setFontSize(18)
-            ctx.fillText('原图', 30, 782)
-          }
-          onLoadComplete()
-        },
-        fail: () => onLoadComplete()
       })
-    } else {
-      onLoadComplete()
     }
-    
-    // 加载素描图
-    if (record.sketch_image) {
+
+    images.forEach((img, idx) => {
       wx.downloadFile({
-        url: record.sketch_image,
+        url: img.url,
         success: (res) => {
-          if (res.statusCode === 200) {
-            ctx.drawImage(res.tempFilePath, 0, 800, 800, 800)
-            
-            // 添加标签
-            ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
-            ctx.fillRect(10, 1560, 100, 30)
-            ctx.setFillStyle('#ffffff')
-            ctx.setFontSize(18)
-            ctx.fillText('素描', 30, 1582)
+          if (res.statusCode !== 200) {
+            completed++
+            return
           }
-          onLoadComplete()
+          wx.getImageInfo({
+            src: res.tempFilePath,
+            success: (info) => {
+              downloaded[idx] = {
+                path: res.tempFilePath,
+                width: info.width,
+                height: info.height,
+                label: img.label
+              }
+              checkAllDone()
+            },
+            fail: () => {
+              completed++
+            }
+          })
         },
-        fail: () => onLoadComplete()
+        fail: () => {
+          completed++
+        }
       })
-    } else {
-      onLoadComplete()
-    }
+    })
   },
 
   downloadCombinedImage(e) {

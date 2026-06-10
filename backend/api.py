@@ -688,21 +688,19 @@ def get_recharge_order_status():
 
 @api_bp.route('/recharge/callback/wechat', methods=['POST'])
 def wechat_pay_callback():
-    """微信支付回调 - 充值"""
+    """微信支付回调 - 统一处理充值和会员订单"""
     try:
         from payment_service import WeChatPayService, PaymentService
 
         # 获取回调数据
         request_data = request.get_json()
 
-        print(f"\n📨 收到微信支付回调 (充值)")
-
         # 验证签名并解密数据
         wechat_service = WeChatPayService()
         verify_result = wechat_service.verify_callback(request_data)
 
         if not verify_result['success']:
-            print(f"❌ 微信支付回调验证失败: {verify_result['error']}")
+            print(f"❌ 微信支付回调验证失败：{verify_result['error']}")
             return jsonify(wechat_service.wechat_pay.generate_response(
                 success=False,
                 message=verify_result['error']
@@ -712,30 +710,45 @@ def wechat_pay_callback():
         order_no = verify_result['data']['order_no']
         transaction_id = verify_result['data']['transaction_id']
 
-        print(f"   订单号: {order_no}")
-        print(f"   微信订单号: {transaction_id}")
+        print(f"\n📨 收到微信支付回调")
+        print(f"   订单号：{order_no}")
+        print(f"   微信订单号：{transaction_id}")
 
         payment_service = PaymentService()
-        process_result = payment_service.process_recharge_success(
-            order_no=order_no,
-            transaction_id=transaction_id
-        )
+
+        # 根据订单号前缀判断订单类型
+        if order_no.startswith('MB'):
+            # 会员订单
+            print(f"   订单类型：会员订单")
+            process_result = payment_service.process_member_success(
+                order_no=order_no,
+                transaction_id=transaction_id
+            )
+            order_type = '会员订单'
+        else:
+            # 充值订单（默认）
+            print(f"   订单类型：充值订单")
+            process_result = payment_service.process_recharge_success(
+                order_no=order_no,
+                transaction_id=transaction_id
+            )
+            order_type = '充值订单'
 
         if process_result['success']:
-            print(f"✅ 充值订单处理成功")
+            print(f"✅ {order_type}处理成功")
             return jsonify(wechat_service.wechat_pay.generate_response(
                 success=True,
                 message='OK'
             ))
         else:
-            print(f"❌ 处理充值失败: {process_result['error']}")
+            print(f"❌ 处理{order_type}失败：{process_result['error']}")
             return jsonify(wechat_service.wechat_pay.generate_response(
                 success=False,
                 message=process_result['error']
             ))
 
     except Exception as e:
-        print(f"❌ 微信支付回调处理异常: {e}")
+        print(f"❌ 微信支付回调处理异常：{e}")
         import traceback
         traceback.print_exc()
         from payment_service import WeChatPayService

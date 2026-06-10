@@ -61,6 +61,7 @@ Page({
 
         if (isVip) {
           this.loadMemberOrders()
+          this.updateCountdown()
         }
       }
     } catch (e) {
@@ -236,5 +237,45 @@ Page({
     if (!dateStr) return ''
     const d = new Date(dateStr)
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  },
+
+  updateCountdown() {
+    if (!this.data.expireAt) return
+
+    const expireDate = new Date(this.data.expireAt)
+    const now = new Date()
+    const diffMs = expireDate - now
+
+    let countdownText = ''
+
+    if (diffMs <= 0) {
+      countdownText = '已过期'
+    } else {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffHours / 24)
+
+      if (diffDays >= 1) {
+        countdownText = `剩余${diffDays}天`
+      } else {
+        countdownText = `剩余${diffHours}小时`
+      }
+    }
+
+    this.setData({ expireCountdownText: countdownText })
+  },
+
+  startCountdownTimer() {
+    this.stopCountdownTimer()
+    this.updateCountdown()
+    this.data.countdownTimer = setInterval(() => {
+      this.updateCountdown()
+    }, 60 * 60 * 1000) // 每小时更新一次
+  },
+
+  stopCountdownTimer() {
+    if (this.data.countdownTimer) {
+      clearInterval(this.data.countdownTimer)
+      this.setData({ countdownTimer: null })
+    }
   }
 })

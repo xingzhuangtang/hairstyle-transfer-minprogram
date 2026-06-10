@@ -2,7 +2,7 @@
 <view class="history-container">
   <view class="header">
     <view class="header-title">历史记录</view>
-    <view class="header-desc" wx:if="{{isVip}}">保留 {{remainingDays}} 天</view>
+    <view class="header-desc" wx:if="{{isVip}}">保留45天，到期自动清理</view>
     <view class="header-desc" wx:else>开通会员保留 45 天</view>
   </view>
 
@@ -98,5 +98,5 @@
   </view>
 
   <!-- 隐藏的canvas用于生成合并图片 -->
-  <canvas canvas-id="combinedCanvas" style="position:fixed;left:-9999px;top:-9999px;width:800px;height:1600px;"></canvas>
+  <canvas canvas-id="combinedCanvas" style="position:fixed;left:-9999px;top:-9999px;width:{{canvasWidth||1080}}px;height:{{canvasHeight||2000}}px;"></canvas>
 </view>
