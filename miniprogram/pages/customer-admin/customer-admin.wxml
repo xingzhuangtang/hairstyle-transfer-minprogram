@@ -1,0 +1,307 @@
+<!--pages/customer-admin/customer-admin.wxml-->
+<view class="admin-container">
+  <!-- 顶部标题 -->
+  <view class="header">
+    <text class="title">客户档案</text>
+    <text class="subtitle">开发者端客户数据总览</text>
+  </view>
+
+  <!-- Tab 切换栏 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange">
+      <text>存量大盘</text>
+    </view>
+    <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange">
+      <text>客户列表</text>
+    </view>
+    <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange">
+      <text>精准查询</text>
+    </view>
+    <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" data-tab="3" bindtap="onTabChange">
+      <text>今日动态</text>
+    </view>
+  </view>
+
+  <!-- ==================== Tab 0: 存量大盘 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 0}}">
+    <!-- 加载状态 -->
+    <view class="loading-state" wx:if="{{loading && !dashboard}}">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <block wx:if="{{dashboard}}">
+      <!-- 用户分布卡片 -->
+      <view class="card">
+        <view class="card-title">用户分布</view>
+        <view class="stat-rows">
+          <view class="stat-row">
+            <text class="stat-label">游客</text>
+            <text class="stat-value">{{dashboard.distribution.guest}}</text>
+            <text class="stat-pct">{{dashboard.guestPct}}%</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">普通用户</text>
+            <text class="stat-value">{{dashboard.distribution.normal}}</text>
+            <text class="stat-pct">{{dashboard.normalPct}}%</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">活跃VIP</text>
+            <text class="stat-value highlight">{{dashboard.distribution.activeVip}}</text>
+            <text class="stat-pct">{{dashboard.activeVipPct}}%</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">过期VIP</text>
+            <text class="stat-value">{{dashboard.distribution.expiredVip}}</text>
+            <text class="stat-pct">{{dashboard.expiredVipPct}}%</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 资产总览卡片 -->
+      <view class="card">
+        <view class="card-title">资产总览</view>
+        <view class="stat-rows">
+          <view class="stat-row">
+            <text class="stat-label">总用户数</text>
+            <text class="stat-value highlight">{{dashboard.totalUsers}}</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">流通发丝</text>
+            <text class="stat-value">{{dashboard.circulationHairs}}</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">累计充值</text>
+            <text class="stat-value money">¥{{dashboard.totalRecharge}}</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">人均充值</text>
+            <text class="stat-value money">¥{{dashboard.avgRecharge}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!dashboard && !loading}}">
+      <text class="empty-icon">📊</text>
+      <text class="empty-text">暂无大盘数据</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 1: 客户列表 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 1}}" bindscrolltolower="onListScrollToLower">
+    <!-- 排序选择器 -->
+    <view class="filter-section">
+      <view class="filter-row">
+        <text class="filter-label">排序：</text>
+        <picker mode="selector" range="{{sortOptions}}" value="{{sortIndex}}" bindchange="onSortChange">
+          <view class="picker-value">{{sortOptions[sortIndex]}} ▼</view>
+        </picker>
+      </view>
+      <view class="filter-row">
+        <text class="filter-label">等级：</text>
+        <picker mode="selector" range="{{levelOptions}}" value="{{levelIndex}}" bindchange="onLevelFilterChange">
+          <view class="picker-value">{{levelOptions[levelIndex]}} ▼</view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 客户卡片列表 -->
+    <view class="customer-list" wx:if="{{customers.length > 0}}">
+      <view class="customer-card" wx:for="{{customers}}" wx:key="id">
+        <view class="customer-header">
+          <text class="customer-name">{{item.displayName}}</text>
+          <text class="level-tag {{item.levelClass}}">{{item.levelText}}</text>
+        </view>
+        <view class="customer-body">
+          <view class="customer-row">
+            <text class="customer-label">手机号</text>
+            <text class="customer-value">{{item.displayPhone}}</text>
+          </view>
+          <view class="customer-row">
+            <text class="customer-label">充值金额</text>
+            <text class="customer-value money">¥{{item.totalRecharge}}</text>
+          </view>
+          <view class="customer-row">
+            <text class="customer-label">发丝余额</text>
+            <text class="customer-value">{{item.totalHairs}}</text>
+          </view>
+          <view class="customer-row">
+            <text class="customer-label">最近活跃</text>
+            <text class="customer-value">{{item.lastActiveText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{!listNoMore && customers.length > 0}}">
+      <text class="load-more-text" wx:if="{{listLoading}}">加载中...</text>
+      <text class="load-more-text" wx:else bindtap="loadMoreCustomers">点击加载更多</text>
+    </view>
+
+    <!-- 没有更多 -->
+    <view class="no-more" wx:if="{{listNoMore && customers.length > 0}}">
+      <text class="no-more-text">没有更多了</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{customers.length === 0 && !listLoading}}">
+      <text class="empty-icon">👥</text>
+      <text class="empty-text">暂无客户数据</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 2: 精准查询 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 2}}">
+    <!-- 搜索栏 -->
+    <view class="search-bar">
+      <input class="search-input" placeholder="输入手机号搜索" value="{{searchPhone}}" bindinput="onSearchInput" bindconfirm="onSearchConfirm" type="number" />
+      <button class="search-btn" bindtap="onSearch" loading="{{searchLoading}}">搜索</button>
+    </view>
+
+    <!-- 搜索结果 -->
+    <view class="detail-card" wx:if="{{searchResult}}">
+      <view class="detail-header">
+        <text class="detail-name">{{searchResult.displayName}}</text>
+        <text class="level-tag {{searchResult.member_level === 'vip' ? 'vip' : 'normal'}}">{{searchResult.levelText}}</text>
+      </view>
+      <view class="detail-body">
+        <view class="detail-row">
+          <text class="detail-label">手机号</text>
+          <text class="detail-value">{{searchResult.displayPhone}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">用户类型</text>
+          <text class="detail-value">{{searchResult.typeText}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">发丝余额</text>
+          <text class="detail-value">{{searchResult.totalHairs}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">累计充值</text>
+          <text class="detail-value money">¥{{searchResult.totalRecharge}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">注册时间</text>
+          <text class="detail-value">{{searchResult.createdAtText}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">最近活跃</text>
+          <text class="detail-value">{{searchResult.lastActiveText}}</text>
+        </view>
+      </view>
+
+      <!-- 最近充值记录 -->
+      <view class="record-section" wx:if="{{searchResult.recentRecharges.length > 0}}">
+        <view class="record-title">最近充值记录</view>
+        <view class="record-list">
+          <view class="record-item" wx:for="{{searchResult.recentRecharges}}" wx:key="index">
+            <text class="record-amount money">+¥{{item.amountText}}</text>
+            <text class="record-time">{{item.timeText}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 最近消费记录 -->
+      <view class="record-section" wx:if="{{searchResult.recentConsumptions.length > 0}}">
+        <view class="record-title">最近消费记录</view>
+        <view class="record-list">
+          <view class="record-item" wx:for="{{searchResult.recentConsumptions}}" wx:key="index">
+            <text class="record-desc">{{item.service_name || item.service_type || '消费'}}</text>
+            <text class="record-amount">-{{item.amountText}}</text>
+            <text class="record-time">{{item.timeText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 未找到提示 -->
+    <view class="empty-state" wx:if="{{searchNotFound && !searchLoading}}">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-text">未找到该手机号对应的客户</text>
+    </view>
+
+    <!-- 初始状态 -->
+    <view class="empty-state" wx:if="{{!searchResult && !searchNotFound && !searchLoading}}">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-text">输入手机号查询客户详情</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 3: 今日动态 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 3}}">
+    <!-- 加载状态 -->
+    <view class="loading-state" wx:if="{{loading && !todayStats}}">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <block wx:if="{{todayStats}}">
+      <!-- 今日新增用户 -->
+      <view class="card">
+        <view class="card-title">今日新增用户</view>
+        <view class="big-number">{{todayStats.newUsers}}</view>
+        <view class="stat-rows" wx:if="{{todayStats.newGuests > 0 || todayStats.newRegistered > 0 || todayStats.newVip > 0}}">
+          <view class="stat-row" wx:if="{{todayStats.newGuests > 0}}">
+            <text class="stat-label">游客</text>
+            <text class="stat-value">{{todayStats.newGuests}}</text>
+          </view>
+          <view class="stat-row" wx:if="{{todayStats.newRegistered > 0}}">
+            <text class="stat-label">注册用户</text>
+            <text class="stat-value">{{todayStats.newRegistered}}</text>
+          </view>
+          <view class="stat-row" wx:if="{{todayStats.newVip > 0}}">
+            <text class="stat-label">VIP</text>
+            <text class="stat-value highlight">{{todayStats.newVip}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 今日活跃 -->
+      <view class="card">
+        <view class="card-title">今日活跃用户</view>
+        <view class="big-number">{{todayStats.activeUsers}}</view>
+      </view>
+
+      <!-- 今日充值 -->
+      <view class="card">
+        <view class="card-title">今日充值</view>
+        <view class="stat-rows">
+          <view class="stat-row">
+            <text class="stat-label">充值金额</text>
+            <text class="stat-value money">¥{{todayStats.rechargeAmount}}</text>
+          </view>
+          <view class="stat-row">
+            <text class="stat-label">充值笔数</text>
+            <text class="stat-value">{{todayStats.rechargeCount}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 今日消费 -->
+      <view class="card">
+        <view class="card-title">今日消费</view>
+        <view class="stat-rows">
+          <view class="stat-row">
+            <text class="stat-label">消费笔数</text>
+            <text class="stat-value">{{todayStats.consumptionCount}}</text>
+          </view>
+        </view>
+        <!-- 按服务类型分组 -->
+        <view class="stat-rows" wx:if="{{todayStats.consumptionByService.length > 0}}">
+          <view class="stat-row" wx:for="{{todayStats.consumptionByService}}" wx:key="service">
+            <text class="stat-label">{{item.service_name || item.service}}</text>
+            <text class="stat-value">{{item.count}}笔</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!todayStats && !loading}}">
+      <text class="empty-icon">📈</text>
+      <text class="empty-text">暂无今日动态数据</text>
+    </view>
+  </scroll-view>
+</view>

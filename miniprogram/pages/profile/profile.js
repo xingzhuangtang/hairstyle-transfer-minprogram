@@ -221,11 +221,29 @@ Page({
   },
 
   /**
+   * 跳转到客户档案（开发者功能）
+   */
+  goToCustomerAdmin() {
+    wx.navigateTo({
+      url: '/pages/customer-admin/customer-admin'
+    })
+  },
+
+  /**
    * 跳转到留言管理（开发者功能）
    */
   goToMessageAdmin() {
     wx.navigateTo({
       url: '/pages/message-admin/message-admin'
+    })
+  },
+
+  /**
+   * 跳转到退款权限管理（开发者功能）
+   */
+  goToRefundAdmin() {
+    wx.navigateTo({
+      url: '/pages/refund-admin/refund-admin'
     })
   },
 

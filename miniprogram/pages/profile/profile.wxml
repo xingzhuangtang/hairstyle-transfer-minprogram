@@ -168,12 +168,27 @@
 
     <!-- 开发者模式和测试工具（仅开发者可见） -->
     <view wx:if="{{isDeveloper}}">
-      <!-- 留言管理 -->
+      <!-- 客户档案 -->
       <view class="menu-list" style="margin-bottom: 30rpx;">
+        <view class="menu-item" bindtap="goToCustomerAdmin">
+          <view class="menu-left">
+            <image class="menu-icon" src="/images/icons/admin.png"></image>
+            <text class="menu-text">客户档案</text>
+          </view>
+          <image class="arrow" src="/images/icons/arrow-right.png"></image>
+        </view>
+        <!-- 留言管理 -->
         <view class="menu-item" bindtap="goToMessageAdmin">
           <view class="menu-left">
             <image class="menu-icon" src="/images/icons/admin.png"></image>
             <text class="menu-text">留言管理</text>
+          </view>
+          <image class="arrow" src="/images/icons/arrow-right.png"></image>
+        </view>
+        <view class="menu-item" bindtap="goToRefundAdmin">
+          <view class="menu-left">
+            <image class="menu-icon" src="/images/icons/admin.png"></image>
+            <text class="menu-text">退款权限</text>
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>
