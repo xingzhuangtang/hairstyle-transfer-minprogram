@@ -143,6 +143,7 @@ sync_code() {
         "virtual_payment_service.py"
         "refund_service.py"
         "refund_notifier.py"
+        "cache_service.py"
         # --- AI / 图像处理 ---
         "bailian_sketch_converter.py"
         "aliyun_hair_transfer_fixed.py"
@@ -153,6 +154,12 @@ sync_code() {
         "scheduler.py"
         "fix_financial_records.py"
         "debug_config.py"
+        # --- 数据库检查 / 监控 ---
+        "check_db_schema.py"
+        "fix_db_schema.py"
+        "monitor_financial.py"
+        "manual_fix_recharge.py"
+        "migrate_dev_indexes.py"
     )
 
     for file in "${CORE_FILES[@]}"; do
@@ -261,6 +268,104 @@ check_env_completeness() {
 }
 
 # ============================================
+# 静态文件夹路径验证和修复
+# ============================================
+
+verify_static_paths() {
+    log_info "验证静态文件夹路径..."
+
+    # 检查 backend/static 是否存在且是符号链接
+    BACKEND_STATIC="$DEPLOY_PATH/backend/static"
+    PROJECT_STATIC="$DEPLOY_PATH/static"
+
+    # 如果 backend/static 不存在或是目录（不是符号链接），创建符号链接
+    if [[ -L "$BACKEND_STATIC" ]]; then
+        # 已是符号链接，检查目标是否正确
+        LINK_TARGET=$(readlink -f "$BACKEND_STATIC")
+        if [[ "$LINK_TARGET" == "$PROJECT_STATIC" ]]; then
+            log_info "  ✅ backend/static 符号链接正确"
+        else
+            log_warn "  ⚠️  backend/static 符号链接指向错误: $LINK_TARGET"
+            log_info "  修复符号链接..."
+            remote_exec "rm -rf $BACKEND_STATIC && ln -s $PROJECT_STATIC $BACKEND_STATIC"
+        fi
+    elif [[ -d "$BACKEND_STATIC" ]]; then
+        # 是普通目录，需要迁移数据并创建符号链接
+        log_warn "  ⚠️  backend/static 是普通目录，需要迁移数据..."
+
+        # 迁移数据到项目根目录的 static
+        remote_exec "mkdir -p $PROJECT_STATIC && cp -rn $BACKEND_STATIC/* $PROJECT_STATIC/ 2>/dev/null || true"
+
+        # 删除原目录并创建符号链接
+        remote_exec "rm -rf $BACKEND_STATIC && ln -s $PROJECT_STATIC $BACKEND_STATIC"
+        log_info "  ✅ 已迁移数据并创建符号链接"
+    else
+        # 不存在，直接创建符号链接
+        remote_exec "mkdir -p $PROJECT_STATIC && ln -s $PROJECT_STATIC $BACKEND_STATIC"
+        log_info "  ✅ 已创建 backend/static 符号链接"
+    fi
+
+    # 验证符号链接
+    if [[ -L "$BACKEND_STATIC" ]]; then
+        LINK_TARGET=$(readlink -f "$BACKEND_STATIC")
+        log_info "  ✅ backend/static -> $LINK_TARGET"
+    else
+        log_error "  ❌ 符号链接创建失败，请手动检查"
+    fi
+
+    echo ""
+}
+
+# ============================================
+# 域名白名单检查（微信小程序）
+# ============================================
+
+check_domain_whitelist() {
+    log_info "检查域名白名单配置..."
+
+    # 需要检查的域名列表
+    DOMAINS_TO_CHECK=()
+
+    # 从 .env 读取 OSS 配置
+    if [[ -f "$DEPLOY_PATH/.env" ]]; then
+        OSS_ENDPOINT=$(remote_exec "grep '^OSS_ENDPOINT=' $DEPLOY_PATH/.env | cut -d= -f2" 2>/dev/null | tr -d '[:space:]')
+        if [[ -n "$OSS_ENDPOINT" ]]; then
+            DOMAINS_TO_CHECK+=("$OSS_ENDPOINT")
+        fi
+    fi
+
+    # 默认 OSS 域名
+    if [[ ${#DOMAINS_TO_CHECK[@]} -eq 0 ]]; then
+        DOMAINS_TO_CHECK+=("oss-cn-shanghai.aliyuncs.com")
+    fi
+
+    WARN_COUNT=0
+
+    for domain in "${DOMAINS_TO_CHECK[@]}"; do
+        log_info "  检查域名: $domain"
+
+        # 检查 Nginx 是否有该域名的代理配置
+        if remote_exec "grep -q '$domain' $DEPLOY_PATH/config/nginx.conf 2>/dev/null || grep -q '$domain' /etc/nginx/conf.d/*.conf 2>/dev/null"; then
+            log_info "    ✅ Nginx 已配置代理"
+        else
+            log_warn "    ⚠️  Nginx 未配置代理，前端可能无法直接访问"
+            log_info "    建议: 在微信小程序后台配置 downloadFile/uploadFile 域名白名单"
+            log_info "    或添加 Nginx 代理: location /oss/ { proxy_pass https://$domain/; }"
+            WARN_COUNT=$((WARN_COUNT + 1))
+        fi
+    done
+
+    if [[ $WARN_COUNT -gt 0 ]]; then
+        log_warn "发现 $WARN_COUNT 个域名可能需要配置白名单"
+        log_info "请参考: https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html"
+    else
+        log_info "  ✅ 所有域名配置正常"
+    fi
+
+    echo ""
+}
+
+# ============================================
 # 清理缓存并重启服务
 # ============================================
 
@@ -292,6 +397,84 @@ restart_services() {
 
     log_info "服务重启完成"
     echo ""
+}
+
+# ============================================
+# 数据库结构检查
+# ============================================
+
+check_db_schema() {
+    log_info "检查数据库表结构完整性..."
+
+    # 在远程服务器执行检查
+    CHECK_RESULT=$(remote_exec "cd $DEPLOY_PATH && python3 -c \"
+import sys
+from app import app, db
+from sqlalchemy import inspect
+
+with app.app_context():
+    inspector = inspect(db.engine)
+    db_tables = set(inspector.get_table_names())
+    model_tables = set(db.metadata.tables.keys())
+
+    missing_tables = model_tables - db_tables
+    if missing_tables:
+        print(f'MISSING_TABLES:{missing_tables}')
+        sys.exit(1)
+
+    missing_cols = {}
+    for table in model_tables & db_tables:
+        model_cols = {c.name for c in db.metadata.tables[table].columns}
+        db_cols = {c['name'] for c in inspector.get_columns(table)}
+        diff = model_cols - db_cols
+        if diff:
+            missing_cols[table] = list(diff)
+
+    if missing_cols:
+        print(f'MISSING_COLS:{missing_cols}')
+        sys.exit(1)
+
+    print('OK')
+\"" 2>&1)
+
+    if echo "$CHECK_RESULT" | grep -q "^OK"; then
+        log_info "  ✅ 数据库表结构完整"
+    else
+        log_error "  ❌ 数据库结构问题: $CHECK_RESULT"
+        log_warn "  请在服务器上运行: python3 fix_db_schema.py"
+        return 1
+    fi
+
+    return 0
+}
+
+# ============================================
+# 财务流水监控
+# ============================================
+
+monitor_financial() {
+    log_info "检查财务流水记录完整性..."
+
+    # 在远程服务器执行检查
+    remote_exec "cd $DEPLOY_PATH && python3 -c \"
+from app import app, db
+from models import RechargeRecord, MemberOrder, FinancialRecord
+from sqlalchemy import func
+
+with app.app_context():
+    success_orders = RechargeRecord.query.filter_by(payment_status='success').count()
+    recharge_records = FinancialRecord.query.filter_by(record_type='recharge', status='success').count()
+    member_orders = MemberOrder.query.filter_by(payment_status='success').count()
+    member_records = FinancialRecord.query.filter_by(record_type='member_purchase', status='success').count()
+
+    print(f'充值订单: {success_orders}, 财务记录: {recharge_records}')
+    print(f'会员订单: {member_orders}, 财务记录: {member_records}')
+
+    total_recharge = db.session.query(func.sum(RechargeRecord.amount)).filter(RechargeRecord.payment_status == 'success').scalar() or 0
+    print(f'充值总额: ¥{float(total_recharge):.2f}')
+\"" 2>&1 || log_warn "财务监控执行失败"
+
+    return 0
 }
 
 # ============================================
@@ -382,6 +565,7 @@ verify_sync() {
         "bailian_sketch_converter.py" "aliyun_hair_transfer_fixed.py"
         "hair_segmentation.py" "image_preprocessor.py" "sketch_converter.py"
         "scheduler.py" "fix_financial_records.py" "debug_config.py"
+        "check_db_schema.py" "fix_db_schema.py" "monitor_financial.py"
     )
 
     for file in "${CORE_FILES[@]}"; do
@@ -419,7 +603,26 @@ main() {
     sync_code
     sync_nginx_config
     check_env_completeness
+    verify_static_paths
+    check_domain_whitelist
     restart_services
+
+    echo ""
+    log_info "============================================"
+    log_info "开始数据库结构检查..."
+    log_info "============================================"
+    echo ""
+
+    DB_CHECK_RESULT=0
+    check_db_schema || DB_CHECK_RESULT=$?
+
+    echo ""
+    log_info "============================================"
+    log_info "开始财务流水监控..."
+    log_info "============================================"
+    echo ""
+
+    monitor_financial
 
     echo ""
     log_info "============================================"
@@ -452,10 +655,16 @@ main() {
 
     echo ""
     echo -e "${BLUE}============================================${NC}"
-    if [[ $HEALTH_RESULT -eq 0 ]]; then
+    if [[ $HEALTH_RESULT -eq 0 && $DB_CHECK_RESULT -eq 0 ]]; then
         echo -e "${GREEN}✅ 部署成功! 耗时: ${duration}秒${NC}"
     else
         echo -e "${YELLOW}⚠️  部署完成但存在警告，耗时: ${duration}秒${NC}"
+        if [[ $DB_CHECK_RESULT -ne 0 ]]; then
+            echo -e "${YELLOW}   - 数据库结构存在问题${NC}"
+        fi
+        if [[ $HEALTH_RESULT -ne 0 ]]; then
+            echo -e "${YELLOW}   - 健康检查存在警告${NC}"
+        fi
     fi
     echo -e "${BLUE}============================================${NC}"
     echo ""

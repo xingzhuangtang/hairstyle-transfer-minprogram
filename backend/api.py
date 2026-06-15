@@ -8,18 +8,65 @@ API路由模块
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime
 import json
+import re
 import time
 import config
-from auth import AuthService, login_required, vip_required, optional_login
+from auth import AuthService, login_required, vip_required, optional_login, is_developer
 from sms_service import SMSService
 from payment_service import PaymentService
 from hair_service import HairService
 from member_service import MemberService
 from account_service import AccountService
-from models import db, User, ConsumptionRecord, HistoryRecord, Device, Message
+from models import db, User, ConsumptionRecord, HistoryRecord, Device, Message, FinancialRecord, RechargeRecord
+from sqlalchemy import func as sql_func
 
 # 创建蓝图
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+
+# ============================================
+# 限流工具
+# ============================================
+
+_rate_limit_store = {}
+
+def check_rate_limit(key, max_requests=5, window_seconds=60):
+    """
+    简单的内存限流检查
+    
+    Args:
+        key: 限流键（如 IP 或手机号）
+        max_requests: 时间窗口内最大请求数
+        window_seconds: 时间窗口（秒）
+    
+    Returns:
+        tuple: (allowed: bool, remaining: int, retry_after: int)
+    """
+    now = time.time()
+    store_key = f"rate_limit:{key}"
+    
+    if store_key not in _rate_limit_store:
+        _rate_limit_store[store_key] = []
+    
+    timestamps = _rate_limit_store[store_key]
+    # 清理过期记录
+    timestamps[:] = [t for t in timestamps if now - t < window_seconds]
+    
+    if len(timestamps) >= max_requests:
+        oldest = min(timestamps)
+        retry_after = int(window_seconds - (now - oldest)) + 1
+        return False, 0, retry_after
+    
+    timestamps.append(now)
+    remaining = max_requests - len(timestamps)
+    return True, remaining, 0
+
+
+def get_client_ip():
+    """获取客户端真实IP"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr or 'unknown'
 
 
 # ============================================
@@ -64,6 +111,17 @@ def send_sms_code():
         
         if not phone:
             return jsonify({'error': '缺少phone参数'}), 400
+        
+        # 限流：同一手机号每分钟最多5次
+        allowed, _, retry_after = check_rate_limit(f"sms_phone:{phone}", max_requests=5, window_seconds=60)
+        if not allowed:
+            return jsonify({'error': f'发送过于频繁，请{retry_after}秒后重试'}), 429
+        
+        # 限流：同一IP每分钟最多10次
+        client_ip = get_client_ip()
+        allowed, _, retry_after = check_rate_limit(f"sms_ip:{client_ip}", max_requests=10, window_seconds=60)
+        if not allowed:
+            return jsonify({'error': f'请求过于频繁，请{retry_after}秒后重试'}), 429
         
         sms_service = SMSService()
         result = sms_service.send_code(phone)
@@ -683,6 +741,87 @@ def get_recharge_order_status():
         })
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/recharge/query-wechat/<order_no>', methods=['GET'])
+@login_required
+def query_wechat_pay_status(order_no):
+    """主动查询微信支付状态（当回调未到达时使用）"""
+    try:
+        from models import RechargeRecord
+        from payment_service import WeChatPayService, PaymentService
+
+        user = g.current_user
+        order = RechargeRecord.query.filter_by(
+            user_id=user.id,
+            order_no=order_no
+        ).first()
+
+        if not order:
+            return jsonify({'error': '订单不存在'}), 404
+
+        # 如果订单已经是 success，直接返回
+        if order.payment_status == 'success':
+            return jsonify({
+                'success': True,
+                'payment_status': 'success',
+                'source': 'local'
+            })
+
+        # 调用微信支付 API 查询订单状态
+        wechat_service = WeChatPayService()
+        result = wechat_service.wechat_pay.query_order(order_no)
+
+        if result.get('success'):
+            trade_state = result.get('trade_state')
+
+            if trade_state == 'SUCCESS':
+                # 支付成功，处理订单
+                payment_service = PaymentService()
+                transaction_id = result.get('transaction_id', f"QUERY_{order_no}")
+                process_result = payment_service.process_recharge_success(
+                    order_no=order_no,
+                    transaction_id=transaction_id
+                )
+
+                if process_result['success']:
+                    return jsonify({
+                        'success': True,
+                        'payment_status': 'success',
+                        'source': 'wechat_query'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': process_result.get('error', '处理失败')
+                    })
+            elif trade_state in ['CLOSED', 'REVOKED', 'PAYERROR']:
+                # 支付失败或关闭
+                order.payment_status = 'failed'
+                db.session.commit()
+                return jsonify({
+                    'success': True,
+                    'payment_status': 'failed',
+                    'source': 'wechat_query'
+                })
+            else:
+                # 仍在支付中
+                return jsonify({
+                    'success': True,
+                    'payment_status': 'pending',
+                    'source': 'wechat_query'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', '查询失败')
+            })
+
+    except Exception as e:
+        print(f"❌ 查询微信支付状态异常: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -1822,6 +1961,12 @@ def submit_message():
         if len(content) > 500:
             return jsonify({'error': '留言内容最多500个字符'}), 400
 
+        # 限流：同一IP每小时最多提交3次留言
+        client_ip = get_client_ip()
+        allowed, _, retry_after = check_rate_limit(f"msg_ip:{client_ip}", max_requests=3, window_seconds=3600)
+        if not allowed:
+            return jsonify({'error': f'提交过于频繁，请稍后再试'}), 429
+
         # 尝试关联用户（通过手机号查找已注册用户）
         matched_user = User.query.filter_by(phone=phone.strip()).first()
         user_id = matched_user.id if matched_user else None
@@ -1951,6 +2096,149 @@ def admin_enable_refund():
         logging.error(f'Admin enable refund error: {e}')
         return jsonify({'error': '服务器内部错误'}), 500
 
+
+@api_bp.route('/admin/refund/users', methods=['GET'])
+def admin_refund_users():
+    """查询用户列表（退款权限管理，开发者专用）"""
+    try:
+        from auth import is_developer
+
+        if not is_developer():
+            return jsonify({'error': '无权访问此接口'}), 403
+
+        phone = request.args.get('phone', '').strip()
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+
+        query = User.query
+        if phone:
+            query = query.filter(User.phone.like(f'%{phone}%'))
+
+        query = query.order_by(User.id.desc())
+        pagination = query.offset((page - 1) * page_size).limit(page_size + 1).all()
+
+        has_more = len(pagination) > page_size
+        users = pagination[:page_size]
+
+        return jsonify({
+            'success': True,
+            'users': [{
+                'id': u.id,
+                'nickname': u.nickname or '',
+                'phone': u.phone or '',
+                'scissor_hairs': u.scissor_hairs or 0,
+                'comb_hairs': u.comb_hairs or 0,
+                'member_level': u.member_level or 'normal',
+                'refund_enabled': u.refund_enabled or False,
+                'created_at': u.created_at.isoformat() if u.created_at else ''
+            } for u in users],
+            'has_more': has_more,
+            'page': page,
+            'page_size': page_size
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f'Admin refund users error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/admin/refund/toggle', methods=['POST'])
+def admin_refund_toggle():
+    """切换用户退款权限（开发者专用）"""
+    try:
+        from auth import is_developer
+
+        if not is_developer():
+            return jsonify({'error': '无权访问此接口'}), 403
+
+        data = request.get_json()
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({'error': '缺少user_id参数'}), 400
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+
+        user.refund_enabled = not user.refund_enabled
+        db.session.commit()
+
+        status = '开通' if user.refund_enabled else '关闭'
+        print(f"{'✅' if user.refund_enabled else '🔒'} 已{status}用户退款权限: user_id={user_id}, phone={user.phone}")
+
+        return jsonify({
+            'success': True,
+            'refund_enabled': user.refund_enabled,
+            'message': f'已{status}用户 {user.nickname or user.phone} 的退款权限'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f'Admin refund toggle error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/admin/refund/applications', methods=['GET'])
+def admin_refund_applications():
+    """查看所有退款申请（开发者专用）"""
+    try:
+        from auth import is_developer
+        from models import RefundApplication
+
+        if not is_developer():
+            return jsonify({'error': '无权访问此接口'}), 403
+
+        status = request.args.get('status', 'all').strip()
+        phone = request.args.get('phone', '').strip()
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+
+        query = RefundApplication.query
+
+        # 按状态筛选
+        if status != 'all' and status in ('pending', 'approved', 'rejected'):
+            query = query.filter_by(status=status)
+
+        # 按手机号搜索
+        if phone:
+            query = query.join(User).filter(User.phone.like(f'%{phone}%'))
+
+        query = query.order_by(RefundApplication.created_at.desc())
+        pagination = query.offset((page - 1) * page_size).limit(page_size + 1).all()
+
+        has_more = len(pagination) > page_size
+        applications = pagination[:page_size]
+
+        return jsonify({
+            'success': True,
+            'applications': [{
+                'id': a.id,
+                'user_id': a.user_id,
+                'user_phone': a.user.phone if a.user else '',
+                'user_nickname': a.user.nickname if a.user else '',
+                'applicant_name': a.applicant_name,
+                'applicant_phone': a.applicant_phone,
+                'refund_type': a.refund_type,
+                'refund_amount': float(a.refund_amount) if a.refund_amount else 0,
+                'reason': a.reason,
+                'status': a.status,
+                'approved_at': a.approved_at.isoformat() if a.approved_at else None,
+                'rejection_reason': a.rejection_reason,
+                'created_at': a.created_at.isoformat() if a.created_at else ''
+            } for a in applications],
+            'total': query.count(),
+            'has_more': has_more,
+            'page': page,
+            'page_size': page_size
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f'Admin refund applications error: {e}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 # ==================== 微信虚拟支付 API（iOS端）====================
@@ -2088,13 +2376,14 @@ def virtual_pay_callback():
 
         if pay_status == "SUCCESS":
             # 查找订单并处理成功
+            transaction_id = verified_data.get("transaction_id", f"VIRTUAL_{order_no}")
             order = RechargeRecord.query.filter_by(order_no=order_no).first()
             if order:
-                payment_service.process_recharge_success(order_no)
+                payment_service.process_recharge_success(order_no, transaction_id)
             else:
                 order = MemberOrder.query.filter_by(order_no=order_no).first()
                 if order:
-                    payment_service.process_member_success(order_no)
+                    payment_service.process_member_success(order_no, transaction_id)
 
             return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
         else:
@@ -2160,6 +2449,76 @@ def referral_qrcode():
             return jsonify(result)
         else:
             return jsonify({'error': result.get('error', '生成失败')}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/referral/qrcode-image', methods=['GET'])
+@login_required
+def referral_qrcode_image():
+    """代理二维码图片，通过服务器域名提供，解决 wx.getImageInfo 域名白名单问题"""
+    try:
+        from referral_service import ReferralService
+        referral_service = ReferralService()
+        user = g.current_user
+
+        result = referral_service.get_or_create_qrcode(user.id)
+        if not result.get('success'):
+            return jsonify({'error': result.get('error', '生成失败')}), 500
+
+        qrcode_url = result.get('qrcode_url')
+        if not qrcode_url:
+            return jsonify({'error': '二维码URL不存在'}), 404
+
+        import requests as req
+        resp = req.get(qrcode_url, timeout=10)
+        if resp.status_code != 200:
+            return jsonify({'error': '图片获取失败'}), 500
+
+        return resp.content, 200, {'Content-Type': 'image/png'}
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/proxy/resource', methods=['GET'])
+@login_required
+def proxy_resource():
+    """
+    通用资源代理接口
+    通过服务器域名代理外部资源（如 OSS 图片），解决微信小程序域名白名单问题
+
+    用法: GET /api/proxy/resource?url=<encoded_url>
+    示例: /api/proxy/resource?url=https%3A%2F%2Foss.example.com%2Fimage.png
+    """
+    try:
+        from urllib.parse import unquote
+        target_url = request.args.get('url', '')
+
+        if not target_url:
+            return jsonify({'error': '缺少 url 参数'}), 400
+
+        target_url = unquote(target_url)
+
+        # 安全检查：只允许代理白名单中的域名
+        allowed_domains = [
+            'oss-cn-shanghai.aliyuncs.com',
+            'hair-transfer-bucket.oss-cn-shanghai.aliyuncs.com',
+        ]
+
+        from urllib.parse import urlparse
+        parsed = urlparse(target_url)
+        if parsed.hostname not in allowed_domains:
+            return jsonify({'error': '域名不在白名单中'}), 403
+
+        import requests as req
+        resp = req.get(target_url, timeout=10)
+        if resp.status_code != 200:
+            return jsonify({'error': '资源获取失败'}), 500
+
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        return resp.content, 200, {'Content-Type': content_type}
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2292,14 +2651,226 @@ def withdrawal_records():
 # 退款申请相关接口
 # ============================================
 
+@api_bp.route('/refund/recharge-options', methods=['GET'])
+@login_required
+def get_refund_recharge_options():
+    """
+    获取充值退款可选金额列表
+    返回用户的充值记录，标注是否可退（绿色=可退，灰色=不可退）
+    """
+    try:
+        from models import RechargeRecord, RefundApplication
+
+        user = g.current_user
+
+        # 检查是否有待处理的退款申请
+        has_pending = RefundApplication.query.filter_by(
+            user_id=user.id, status='pending'
+        ).first() is not None
+
+        # 获取所有充值记录（按时间倒序）
+        orders = RechargeRecord.query.filter_by(
+            user_id=user.id
+        ).order_by(RechargeRecord.created_at.desc()).all()
+
+        # 获取用户当前剪刀发丝数
+        scissor_hairs = user.scissor_hairs or 0
+
+        options = []
+        for order in orders:
+            amount = float(order.amount)
+            order_scissor = order.scissor_hairs or 0
+            status_val = order.payment_status
+
+            # 判断是否可退
+            can_refund = False
+            refundable_amount = 0.0
+            reason = ''
+
+            if has_pending:
+                reason = '有待处理申请'
+            elif status_val == 'refunded':
+                reason = '已退款'
+            elif status_val != 'success':
+                reason = f'状态: {status_val}'
+            elif order_scissor == 0:
+                reason = '发丝已耗尽'
+            else:
+                # 计算可退金额：基于剩余剪刀发丝比例
+                ratio = min(1.0, scissor_hairs / order_scissor) if order_scissor > 0 else 0
+                refundable_amount = round(amount * ratio, 2)
+                if refundable_amount > 0:
+                    can_refund = True
+                else:
+                    reason = '发丝已耗尽'
+
+            options.append({
+                'id': order.id,
+                'amount': amount,
+                'scissor_hairs': order_scissor,
+                'comb_hairs': order.comb_hairs or 0,
+                'payment_status': status_val,
+                'created_at': order.created_at.isoformat() if order.created_at else '',
+                'can_refund': can_refund,
+                'refundable_amount': refundable_amount,
+                'reason': reason,
+                'display': f"¥{amount}{' (可退¥' + f'{refundable_amount}' + ')' if can_refund else ' (' + reason + ')'}"
+            })
+
+        return jsonify({
+            'success': True,
+            'options': options,
+            'has_pending_refund': has_pending,
+            'current_scissor_hairs': scissor_hairs
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/refund/calculate', methods=['POST'])
+@login_required
+def calculate_refund():
+    """
+    计算退款核算清单
+    
+    根据退款类型和金额，计算：
+    - 应扣回发丝
+    - 剩余发丝
+    - 差额（不足部分）
+    - 现金抵扣金额
+    - 最终退款金额
+    """
+    try:
+        from models import RechargeRecord, MemberOrder
+        from datetime import datetime
+        
+        data = request.get_json()
+        refund_type = data.get('refund_type')
+        refund_amount = data.get('refund_amount')
+        notify_admin = data.get('notify_admin', False)  # 是否通知管理员
+        
+        if not refund_type or refund_type not in ('recharge', 'membership'):
+            return jsonify({'error': '退款类型不合法'}), 400
+        
+        user = g.current_user
+        total_hairs = (user.scissor_hairs or 0) + (user.comb_hairs or 0)
+        
+        result = {
+            'refund_type': refund_type,
+            'user_info': {
+                'nickname': user.nickname or '未设置',
+                'phone': user.phone or '未绑定',
+                'user_id': user.id
+            }
+        }
+        
+        if refund_type == 'recharge':
+            # 充值退款计算
+            order = RechargeRecord.query.filter_by(
+                user_id=user.id, payment_status='success'
+            ).order_by(RechargeRecord.created_at.desc()).first()
+
+            if not order:
+                return jsonify({'error': '没有可退款的充值订单'}), 400
+
+            # 按退款比例计算应扣回的发丝
+            # 梳子卡槽发丝是赠送的，客户未付费，退款时只扣回剪刀卡槽发丝
+            refund_ratio = float(refund_amount) / float(order.amount)
+            need_scissor = int(order.scissor_hairs * refund_ratio)
+            hairs_to_deduct = need_scissor
+
+            scissor_hairs = user.scissor_hairs or 0
+            cash_deduction = 0.0
+            actual_refund = float(refund_amount)
+
+            if scissor_hairs >= hairs_to_deduct:
+                # 剪刀发丝充足，全额退款
+                pass
+            else:
+                # 剪刀发丝不足，差额用现金抵扣（0.01元/发丝）
+                missing_hairs = hairs_to_deduct - scissor_hairs
+                cash_deduction = round(missing_hairs * 0.01, 2)
+                actual_refund = max(0, float(refund_amount) - cash_deduction)
+
+            result.update({
+                'charge_amount': float(order.amount),
+                'charge_hairs': order.scissor_hairs + order.comb_hairs,
+                'refund_amount_requested': float(refund_amount),
+                'hairs_to_deduct': hairs_to_deduct,
+                'total_hairs': total_hairs,
+                'scissor_hairs': scissor_hairs,
+                'comb_hairs': user.comb_hairs or 0,
+                'hairs_sufficient': scissor_hairs >= hairs_to_deduct,
+                'missing_hairs': max(0, hairs_to_deduct - scissor_hairs),
+                'cash_deduction': cash_deduction,
+                'actual_refund': actual_refund
+            })
+            
+        elif refund_type == 'membership':
+            # 会员退款计算
+            if user.member_level != 'vip' or not user.member_expire_at:
+                return jsonify({'error': '当前非会员状态'}), 400
+            
+            if user.member_expire_at < datetime.now():
+                return jsonify({'error': '会员已过期'}), 400
+            
+            # 计算剩余天数和退款金额
+            remaining_days = (user.member_expire_at - datetime.now()).days
+            calculated_refund = int(99 * remaining_days / 365 * 100) / 100
+            
+            # 会员退款固定扣回 1000 发丝
+            hairs_to_deduct = 1000
+            cash_deduction = 0.0
+            actual_refund = calculated_refund
+            
+            if total_hairs >= hairs_to_deduct:
+                deduct_scissor = user.scissor_hairs or 0
+                deduct_comb = user.comb_hairs or 0
+            else:
+                deduct_scissor = user.scissor_hairs or 0
+                deduct_comb = user.comb_hairs or 0
+                missing_hairs = hairs_to_deduct - total_hairs
+                cash_deduction = round(missing_hairs * 0.01, 2)
+                actual_refund = max(0, calculated_refund - cash_deduction)
+            
+            result.update({
+                'member_price': 99,
+                'remaining_days': remaining_days,
+                'refund_amount_requested': calculated_refund,
+                'hairs_to_deduct': hairs_to_deduct,
+                'total_hairs': total_hairs,
+                'scissor_hairs': user.scissor_hairs or 0,
+                'comb_hairs': user.comb_hairs or 0,
+                'hairs_sufficient': total_hairs >= hairs_to_deduct,
+                'missing_hairs': max(0, hairs_to_deduct - total_hairs),
+                'cash_deduction': cash_deduction,
+                'actual_refund': actual_refund
+            })
+        
+        # 如果客户查看了清单，通知管理员
+        if notify_admin:
+            try:
+                from refund_notifier import RefundNotifier
+                notifier = RefundNotifier()
+                notifier.send_calculation_preview_notification(user, result)
+            except Exception as e:
+                print(f"⚠️ 发送核算清单通知失败: {e}")
+        
+        return jsonify({'success': True, 'calculation': result})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/refund/apply', methods=['POST'])
 @login_required
 def apply_refund():
-    """用户提交退款申请"""
+    """提交退款申请"""
     try:
         from refund_service import RefundService
-        data = request.get_json()
 
+        data = request.get_json()
         refund_type = data.get('refund_type')
         refund_amount = data.get('refund_amount')
         reason = data.get('reason')
@@ -2307,11 +2878,20 @@ def apply_refund():
         applicant_phone = data.get('applicant_phone')
         suggestions = data.get('suggestions')
 
-        if not all([refund_type, refund_amount, reason, applicant_name, applicant_phone]):
-            return jsonify({'error': '缺少必填参数'}), 400
-
-        if refund_type not in ('recharge', 'membership'):
+        if not refund_type or refund_type not in ('recharge', 'membership'):
             return jsonify({'error': '退款类型不合法'}), 400
+
+        if not refund_amount or float(refund_amount) <= 0:
+            return jsonify({'error': '退款金额不合法'}), 400
+
+        if not reason or not reason.strip():
+            return jsonify({'error': '请填写退款原因'}), 400
+
+        if not applicant_name or not applicant_name.strip():
+            return jsonify({'error': '请填写姓名'}), 400
+
+        if not applicant_phone or not re.match(r'^1\d{10}$', applicant_phone):
+            return jsonify({'error': '请填写正确的手机号'}), 400
 
         user = g.current_user
         refund_service = RefundService()
@@ -2319,14 +2899,17 @@ def apply_refund():
             user=user,
             refund_type=refund_type,
             refund_amount=float(refund_amount),
-            reason=reason,
-            applicant_name=applicant_name,
-            applicant_phone=applicant_phone,
-            suggestions=suggestions
+            reason=reason.strip(),
+            applicant_name=applicant_name.strip(),
+            applicant_phone=applicant_phone.strip(),
+            suggestions=suggestions.strip() if suggestions else None
         )
 
         if result['success']:
-            return jsonify(result)
+            return jsonify({
+                'success': True,
+                'application_id': result['application_id']
+            })
         else:
             return jsonify({'error': result['error']}), 400
 
@@ -2826,6 +3409,484 @@ def get_financial_summary():
         import logging
         logging.error(f'Financial summary error: {e}')
         return jsonify({'error': '服务器内部错误'}), 500
+
+
+# ============================================
+# 开发者端客户档案 API
+# ============================================
+
+def _mask_phone(phone):
+    """手机号脱敏：中间 4 位替换为 ****"""
+    if not phone or len(phone) < 7:
+        return phone
+    return phone[:3] + '****' + phone[7:]
+
+
+def _check_dev_permission():
+    """检查开发者权限，非开发者返回 404（不暴露接口存在）"""
+    auth_service = AuthService()
+    user = auth_service.get_current_user()
+    if not user or not is_developer(user.id):
+        return None, (jsonify({'success': False, 'error': '资源不存在'}), 404)
+    return user, None
+
+
+@api_bp.route('/dev/dashboard', methods=['GET'])
+def dev_dashboard():
+    """
+    客户存量大盘
+    - 用户级别分布统计（guest/normal/vip_active/vip_expired）
+    - 资产总览（总用户数、流通发丝总量、累计充值金额、人均充值）
+    - Redis 缓存 300 秒
+    """
+    user, err = _check_dev_permission()
+    if err:
+        return err
+
+    try:
+        from cache_service import get_cache_service
+        cache = get_cache_service()
+        cache_key = 'dev:dashboard:v1'
+
+        # 尝试从缓存读取
+        cached = cache.get(cache_key)
+        if cached:
+            return jsonify({'success': True, **cached})
+
+        # 用户级别分布统计
+        # guest 用户数
+        guest_count = User.query.filter_by(user_type='guest').count()
+        # normal 用户数（registered 且 member_level='normal'）
+        normal_count = User.query.filter_by(user_type='registered', member_level='normal').count()
+        # vip_active：registered 且 member_level='vip' 且未过期
+        now = datetime.now()
+        vip_active_count = User.query.filter(
+            User.user_type == 'registered',
+            User.member_level == 'vip',
+            User.member_expire_at > now
+        ).count()
+        # vip_expired：registered 且 member_level='vip' 但已过期
+        vip_expired_count = User.query.filter(
+            User.user_type == 'registered',
+            User.member_level == 'vip',
+            User.member_expire_at <= now
+        ).count()
+
+        # 资产总览
+        total_users = User.query.count()
+        # 流通发丝总量（scissor_hairs + comb_hairs）
+        total_hairs_result = db.session.query(
+            sql_func.coalesce(sql_func.sum(User.scissor_hairs), 0),
+            sql_func.coalesce(sql_func.sum(User.comb_hairs), 0)
+        ).first()
+        total_scissor_hairs = int(total_hairs_result[0] or 0)
+        total_comb_hairs = int(total_hairs_result[1] or 0)
+        total_hairs = total_scissor_hairs + total_comb_hairs
+
+        # 累计充值金额
+        total_recharge_result = db.session.query(
+            sql_func.coalesce(sql_func.sum(User.total_recharge), 0)
+        ).scalar()
+        total_recharge = float(total_recharge_result or 0)
+
+        # 人均充值
+        avg_recharge = round(total_recharge / total_users, 2) if total_users > 0 else 0
+
+        data = {
+            'user_distribution': {
+                'guest': guest_count,
+                'normal': normal_count,
+                'vip_active': vip_active_count,
+                'vip_expired': vip_expired_count,
+            },
+            'overview': {
+                'total_users': total_users,
+                'total_hairs': total_hairs,
+                'total_scissor_hairs': total_scissor_hairs,
+                'total_comb_hairs': total_comb_hairs,
+                'total_recharge': total_recharge,
+                'avg_recharge': avg_recharge,
+            }
+        }
+
+        # 写入缓存
+        cache.set(cache_key, data, expire_seconds=300)
+
+        return jsonify({'success': True, **data})
+
+    except Exception as e:
+        import logging
+        logging.error(f'Dev dashboard error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/dev/customers', methods=['GET'])
+def dev_customers():
+    """
+    客户全景列表
+    - 分页查询（page, page_size，上限 100）
+    - 排序支持：created_at_desc/asc, recharge_desc, hairs_desc, last_active
+    - 筛选支持：member_level, user_type, phone（模糊）, nickname（模糊）
+    - 手机号脱敏
+    """
+    user, err = _check_dev_permission()
+    if err:
+        return err
+
+    try:
+        # 分页参数
+        page = max(int(request.args.get('page', 1)), 1)
+        page_size = min(max(int(request.args.get('page_size', 20)), 1), 100)
+
+        # 排序参数
+        sort_by = request.args.get('sort_by', 'created_at_desc')
+
+        # 筛选参数
+        filter_level = request.args.get('level')  # guest/normal/vip
+        filter_phone = request.args.get('phone', '').strip()
+        filter_nickname = request.args.get('nickname', '').strip()
+
+        # 构建查询
+        query = User.query
+
+        # 应用筛选（三级分类：游客/普通/会员）
+        if filter_level:
+            if filter_level == 'guest':
+                query = query.filter(User.user_type == 'guest')
+            elif filter_level == 'normal':
+                query = query.filter(User.user_type == 'registered', User.member_level == 'normal')
+            elif filter_level == 'vip':
+                query = query.filter(User.user_type == 'registered', User.member_level == 'vip')
+        if filter_phone:
+            query = query.filter(User.phone.like(f'%{filter_phone}%'))
+        if filter_nickname:
+            query = query.filter(User.nickname.like(f'%{filter_nickname}%'))
+
+        # 应用排序
+        if sort_by == 'created_at_asc':
+            query = query.order_by(User.created_at.asc())
+        elif sort_by == 'recharge_desc':
+            query = query.order_by(User.total_recharge.desc())
+        elif sort_by == 'hairs_desc':
+            # 按总发丝排序（scissor_hairs + comb_hairs）
+            query = query.order_by((User.scissor_hairs + User.comb_hairs).desc())
+        elif sort_by == 'last_active':
+            # 按最后活跃时间排序（使用 updated_at 近似）
+            query = query.order_by(User.updated_at.desc())
+        else:
+            # 默认按创建时间倒序
+            query = query.order_by(User.created_at.desc())
+
+        # 总数
+        total = query.count()
+
+        # 分页
+        users = query.offset((page - 1) * page_size).limit(page_size).all()
+
+        # 格式化结果
+        items = []
+        for u in users:
+            items.append({
+                'id': u.id,
+                'nickname': u.nickname,
+                'phone': _mask_phone(u.phone),
+                'user_type': u.user_type,
+                'member_level': u.member_level,
+                'member_expire_at': u.member_expire_at.isoformat() if u.member_expire_at else None,
+                'scissor_hairs': u.scissor_hairs,
+                'comb_hairs': u.comb_hairs,
+                'total_hairs': (u.scissor_hairs or 0) + (u.comb_hairs or 0),
+                'total_recharge': float(u.total_recharge or 0),
+                'total_consumed_hairs': u.total_consumed_hairs or 0,
+                'is_vip': u.is_vip(),
+                'created_at': u.created_at.isoformat() if u.created_at else None,
+                'updated_at': u.updated_at.isoformat() if u.updated_at else None,
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': (total + page_size - 1) // page_size if page_size > 0 else 0,
+            }
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f'Dev customers error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/dev/customers/<int:customer_id>', methods=['GET'])
+def dev_customer_detail(customer_id):
+    """
+    客户详情
+    - 返回完整用户信息 + 最近 10 条消费/财务/充值记录
+    - Redis 缓存 120 秒
+    """
+    user, err = _check_dev_permission()
+    if err:
+        return err
+
+    try:
+        from cache_service import get_cache_service
+        cache = get_cache_service()
+        cache_key = f'dev:customer:{customer_id}:v1'
+
+        # 尝试从缓存读取
+        cached = cache.get(cache_key)
+        if cached:
+            return jsonify({'success': True, **cached})
+
+        # 查询用户
+        target_user = User.query.get(customer_id)
+        if not target_user:
+            return jsonify({'success': False, 'error': '用户不存在'}), 404
+
+        # 最近 10 条消费记录
+        consumption_records = ConsumptionRecord.query.filter_by(
+            user_id=customer_id
+        ).order_by(ConsumptionRecord.created_at.desc()).limit(10).all()
+
+        # 最近 10 条财务记录
+        financial_records = FinancialRecord.query.filter_by(
+            user_id=customer_id
+        ).order_by(FinancialRecord.created_at.desc()).limit(10).all()
+
+        # 最近 10 条充值记录
+        recharge_records = RechargeRecord.query.filter_by(
+            user_id=customer_id
+        ).order_by(RechargeRecord.created_at.desc()).limit(10).all()
+
+        data = {
+            'user': {
+                'id': target_user.id,
+                'openid': target_user.openid,
+                'unionid': target_user.unionid,
+                'phone': _mask_phone(target_user.phone),
+                'device_id': target_user.device_id,
+                'nickname': target_user.nickname,
+                'avatar_url': target_user.avatar_url,
+                'member_level': target_user.member_level,
+                'member_expire_at': target_user.member_expire_at.isoformat() if target_user.member_expire_at else None,
+                'scissor_hairs': target_user.scissor_hairs,
+                'comb_hairs': target_user.comb_hairs,
+                'total_hairs': (target_user.scissor_hairs or 0) + (target_user.comb_hairs or 0),
+                'total_recharge': float(target_user.total_recharge or 0),
+                'total_consumed_hairs': target_user.total_consumed_hairs or 0,
+                'user_type': target_user.user_type,
+                'is_vip': target_user.is_vip(),
+                'is_deactivated': target_user.is_deactivated,
+                'cash_balance': float(target_user.cash_balance or 0),
+                'total_referral_earnings': float(target_user.total_referral_earnings or 0),
+                'referral_code': target_user.referral_code,
+                'referral_count': target_user.referral_count or 0,
+                'created_at': target_user.created_at.isoformat() if target_user.created_at else None,
+                'updated_at': target_user.updated_at.isoformat() if target_user.updated_at else None,
+            },
+            'consumption_records': [r.to_dict() for r in consumption_records],
+            'financial_records': [r.to_dict() for r in financial_records],
+            'recharge_records': [r.to_dict() for r in recharge_records],
+        }
+
+        # 写入缓存
+        cache.set(cache_key, data, expire_seconds=120)
+
+        return jsonify({'success': True, **data})
+
+    except Exception as e:
+        import logging
+        logging.error(f'Dev customer detail error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/dev/search', methods=['GET'])
+def dev_search():
+    """
+    精准查询
+    - 参数：phone（完整手机号，精确匹配）
+    - 返回客户详情，额外返回 found: true/false
+    """
+    user, err = _check_dev_permission()
+    if err:
+        return err
+
+    try:
+        phone = request.args.get('phone', '').strip()
+        if not phone:
+            return jsonify({'success': False, 'error': '缺少 phone 参数'}), 400
+
+        # 精确匹配手机号
+        target_user = User.query.filter_by(phone=phone).first()
+
+        if not target_user:
+            return jsonify({
+                'success': True,
+                'found': False,
+                'user': None,
+                'consumption_records': [],
+                'financial_records': [],
+                'recharge_records': [],
+            })
+
+        # 最近 10 条消费记录
+        consumption_records = ConsumptionRecord.query.filter_by(
+            user_id=target_user.id
+        ).order_by(ConsumptionRecord.created_at.desc()).limit(10).all()
+
+        # 最近 10 条财务记录
+        financial_records = FinancialRecord.query.filter_by(
+            user_id=target_user.id
+        ).order_by(FinancialRecord.created_at.desc()).limit(10).all()
+
+        # 最近 10 条充值记录
+        recharge_records = RechargeRecord.query.filter_by(
+            user_id=target_user.id
+        ).order_by(RechargeRecord.created_at.desc()).limit(10).all()
+
+        return jsonify({
+            'success': True,
+            'found': True,
+            'user': {
+                'id': target_user.id,
+                'openid': target_user.openid,
+                'unionid': target_user.unionid,
+                'phone': _mask_phone(target_user.phone),
+                'device_id': target_user.device_id,
+                'nickname': target_user.nickname,
+                'avatar_url': target_user.avatar_url,
+                'member_level': target_user.member_level,
+                'member_expire_at': target_user.member_expire_at.isoformat() if target_user.member_expire_at else None,
+                'scissor_hairs': target_user.scissor_hairs,
+                'comb_hairs': target_user.comb_hairs,
+                'total_hairs': (target_user.scissor_hairs or 0) + (target_user.comb_hairs or 0),
+                'total_recharge': float(target_user.total_recharge or 0),
+                'total_consumed_hairs': target_user.total_consumed_hairs or 0,
+                'user_type': target_user.user_type,
+                'is_vip': target_user.is_vip(),
+                'is_deactivated': target_user.is_deactivated,
+                'cash_balance': float(target_user.cash_balance or 0),
+                'total_referral_earnings': float(target_user.total_referral_earnings or 0),
+                'referral_code': target_user.referral_code,
+                'referral_count': target_user.referral_count or 0,
+                'created_at': target_user.created_at.isoformat() if target_user.created_at else None,
+                'updated_at': target_user.updated_at.isoformat() if target_user.updated_at else None,
+            },
+            'consumption_records': [r.to_dict() for r in consumption_records],
+            'financial_records': [r.to_dict() for r in financial_records],
+            'recharge_records': [r.to_dict() for r in recharge_records],
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f'Dev search error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+@api_bp.route('/dev/today', methods=['GET'])
+def dev_today():
+    """
+    今日动态看板
+    - 今日新增用户（总数 + 分级别）
+    - 今日活跃用户（有消费记录的去重用户数）
+    - 今日充值金额/笔数
+    - 今日消费笔数（按 service_type 分组）
+    - Redis 缓存 60 秒
+    """
+    user, err = _check_dev_permission()
+    if err:
+        return err
+
+    try:
+        from cache_service import get_cache_service
+        cache = get_cache_service()
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        cache_key = f'dev:today:v1:{today_str}'
+
+        # 尝试从缓存读取
+        cached = cache.get(cache_key)
+        if cached:
+            return jsonify({'success': True, **cached})
+
+        # 今日时间范围
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # 今日新增用户（总数）
+        new_users_total = User.query.filter(User.created_at >= today_start).count()
+
+        # 今日新增用户（分级别）
+        new_users_guest = User.query.filter(
+            User.created_at >= today_start, User.user_type == 'guest'
+        ).count()
+        new_users_normal = User.query.filter(
+            User.created_at >= today_start, User.user_type == 'registered', User.member_level == 'normal'
+        ).count()
+        new_users_vip = User.query.filter(
+            User.created_at >= today_start, User.user_type == 'registered', User.member_level == 'vip'
+        ).count()
+
+        # 今日活跃用户（有消费记录的去重用户数）
+        active_users_result = db.session.query(
+            sql_func.count(sql_func.distinct(ConsumptionRecord.user_id))
+        ).filter(
+            ConsumptionRecord.created_at >= today_start
+        ).scalar()
+        active_users = int(active_users_result or 0)
+
+        # 今日充值金额/笔数（仅统计成功的充值记录）
+        recharge_result = db.session.query(
+            sql_func.count(RechargeRecord.id),
+            sql_func.coalesce(sql_func.sum(RechargeRecord.amount), 0)
+        ).filter(
+            RechargeRecord.created_at >= today_start,
+            RechargeRecord.payment_status == 'success'
+        ).first()
+        today_recharge_count = int(recharge_result[0] or 0)
+        today_recharge_amount = float(recharge_result[1] or 0)
+
+        # 今日消费笔数（按 service_type 分组）
+        consumption_by_type = db.session.query(
+            ConsumptionRecord.service_type,
+            sql_func.count(ConsumptionRecord.id)
+        ).filter(
+            ConsumptionRecord.created_at >= today_start,
+            ConsumptionRecord.status == 'success'
+        ).group_by(ConsumptionRecord.service_type).all()
+
+        consumption_type_stats = {row[0]: int(row[1]) for row in consumption_by_type}
+        today_consumption_total = sum(consumption_type_stats.values())
+
+        data = {
+            'date': today_str,
+            'new_users': {
+                'total': new_users_total,
+                'guest': new_users_guest,
+                'normal': new_users_normal,
+                'vip': new_users_vip,
+            },
+            'active_users': active_users,
+            'recharge': {
+                'count': today_recharge_count,
+                'amount': today_recharge_amount,
+            },
+            'consumption': {
+                'total': today_consumption_total,
+                'by_service_type': consumption_type_stats,
+            }
+        }
+
+        # 写入缓存
+        cache.set(cache_key, data, expire_seconds=60)
+
+        return jsonify({'success': True, **data})
+
+    except Exception as e:
+        import logging
+        logging.error(f'Dev today error: {e}')
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
 # ============================================
