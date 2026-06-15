@@ -1,5 +1,6 @@
 const { applyRefund } = require('../../api/refund.js')
 const { getToken } = require('../../utils/storage.js')
+const { API_BASE_URL } = require('../../utils/constants.js')
 
 Page({
   data: {
@@ -10,11 +11,19 @@ Page({
     applicantName: '',
     applicantPhone: '',
     submitting: false,
-    userInfo: null
+    userInfo: null,
+    // 核算清单相关
+    calculation: null,
+    calculating: false,
+    showCalculation: false,
+    // 充值选项下拉框
+    rechargeOptions: [],
+    rechargePickerRange: [],
+    selectedOptionIndex: -1,
+    loadingOptions: true
   },
 
   onLoad() {
-    // 获取用户信息
     const userInfo = wx.getStorageSync('user_info')
     if (userInfo) {
       this.setData({
@@ -23,17 +32,73 @@ Page({
         applicantPhone: userInfo.phone || ''
       })
     }
+    this.loadRechargeOptions()
+  },
+
+  /**
+   * 加载充值退款选项
+   */
+  loadRechargeOptions() {
+    const token = getToken()
+    if (!token) {
+      this.setData({ loadingOptions: false })
+      return
+    }
+
+    wx.request({
+      url: `${API_BASE_URL}/api/refund/recharge-options`,
+      method: 'GET',
+      header: {
+        'Authorization': `Bearer ${token}`
+      },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data.success) {
+          const options = res.data.options
+          const range = options.map(opt => opt.display)
+          this.setData({
+            rechargeOptions: options,
+            rechargePickerRange: range,
+            loadingOptions: false
+          })
+        } else {
+          this.setData({ loadingOptions: false })
+        }
+      },
+      fail: () => {
+        this.setData({ loadingOptions: false })
+      }
+    })
   },
 
   onRefundTypeChange(e) {
     this.setData({
       refundType: e.detail.value,
-      refundAmount: e.detail.value === 'membership' ? '' : this.data.refundAmount
+      refundAmount: e.detail.value === 'membership' ? '' : this.data.refundAmount,
+      calculation: null,
+      showCalculation: false,
+      selectedOptionIndex: -1
     })
   },
 
-  onAmountInput(e) {
-    this.setData({ refundAmount: e.detail.value })
+  /**
+   * 下拉框选择充值记录
+   */
+  onRechargeSelect(e) {
+    const index = parseInt(e.detail.value)
+    const option = this.data.rechargeOptions[index]
+    if (!option) return
+
+    if (!option.can_refund) {
+      wx.showToast({ title: option.reason || '该笔充值不可退', icon: 'none' })
+      return
+    }
+
+    this.setData({
+      selectedOptionIndex: index,
+      refundAmount: String(option.refundable_amount),
+      calculation: null,
+      showCalculation: false
+    })
   },
 
   onReasonInput(e) {
@@ -52,19 +117,88 @@ Page({
     this.setData({ applicantPhone: e.detail.value })
   },
 
+  /**
+   * 点击"查看退款核算清单"按钮
+   */
+  async onCalculateTap() {
+    const { refundType, refundAmount } = this.data
+
+    if (!refundAmount || parseFloat(refundAmount) <= 0) {
+      wx.showToast({ title: '请先选择退款金额', icon: 'none' })
+      return
+    }
+
+    const token = getToken()
+    if (!token) {
+      wx.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+
+    this.setData({ calculating: true })
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${API_BASE_URL}/api/refund/calculate`,
+          method: 'POST',
+          data: {
+            refund_type: refundType,
+            refund_amount: parseFloat(refundAmount),
+            notify_admin: true
+          },
+          header: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          success: (res) => {
+            if (res.statusCode === 200) resolve(res.data)
+            else reject(new Error(res.data.error || '计算失败'))
+          },
+          fail: (err) => reject(new Error('网络请求失败'))
+        })
+      })
+
+      if (res.success && res.calculation) {
+        this.setData({
+          calculation: res.calculation,
+          showCalculation: true
+        })
+
+        wx.showToast({ title: '核算清单已生成', icon: 'success' })
+      } else {
+        wx.showToast({ title: res.error || '计算失败', icon: 'none' })
+      }
+    } catch (e) {
+      console.error('计算退款核算失败:', e)
+      wx.showToast({ title: e.message || '计算失败', icon: 'none' })
+    } finally {
+      this.setData({ calculating: false })
+    }
+  },
+
+  onCloseCalculation() {
+    this.setData({ showCalculation: false })
+  },
+
   onSubmit() {
     const { refundType, refundAmount, reason, suggestions, applicantName, applicantPhone, submitting } = this.data
 
     if (submitting) return
 
-    // 验证
     if (!refundType) {
       wx.showToast({ title: '请选择退款类型', icon: 'none' })
       return
     }
 
+    if (refundType === 'recharge') {
+      if (this.data.selectedOptionIndex < 0) {
+        wx.showToast({ title: '请选择要退款的充值记录', icon: 'none' })
+        return
+      }
+    }
+
     if (!refundAmount || parseFloat(refundAmount) <= 0) {
-      wx.showToast({ title: '请输入退款金额', icon: 'none' })
+      wx.showToast({ title: '请选择退款金额', icon: 'none' })
       return
     }
 
@@ -83,7 +217,6 @@ Page({
       return
     }
 
-    // 检查 token
     const token = getToken()
     if (!token) {
       wx.showToast({ title: '请先登录', icon: 'none' })

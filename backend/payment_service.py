@@ -499,6 +499,38 @@ class WeChatPayService:
                 'error': str(e)
             }
 
+    def refund_order(self, order_no, refund_no, amount, reason='用户申请退款'):
+        """
+        发起微信退款
+
+        Args:
+            order_no: 原订单号
+            refund_no: 退款单号
+            amount: 退款金额（元）
+            reason: 退款原因
+
+        Returns:
+            dict: {
+                'success': bool,
+                'refund_id': str,
+                'error': str
+            }
+        """
+        try:
+            result = self.wechat_pay.refund_order(
+                order_no=order_no,
+                refund_no=refund_no,
+                amount=amount,
+                reason=reason
+            )
+            return result
+        except Exception as e:
+            print(f"❌ 发起微信退款失败: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
 
 class AlipayService:
     """支付宝支付服务 (H5手机网站支付)"""

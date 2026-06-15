@@ -317,70 +317,106 @@ Page({
 
     // 轮询查询（最多 30 秒）
     let count = 0
-    const maxCount = 15 // 最多查询 15 次 (15 * 2 秒 = 30 秒)
-    const timer = setInterval(async () => {
+    const maxCount = 30 // 最多查询 30 次 (30 * 1 秒 = 30 秒)
+
+    // 立即查询一次（不等 1 秒）
+    const checkOnce = async () => {
       count++
 
       try {
-        // 调用查询订单状态的 API
         const res = await getOrderStatus(orderNo)
 
         if (res.success) {
           const paymentStatus = res.payment_status
 
           if (paymentStatus === 'success') {
-            // 支付成功
-            clearInterval(timer)
             wx.hideLoading()
-
-            wx.showToast({
-              title: '支付成功',
-              icon: 'success'
-            })
-
-            setTimeout(() => {
-              this.loadUserInfo()
-            }, 1500)
-
+            wx.showToast({ title: '支付成功', icon: 'success' })
+            setTimeout(() => this.loadUserInfo(), 1000)
+            return true
           } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
-            // 支付失败或取消
-            clearInterval(timer)
             wx.hideLoading()
-
             wx.showToast({
               title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
               icon: 'none'
             })
-
-          } else if (count >= maxCount) {
-            // 超时
-            clearInterval(timer)
-            wx.hideLoading()
-
-            wx.showToast({
-              title: '支付处理超时',
-              icon: 'none'
-            })
+            return true
           }
-          // 如果状态是 pending，继续轮询
         }
-
+        return false
       } catch (e) {
-        clearInterval(timer)
-        wx.hideLoading()
         console.error('查询订单状态失败:', e)
+        return false
+      }
+    }
+
+    // 立即查询第一次
+    const done = await checkOnce()
+    if (done) return
+
+    // 之后每秒轮询
+    const timer = setInterval(async () => {
+      if (count >= maxCount) {
+        clearInterval(timer)
+        await this.queryWechatPayStatus(orderNo)
+        return
+      }
+
+      const done = await checkOnce()
+      if (done) clearInterval(timer)
+    }, 1000) // 每 1 秒查询一次
+
+    // 30 秒后停止轮询（兜底）
+    setTimeout(() => clearInterval(timer), 30000)
+  },
+
+  /**
+   * 主动查询微信支付状态（轮询超时后调用）
+   */
+  async queryWechatPayStatus(orderNo) {
+    try {
+      wx.showLoading({ title: '查询支付状态...' })
+
+      const { get } = require('../../utils/request.js')
+      const res = await get(`/api/recharge/query-wechat/${orderNo}`)
+
+      wx.hideLoading()
+
+      if (res.success) {
+        if (res.payment_status === 'success') {
+          wx.showToast({
+            title: '支付成功',
+            icon: 'success'
+          })
+
+          setTimeout(() => {
+            this.loadUserInfo()
+          }, 1500)
+        } else if (res.payment_status === 'failed') {
+          wx.showToast({
+            title: '支付失败',
+            icon: 'none'
+          })
+        } else {
+          wx.showToast({
+            title: '支付处理中，请稍后查看',
+            icon: 'none'
+          })
+        }
+      } else {
         wx.showToast({
-          title: '查询订单失败',
+          title: res.error || '查询失败',
           icon: 'none'
         })
       }
-    }, 2000) // 每 2 秒查询一次
-
-    // 30 秒后停止轮询
-    setTimeout(() => {
-      clearInterval(timer)
+    } catch (e) {
       wx.hideLoading()
-    }, 30000)
+      console.error('主动查询微信支付状态失败:', e)
+      wx.showToast({
+        title: '查询失败，请稍后查看',
+        icon: 'none'
+      })
+    }
   },
 
   /**

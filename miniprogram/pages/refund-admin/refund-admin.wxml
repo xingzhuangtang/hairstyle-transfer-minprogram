@@ -1,0 +1,141 @@
+<!--pages/refund-admin/refund-admin.wxml-->
+<view class="admin-container">
+  <view class="header">
+    <text class="title">退款权限管理</text>
+    <text class="subtitle">为客户开通或关闭退款入口</text>
+  </view>
+
+  <!-- Tab 切换栏 -->
+  <view class="tab-bar">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange">
+      <text>退款权限</text>
+    </view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange">
+      <text>申请记录</text>
+    </view>
+    <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange">
+      <text>成功退款</text>
+    </view>
+  </view>
+
+  <!-- ==================== Tab 0: 退款权限 ==================== -->
+  <view wx:if="{{currentTab === 0}}">
+    <!-- 搜索栏 -->
+    <view class="search-bar">
+      <input class="search-input" placeholder="输入手机号搜索" value="{{searchPhone}}" bindinput="onUserSearchInput" bindconfirm="onUserSearch" type="number" />
+      <button class="search-btn" bindtap="onUserSearch">搜索</button>
+    </view>
+
+    <!-- 用户列表 -->
+    <view class="user-list" wx:if="{{users.length > 0}}">
+      <view class="user-card" wx:for="{{users}}" wx:key="id">
+        <view class="user-info">
+          <view class="user-row">
+            <text class="user-name">{{item.displayName}}</text>
+            <text class="user-tag {{item.refund_enabled ? 'tag-on' : 'tag-off'}}">{{item.refund_enabled ? '已开通' : '未开通'}}</text>
+          </view>
+          <view class="user-row">
+            <text class="user-detail">手机：{{item.displayPhone}}</text>
+            <text class="user-detail">ID：{{item.id}}</text>
+          </view>
+          <view class="user-row">
+            <text class="user-detail">{{item.memberText}}</text>
+            <text class="user-detail">银两：{{item.totalHairs}}</text>
+          </view>
+        </view>
+        <button class="toggle-btn {{item.refund_enabled ? 'btn-off' : 'btn-on'}}"
+                data-userid="{{item.id}}" data-index="{{index}}"
+                bindtap="onToggleRefund">
+          {{item.refund_enabled ? '关闭退款' : '开通退款'}}
+        </button>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{users.length === 0 && !loading}}">
+      <text class="empty-icon">👥</text>
+      <text class="empty-text">输入手机号搜索用户</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{userHasMore && users.length > 0}}">
+      <button class="load-more-btn" bindtap="loadMoreUsers" loading="{{loading}}">加载更多</button>
+    </view>
+  </view>
+
+  <!-- ==================== Tab 1 & 2: 申请记录 ==================== -->
+  <view wx:if="{{currentTab === 1 || currentTab === 2}}">
+    <!-- 状态筛选器 (仅 Tab 1 显示) -->
+    <view class="filter-bar" wx:if="{{currentTab === 1}}">
+      <view class="filter-item {{appStatusFilter === 'all' ? 'active' : ''}}" data-status="all" bindtap="onAppStatusChange">
+        <text>全部</text>
+      </view>
+      <view class="filter-item {{appStatusFilter === 'pending' ? 'active' : ''}}" data-status="pending" bindtap="onAppStatusChange">
+        <text>待处理</text>
+      </view>
+      <view class="filter-item {{appStatusFilter === 'approved' ? 'active' : ''}}" data-status="approved" bindtap="onAppStatusChange">
+        <text>已批准</text>
+      </view>
+      <view class="filter-item {{appStatusFilter === 'rejected' ? 'active' : ''}}" data-status="rejected" bindtap="onAppStatusChange">
+        <text>已拒绝</text>
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="search-bar">
+      <input class="search-input" placeholder="输入手机号搜索" value="{{appPhoneSearch}}" bindinput="onAppPhoneSearchInput" bindconfirm="onAppPhoneSearch" type="number" />
+      <button class="search-btn" bindtap="onAppPhoneSearch">搜索</button>
+    </view>
+
+    <!-- 申请记录列表 -->
+    <view class="app-list" wx:if="{{applications.length > 0}}">
+      <view class="app-card" wx:for="{{applications}}" wx:key="id">
+        <view class="app-header">
+          <text class="app-user">{{item.user_nickname || item.user_phone || '用户' + item.user_id}}</text>
+          <text class="app-status {{item.statusClass}}">{{item.statusText}}</text>
+        </view>
+        <view class="app-body">
+          <view class="app-row">
+            <text class="app-label">申请金额：</text>
+            <text class="app-value amount">¥{{item.refund_amount}}</text>
+          </view>
+          <view class="app-row">
+            <text class="app-label">退款类型：</text>
+            <text class="app-value">{{item.refundTypeText}}</text>
+          </view>
+          <view class="app-row">
+            <text class="app-label">申请原因：</text>
+            <text class="app-value">{{item.reason}}</text>
+          </view>
+          <view class="app-row">
+            <text class="app-label">申请人：</text>
+            <text class="app-value">{{item.applicant_name}} ({{item.applicant_phone}})</text>
+          </view>
+          <view class="app-row">
+            <text class="app-label">申请时间：</text>
+            <text class="app-value">{{item.formattedCreatedAt}}</text>
+          </view>
+          <view class="app-row" wx:if="{{item.approved_at}}">
+            <text class="app-label">处理时间：</text>
+            <text class="app-value">{{item.formattedApprovedAt}}</text>
+          </view>
+          <view class="app-row" wx:if="{{item.status === 'rejected' && item.rejection_reason}}">
+            <text class="app-label">拒绝原因：</text>
+            <text class="app-value reject">{{item.rejection_reason}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{applications.length === 0 && !appLoading}}">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无退款申请记录</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{appHasMore && applications.length > 0}}">
+      <button class="load-more-btn" bindtap="loadMoreApplications" loading="{{appLoading}}">加载更多</button>
+    </view>
+  </view>
+</view>

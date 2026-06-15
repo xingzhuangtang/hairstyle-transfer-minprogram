@@ -1,6 +1,7 @@
 // pages/History/history.js
 import { getMemberInfo } from '../../api/member.js'
 import { getHistoryRecords } from '../../api/hair.js'
+import { API_BASE_URL } from '../../utils/constants.js'
 
 // 服务类型映射
 const SERVICE_TYPE_MAP = {
@@ -530,7 +531,6 @@ Page({
     wx.showLoading({ title: '删除中...' })
     
     const token = wx.getStorageSync('token')
-    const API_BASE_URL = 'https://xn--gmq63iba0780e.com'
     
     wx.request({
       url: `${API_BASE_URL}/api/history/delete`,

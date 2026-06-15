@@ -5,6 +5,7 @@ Page({
   data: {
     // 二维码
     qrcodeUrl: '',
+    qrcodeProxyUrl: '',
     referralCode: '',
     shareText: '',
     // 存钱罐
@@ -96,8 +97,10 @@ Page({
     try {
       const res = await post('/api/referral/qrcode', {})
       if (res.success) {
+        const { API_BASE_URL } = require('../../utils/constants.js')
         this.setData({
           qrcodeUrl: res.qrcode_url,
+          qrcodeProxyUrl: `${API_BASE_URL}/api/referral/qrcode-image`,
           referralCode: res.referral_code,
           shareText: res.share_text
         })
@@ -156,80 +159,82 @@ Page({
   },
 
   /**
+   * 下载图片到本地临时文件（带认证头）
+   */
+  downloadQrcodeImage(callback) {
+    const app = getApp()
+    const token = app.globalData.token || wx.getStorageSync('token')
+    const imageUrl = this.data.qrcodeProxyUrl || this.data.qrcodeUrl
+
+    wx.downloadFile({
+      url: imageUrl,
+      header: {
+        'Authorization': `Bearer ${token}`
+      },
+      success: (res) => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          callback(null, res.tempFilePath)
+        } else {
+          callback(new Error(`下载失败 statusCode=${res.statusCode}`))
+        }
+      },
+      fail: (err) => {
+        callback(err)
+      }
+    })
+  },
+
+  /**
    * 使用 canvas 绘制后保存到相册
    */
   _saveToAlbum(url) {
-    const ctx = wx.createCanvasContext('saveQrcodeCanvas', this)
-
-    // 获取二维码图片信息
-    wx.getImageInfo({
-      src: url,
-      success: (res) => {
-        const width = res.width
-        const height = res.height
-
-        // 在 canvas 上绘制图片
-        ctx.drawImage(res.path, 0, 0, width, height)
-        ctx.draw(false, () => {
-          // 延迟确保绘制完成
-          setTimeout(() => {
-            wx.canvasToTempFilePath({
-              canvasId: 'saveQrcodeCanvas',
-              x: 0,
-              y: 0,
-              width: width,
-              height: height,
-              destWidth: width,
-              destHeight: height,
-              fileType: 'png',
-              success: (canvasRes) => {
-                console.log('canvas 生成成功:', canvasRes.tempFilePath)
-
-                wx.saveImageToPhotosAlbum({
-                  filePath: canvasRes.tempFilePath,
-                  success: () => {
-                    wx.hideLoading()
-                    wx.showModal({
-                      title: '保存成功',
-                      content: '二维码已保存到相册\n\n请在相册中查找',
-                      showCancel: false
-                    })
-                  },
-                  fail: (err) => {
-                    console.error('保存到相册失败:', err)
-                    wx.hideLoading()
-                    if (err.errMsg && err.errMsg.includes('auth')) {
-                      wx.showModal({
-                        title: '需要相册权限',
-                        content: '请允许微信访问相册',
-                        confirmText: '去设置',
-                        success: (r) => { if (r.confirm) wx.openSetting() }
-                      })
-                    } else {
-                      wx.showModal({
-                        title: '保存失败',
-                        content: '请尝试长按图片保存',
-                        showCancel: false
-                      })
-                    }
-                  }
-                })
-              },
-              fail: (err) => {
-                console.error('canvasToTempFilePath 失败:', err)
-                wx.hideLoading()
-                // canvas 失败，回退到直接保存
-                this._saveDirect(url)
-              }
-            }, this)
-          }, 100)
-        })
-      },
-      fail: (err) => {
-        console.error('getImageInfo 失败:', err)
+    this.downloadQrcodeImage((err, tempFilePath) => {
+      if (err) {
+        console.error('下载二维码图片失败:', err)
         wx.hideLoading()
         wx.showToast({ title: '图片加载失败', icon: 'none' })
+        return
       }
+
+      const ctx = wx.createCanvasContext('saveQrcodeCanvas', this)
+
+      wx.getImageInfo({
+        src: tempFilePath,
+        success: (res) => {
+          const width = res.width
+          const height = res.height
+
+          ctx.drawImage(res.path, 0, 0, width, height)
+          ctx.draw(false, () => {
+            setTimeout(() => {
+              wx.canvasToTempFilePath({
+                canvasId: 'saveQrcodeCanvas',
+                x: 0,
+                y: 0,
+                width: width,
+                height: height,
+                destWidth: width,
+                destHeight: height,
+                fileType: 'png',
+                success: (canvasRes) => {
+                  console.log('canvas 生成成功:', canvasRes.tempFilePath)
+                  this._saveImageToAlbum(canvasRes.tempFilePath)
+                },
+                fail: (err) => {
+                  console.error('canvasToTempFilePath 失败:', err)
+                  wx.hideLoading()
+                  this._saveDirect(tempFilePath)
+                }
+              }, this)
+            }, 100)
+          })
+        },
+        fail: (err) => {
+          console.error('getImageInfo 失败:', err)
+          wx.hideLoading()
+          wx.showToast({ title: '图片加载失败', icon: 'none' })
+        }
+      })
     })
   },
 
@@ -237,29 +242,64 @@ Page({
    * 备用方案：直接保存
    */
   _saveDirect(url) {
-    wx.getImageInfo({
-      src: url,
-      success: (res) => {
-        wx.saveImageToPhotosAlbum({
-          filePath: res.path,
-          success: () => {
-            wx.showModal({
-              title: '保存成功',
-              content: '二维码已保存到相册',
-              showCancel: false
-            })
-          },
-          fail: () => {
-            wx.showModal({
-              title: '保存失败',
-              content: '请长按图片选择"保存图片"',
-              showCancel: false
-            })
-          }
+    this.downloadQrcodeImage((err, tempFilePath) => {
+      if (err) {
+        console.error('下载二维码图片失败:', err)
+        wx.showToast({ title: '保存失败', icon: 'none' })
+        return
+      }
+
+      wx.saveImageToPhotosAlbum({
+        filePath: tempFilePath,
+        success: () => {
+          wx.showModal({
+            title: '保存成功',
+            content: '二维码已保存到相册',
+            showCancel: false
+          })
+        },
+        fail: () => {
+          wx.showModal({
+            title: '保存失败',
+            content: '请长按图片选择"保存图片"',
+            showCancel: false
+          })
+        }
+      })
+    })
+  },
+
+  /**
+   * 保存图片到相册（处理权限）
+   */
+  _saveImageToAlbum(filePath) {
+    wx.saveImageToPhotosAlbum({
+      filePath: filePath,
+      success: () => {
+        wx.hideLoading()
+        wx.showModal({
+          title: '保存成功',
+          content: '二维码已保存到相册\n\n请在相册中查找',
+          showCancel: false
         })
       },
-      fail: () => {
-        wx.showToast({ title: '保存失败', icon: 'none' })
+      fail: (err) => {
+        console.error('保存到相册失败:', err)
+        wx.hideLoading()
+        if (err.errMsg && err.errMsg.includes('auth')) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '请允许微信访问相册',
+            confirmText: '去设置',
+            success: (r) => { if (r.confirm) wx.openSetting() }
+          })
+        } else {
+          wx.showModal({
+            title: '保存失败',
+            content: '请尝试长按图片保存',
+            showCancel: false
+          })
+        }
       }
     })
   },

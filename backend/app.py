@@ -96,11 +96,12 @@ except ImportError as e:
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.urandom(24)
 
-# 使用绝对路径，基于 app.py 所在位置
+# 使用绝对路径，基于项目根目录（app.py 的父目录）
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.config["UPLOAD_FOLDER"] = os.path.join(_BASE_DIR, "static", "uploads")
-app.config["RESULT_FOLDER"] = os.path.join(_BASE_DIR, "static", "results")
-app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_BASE_DIR, "static", "hair_extracted")
+_PROJECT_ROOT = os.path.dirname(_BASE_DIR)
+app.config["UPLOAD_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "uploads")
+app.config["RESULT_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "results")
+app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "hair_extracted")
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20MB
 
 # 导入详细日志配置
