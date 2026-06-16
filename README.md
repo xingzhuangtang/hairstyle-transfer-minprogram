@@ -45,6 +45,13 @@
 - 🎁 **推广返佣系统** - 用户专属推广码，成功推广存钱罐自动返现
 - 🏆 **微信虚拟支付** - iOS 端虚拟商品订单创建与回调
 
+### 自愈系统（三阶段闭环）
+
+- 🔍 **Phase 1 感知层** — 环境监控打点（CPU/内存/磁盘/Redis/DB）、异常捕捉锁定、企业微信告警通知
+- 🔧 **Phase 2 自愈层** — 5 个自动修复器（Redis/DB/内存/磁盘/慢查询）、内部审批流（低风险自动执行，中高风险需审批）
+- 🧬 **Phase 3 进化层** — 防御规则引擎（title_contains/regex/source_module/frequency 模式匹配）、进化分析引擎（健康评分 0-100、趋势分析、风险预测）
+- 📊 **监控面板** — 小程序端 4 Tab 监控页面（告警列表/系统健康/自动修复/进化分析）
+
 ### 账号体系（设备 ID 贯穿全生命周期）
 
 - ✅ 设备 ID 自动生成（基于设备型号哈希，永不改变）
@@ -173,6 +180,19 @@ hairstyle-transfer-minprogram/
 │   ├── referral_service.py    # 推广返佣服务
 │   ├── wechat_pay.py          # 微信支付 SDK
 │   ├── aliyun_hair_transfer_fixed.py  # AI 服务
+│   ├── self_healing/          # 自愈系统
+│   │   ├── __init__.py        # 模块初始化（Phase 1/2/3）
+│   │   ├── collector.py       # 环境监控打点
+│   │   ├── probe.py           # 异常捕捉探针
+│   │   ├── alert_manager.py   # 告警管理
+│   │   ├── fixer.py           # 自动修复引擎（5 个修复器）
+│   │   ├── approval.py        # 审批流管理
+│   │   ├── defense_rule.py    # 防御规则引擎
+│   │   ├── evolution.py       # 进化分析引擎
+│   │   ├── wecom_bot.py       # 企业微信通知
+│   │   ├── models.py          # 数据模型（告警/修复/审批/规则）
+│   │   ├── api.py             # 监控 API（13+ 端点）
+│   │   └── config.py          # 配置管理
 │   ├── requirements.txt       # Python 依赖
 │   ├── .env.example           # 环境变量模板
 │   ├── deploy.sh              # 生产部署脚本
@@ -191,6 +211,7 @@ hairstyle-transfer-minprogram/
 │   │   ├── message/           # 客户留言
 │   │   ├── refund/            # 退款申请
 │   │   ├── referral/          # 推广中心（我的惊喜）
+│   │   ├── monitor/           # 系统监控（4 Tab：告警/健康/修复/进化）
 │   │   └── legal/             # 协议页面
 │   ├── utils/                 # 工具函数
 │   ├── api/                   # API 封装
@@ -207,7 +228,10 @@ hairstyle-transfer-minprogram/
 
 ### 安全审查
 
-项目已通过 **STRIDE 威胁模型分析**（2026-06-10），覆盖支付回调、账户管理、部署脚本等核心模块，未发现可利用漏洞。
+项目已通过 **STRIDE 威胁模型分析**，覆盖支付回调、账户管理、部署脚本、自愈系统等核心模块，未发现 Critical/High 级别漏洞。
+
+- 2026-06-10：支付回调、账户管理、部署脚本审查
+- 2026-06-16：自愈系统 Phase 2+3 审查（自动修复/审批流/防御规则/进化分析），发现 2 个 Medium 级别问题（ReDoS、Mass Assignment）已制定修复方案
 
 关键安全设计：
 - 微信支付回调经签名验证后路由，订单处理函数二次验证订单存在性
@@ -356,11 +380,24 @@ MIT License
 ## 📊 项目状态
 
 - ✅ 核心功能已完成（发型迁移、素描转换、支付、会员、客服、退款、推广）
+- ✅ 自愈系统三阶段闭环已完成（感知 → 自愈 → 进化）
 - 🚧 持续优化中
 
 ---
 
 ## 📝 更新日志
+
+### v5.4 (2026-06-16)
+
+**自愈系统 Phase 2+3**
+- ✅ 自动修复引擎：5 个修复器（Redis/DB/内存/磁盘/慢查询），低风险自动执行，中高风险走审批
+- ✅ 内部审批流：告警触发 → 创建审批 → 企微通知 → 开发者批准/拒绝 → 执行修复
+- ✅ 防御规则引擎：支持 title_contains/regex/source_module/frequency 四种匹配模式，含冷却期机制
+- ✅ 进化分析引擎：健康评分（0-100）、趋势分析（近 7 天 vs 前 7 天）、风险预测
+- ✅ 监控面板扩展：小程序端从 2 Tab 扩展为 4 Tab（告警/健康/修复/进化）
+- ✅ 新增 13 个 API 端点（修复/审批/防御规则/进化分析），均通过开发者权限校验
+- ✅ 新增 3 张数据表：fix_executions、approval_records、defense_rules
+- ✅ STRIDE 安全审查通过，未发现 Critical/High 级别漏洞
 
 ### v5.3 (2026-06-10)
 
@@ -388,4 +425,4 @@ MIT License
 
 ---
 
-*最后更新：2026-06-10*
+*最后更新：2026-06-16*
