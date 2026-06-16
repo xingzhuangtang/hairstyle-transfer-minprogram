@@ -6,6 +6,7 @@ Page({
     // 二维码
     qrcodeUrl: '',
     qrcodeProxyUrl: '',
+    qrcodeLocalPath: '',
     referralCode: '',
     shareText: '',
     // 存钱罐
@@ -104,6 +105,7 @@ Page({
           referralCode: res.referral_code,
           shareText: res.share_text
         })
+        this._downloadQrcodeToLocal()
       } else {
         wx.showToast({ title: res.error || '加载失败', icon: 'none' })
       }
@@ -115,12 +117,37 @@ Page({
   },
 
   /**
+   * 下载二维码图片到本地临时文件（用于页面显示）
+   */
+  _downloadQrcodeToLocal() {
+    const token = wx.getStorageSync('token') || ''
+    const imageUrl = this.data.qrcodeProxyUrl
+
+    wx.downloadFile({
+      url: imageUrl,
+      header: { 'Authorization': `Bearer ${token}` },
+      success: (res) => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          console.log('[loadQrcode] 图片已下载到本地:', res.tempFilePath)
+          this.setData({ qrcodeLocalPath: res.tempFilePath })
+        } else {
+          console.error('[loadQrcode] 下载图片失败:', res.statusCode)
+        }
+      },
+      fail: (err) => {
+        console.error('[loadQrcode] 下载图片失败:', err)
+      }
+    })
+  },
+
+  /**
    * 预览二维码
    */
   previewQrcode() {
+    const url = this.data.qrcodeLocalPath || this.data.qrcodeProxyUrl || this.data.qrcodeUrl
     wx.previewImage({
-      current: this.data.qrcodeUrl,
-      urls: [this.data.qrcodeUrl]
+      current: url,
+      urls: [url]
     })
   },
 
@@ -128,15 +155,13 @@ Page({
    * 保存二维码到相册
    */
   downloadQrcode() {
-    const qrcodeUrl = this.data.qrcodeUrl
-    if (!qrcodeUrl) {
+    if (!this.data.qrcodeUrl) {
       wx.showToast({ title: '请先加载二维码', icon: 'none' })
       return
     }
 
     wx.showLoading({ title: '保存中...' })
 
-    // 先检查相册权限
     wx.getSetting({
       success: (res) => {
         const auth = res.authSetting['scope.writePhotosAlbum']
@@ -150,115 +175,32 @@ Page({
           })
           return
         }
-        this._saveToAlbum(qrcodeUrl)
+        this._saveToAlbum()
       },
       fail: () => {
-        this._saveToAlbum(qrcodeUrl)
+        this._saveToAlbum()
       }
     })
   },
 
   /**
-   * 下载图片到本地临时文件（带认证头）
+   * 保存到相册（复用已下载的本地文件，或重新下载）
    */
-  downloadQrcodeImage(callback) {
-    const app = getApp()
-    const token = app.globalData.token || wx.getStorageSync('token')
-    const imageUrl = this.data.qrcodeProxyUrl || this.data.qrcodeUrl
-
-    wx.downloadFile({
-      url: imageUrl,
-      header: {
-        'Authorization': `Bearer ${token}`
-      },
-      success: (res) => {
-        if (res.statusCode === 200 && res.tempFilePath) {
-          callback(null, res.tempFilePath)
-        } else {
-          callback(new Error(`下载失败 statusCode=${res.statusCode}`))
-        }
-      },
-      fail: (err) => {
-        callback(err)
-      }
-    })
-  },
-
-  /**
-   * 使用 canvas 绘制后保存到相册
-   */
-  _saveToAlbum(url) {
-    this.downloadQrcodeImage((err, tempFilePath) => {
-      if (err) {
-        console.error('下载二维码图片失败:', err)
-        wx.hideLoading()
-        wx.showToast({ title: '图片加载失败', icon: 'none' })
-        return
-      }
-
-      const ctx = wx.createCanvasContext('saveQrcodeCanvas', this)
-
-      wx.getImageInfo({
-        src: tempFilePath,
-        success: (res) => {
-          const width = res.width
-          const height = res.height
-
-          ctx.drawImage(res.path, 0, 0, width, height)
-          ctx.draw(false, () => {
-            setTimeout(() => {
-              wx.canvasToTempFilePath({
-                canvasId: 'saveQrcodeCanvas',
-                x: 0,
-                y: 0,
-                width: width,
-                height: height,
-                destWidth: width,
-                destHeight: height,
-                fileType: 'png',
-                success: (canvasRes) => {
-                  console.log('canvas 生成成功:', canvasRes.tempFilePath)
-                  this._saveImageToAlbum(canvasRes.tempFilePath)
-                },
-                fail: (err) => {
-                  console.error('canvasToTempFilePath 失败:', err)
-                  wx.hideLoading()
-                  this._saveDirect(tempFilePath)
-                }
-              }, this)
-            }, 100)
-          })
-        },
-        fail: (err) => {
-          console.error('getImageInfo 失败:', err)
-          wx.hideLoading()
-          wx.showToast({ title: '图片加载失败', icon: 'none' })
-        }
-      })
-    })
-  },
-
-  /**
-   * 备用方案：直接保存
-   */
-  _saveDirect(url) {
-    this.downloadQrcodeImage((err, tempFilePath) => {
-      if (err) {
-        console.error('下载二维码图片失败:', err)
-        wx.showToast({ title: '保存失败', icon: 'none' })
-        return
-      }
-
+  _saveToAlbum() {
+    const saveFile = (filePath) => {
       wx.saveImageToPhotosAlbum({
-        filePath: tempFilePath,
+        filePath: filePath,
         success: () => {
+          wx.hideLoading()
           wx.showModal({
             title: '保存成功',
             content: '二维码已保存到相册',
             showCancel: false
           })
         },
-        fail: () => {
+        fail: (err) => {
+          console.error('保存到相册失败:', err)
+          wx.hideLoading()
           wx.showModal({
             title: '保存失败',
             content: '请长按图片选择"保存图片"',
@@ -266,40 +208,46 @@ Page({
           })
         }
       })
-    })
+    }
+
+    if (this.data.qrcodeLocalPath) {
+      saveFile(this.data.qrcodeLocalPath)
+    } else {
+      this.downloadQrcodeImage((err, tempFilePath) => {
+        if (err) {
+          console.error('下载二维码图片失败:', err)
+          wx.hideLoading()
+          wx.showToast({ title: '图片加载失败', icon: 'none' })
+          return
+        }
+        saveFile(tempFilePath)
+      })
+    }
   },
 
   /**
-   * 保存图片到相册（处理权限）
+   * 下载图片到本地临时文件（带认证头）
    */
-  _saveImageToAlbum(filePath) {
-    wx.saveImageToPhotosAlbum({
-      filePath: filePath,
-      success: () => {
-        wx.hideLoading()
-        wx.showModal({
-          title: '保存成功',
-          content: '二维码已保存到相册\n\n请在相册中查找',
-          showCancel: false
-        })
+  downloadQrcodeImage(callback) {
+    const token = wx.getStorageSync('token') || ''
+    const imageUrl = this.data.qrcodeProxyUrl || this.data.qrcodeUrl
+
+    console.log('[downloadQrcodeImage] url:', imageUrl, 'hasToken:', !!token)
+
+    wx.downloadFile({
+      url: imageUrl,
+      header: { 'Authorization': `Bearer ${token}` },
+      success: (res) => {
+        console.log('[downloadQrcodeImage] statusCode:', res.statusCode, 'tempFilePath:', res.tempFilePath)
+        if (res.statusCode === 200 && res.tempFilePath) {
+          callback(null, res.tempFilePath)
+        } else {
+          callback(new Error(`下载失败 statusCode=${res.statusCode}`))
+        }
       },
       fail: (err) => {
-        console.error('保存到相册失败:', err)
-        wx.hideLoading()
-        if (err.errMsg && err.errMsg.includes('auth')) {
-          wx.showModal({
-            title: '需要相册权限',
-            content: '请允许微信访问相册',
-            confirmText: '去设置',
-            success: (r) => { if (r.confirm) wx.openSetting() }
-          })
-        } else {
-          wx.showModal({
-            title: '保存失败',
-            content: '请尝试长按图片保存',
-            showCancel: false
-          })
-        }
+        console.error('[downloadQrcodeImage] fail:', err)
+        callback(err)
       }
     })
   },

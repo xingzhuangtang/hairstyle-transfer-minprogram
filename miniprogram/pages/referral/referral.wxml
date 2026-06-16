@@ -12,7 +12,7 @@
   <view class="card qrcode-card">
     <view class="card-title">营销二维码</view>
     <view wx:if="{{qrcodeUrl}}" class="qrcode-container">
-      <image class="qrcode" src="{{qrcodeUrl}}" mode="aspectFit" show-menu-by-longpress bindtap="previewQrcode" />
+      <image class="qrcode" src="{{qrcodeLocalPath || qrcodeProxyUrl || qrcodeUrl}}" mode="aspectFit" show-menu-by-longpress bindtap="previewQrcode" />
     </view>
     <view wx:else class="qrcode-placeholder" bindtap="loadQrcode">
       <text class="placeholder-text">点击加载推广二维码</text>
@@ -25,9 +25,6 @@
       <text>长按图片也可保存到相册</text>
     </view>
   </view>
-
-  <!-- 隐藏的 canvas 用于保存图片 -->
-  <canvas canvas-id="saveQrcodeCanvas" style="width: 400px; height: 400px; position: fixed; left: -9999px; top: -9999px;"></canvas>
 
   <!-- 存钱罐卡片 -->
   <view class="card piggy-card">
