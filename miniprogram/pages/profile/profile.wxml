@@ -192,6 +192,13 @@
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>
+        <view class="menu-item" bindtap="goToMonitor">
+          <view class="menu-left">
+            <image class="menu-icon" src="/images/icons/admin.png"></image>
+            <text class="menu-text">系统监控</text>
+          </view>
+          <image class="arrow" src="/images/icons/arrow-right.png"></image>
+        </view>
       </view>
 
       <view class="developer-section">

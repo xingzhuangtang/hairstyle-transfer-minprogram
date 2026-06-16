@@ -1,0 +1,253 @@
+<!--pages/monitor/monitor.wxml-->
+<view class="monitor-container">
+  <!-- 顶部标题 -->
+  <view class="header">
+    <text class="title">系统监控</text>
+    <text class="subtitle">自愈系统 Phase 1 - 感知层</text>
+  </view>
+
+  <!-- Tab 切换栏 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange">
+      <text>告警列表</text>
+    </view>
+    <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange">
+      <text>系统健康</text>
+    </view>
+  </view>
+
+  <!-- ==================== Tab 0: 告警列表 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 0}}" bindscrolltolower="onAlertScrollToLower">
+    <!-- 告警统计卡片 -->
+    <view class="stats-bar" wx:if="{{alertStats}}">
+      <view class="stat-chip">
+        <text class="stat-num">{{alertStats.total}}</text>
+        <text class="stat-label">总计</text>
+      </view>
+      <view class="stat-chip critical">
+        <text class="stat-num">{{alertStats.by_severity.critical || 0}}</text>
+        <text class="stat-label">严重</text>
+      </view>
+      <view class="stat-chip high">
+        <text class="stat-num">{{alertStats.by_severity.high || 0}}</text>
+        <text class="stat-label">高危</text>
+      </view>
+      <view class="stat-chip new">
+        <text class="stat-num">{{alertStats.by_status.new || 0}}</text>
+        <text class="stat-label">待处理</text>
+      </view>
+      <view class="stat-chip today">
+        <text class="stat-num">{{alertStats.today_new}}</text>
+        <text class="stat-label">今日</text>
+      </view>
+    </view>
+
+    <!-- 筛选栏 -->
+    <view class="filter-section">
+      <view class="filter-row">
+        <text class="filter-label">状态：</text>
+        <picker mode="selector" range="{{statusOptions}}" value="{{statusIndex}}" bindchange="onStatusFilterChange">
+          <view class="picker-value">{{statusOptions[statusIndex]}} ▼</view>
+        </picker>
+        <text class="filter-label" style="margin-left: 20rpx;">级别：</text>
+        <picker mode="selector" range="{{severityOptions}}" value="{{severityIndex}}" bindchange="onSeverityFilterChange">
+          <view class="picker-value">{{severityOptions[severityIndex]}} ▼</view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 告警列表 -->
+    <view class="alert-list" wx:if="{{alerts.length > 0}}">
+      <view class="alert-card" wx:for="{{alerts}}" wx:key="id" bindtap="onAlertTap" data-id="{{item.id}}">
+        <view class="alert-header">
+          <view class="severity-dot" style="background-color: {{item.severityColor}}"></view>
+          <text class="alert-title">{{item.titleShort}}</text>
+        </view>
+        <view class="alert-meta">
+          <text class="severity-tag" style="color: {{item.severityColor}}; border-color: {{item.severityColor}}">{{item.severityLabel}}</text>
+          <text class="status-tag {{item.status}}">{{item.statusLabel}}</text>
+          <text class="alert-source" wx:if="{{item.source_module}}">{{item.source_module}}</text>
+          <text class="alert-time">{{item.timeText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{!alertNoMore && alerts.length > 0}}">
+      <text class="load-more-text" wx:if="{{alertLoading}}">加载中...</text>
+      <text class="load-more-text" wx:else bindtap="loadMoreAlerts">点击加载更多</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{alerts.length === 0 && !alertLoading}}">
+      <text class="empty-icon">🛡️</text>
+      <text class="empty-text">暂无告警记录</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 1: 系统健康 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 1}}">
+    <view class="loading-state" wx:if="{{healthLoading && !healthData}}">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <block wx:if="{{healthData}}">
+      <!-- 系统资源 -->
+      <view class="card" wx:if="{{healthData.system}}">
+        <view class="card-title">系统资源</view>
+        <view class="metric-grid">
+          <view class="metric-item">
+            <view class="metric-ring {{healthData.system.cpu_percent < 70 ? 'green' : healthData.system.cpu_percent < 85 ? 'orange' : 'red'}}">
+              <text class="metric-value">{{healthData.system.cpu_percent}}%</text>
+            </view>
+            <text class="metric-label">CPU</text>
+          </view>
+          <view class="metric-item">
+            <view class="metric-ring {{healthData.system.memory_percent < 70 ? 'green' : healthData.system.memory_percent < 85 ? 'orange' : 'red'}}">
+              <text class="metric-value">{{healthData.system.memory_percent}}%</text>
+            </view>
+            <text class="metric-label">内存</text>
+          </view>
+          <view class="metric-item">
+            <view class="metric-ring {{healthData.system.disk_percent < 70 ? 'green' : healthData.system.disk_percent < 85 ? 'orange' : 'red'}}">
+              <text class="metric-value">{{healthData.system.disk_percent}}%</text>
+            </view>
+            <text class="metric-label">磁盘</text>
+          </view>
+          <view class="metric-item">
+            <view class="metric-ring green">
+              <text class="metric-value">{{healthData.system.process_memory_mb}}MB</text>
+            </view>
+            <text class="metric-label">进程内存</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 数据库状态 -->
+      <view class="card" wx:if="{{healthData.database}}">
+        <view class="card-title">数据库</view>
+        <view class="status-row">
+          <text class="status-label">连接状态</text>
+          <text class="status-value {{healthData.database.status === 'ok' ? 'ok' : 'error'}}">{{healthData.database.status === 'ok' ? '正常' : '异常'}}</text>
+        </view>
+        <view class="status-row" wx:if="{{healthData.database.latency_ms}}">
+          <text class="status-label">响应延迟</text>
+          <text class="status-value">{{healthData.database.latency_ms}}ms</text>
+        </view>
+      </view>
+
+      <!-- Redis 状态 -->
+      <view class="card" wx:if="{{healthData.redis}}">
+        <view class="card-title">Redis</view>
+        <view class="status-row">
+          <text class="status-label">连接状态</text>
+          <text class="status-value {{healthData.redis.status === 'ok' ? 'ok' : 'error'}}">{{healthData.redis.status === 'ok' ? '正常' : '异常'}}</text>
+        </view>
+        <view class="status-row" wx:if="{{healthData.redis.used_memory_mb}}">
+          <text class="status-label">内存使用</text>
+          <text class="status-value">{{healthData.redis.used_memory_mb}}MB</text>
+        </view>
+        <view class="status-row" wx:if="{{healthData.redis.hit_rate}}">
+          <text class="status-label">命中率</text>
+          <text class="status-value">{{healthData.redis.hit_rate}}%</text>
+        </view>
+      </view>
+
+      <!-- 应用指标 -->
+      <view class="card" wx:if="{{healthData.app}}">
+        <view class="card-title">应用指标</view>
+        <view class="status-row">
+          <text class="status-label">今日请求数</text>
+          <text class="status-value">{{healthData.app.today_requests}}</text>
+        </view>
+        <view class="status-row">
+          <text class="status-label">今日错误数</text>
+          <text class="status-value {{healthData.app.today_errors > 0 ? 'error' : 'ok'}}">{{healthData.app.today_errors}}</text>
+        </view>
+        <view class="status-row">
+          <text class="status-label">平均响应时间</text>
+          <text class="status-value">{{healthData.app.avg_response_ms}}ms</text>
+        </view>
+      </view>
+
+      <!-- 刷新按钮 -->
+      <view class="refresh-bar">
+        <text class="refresh-text" wx:if="{{healthData.collected_at}}">更新于 {{healthData.collected_at}}</text>
+        <button class="refresh-btn" bindtap="onRefreshHealth" loading="{{healthLoading}}">刷新</button>
+      </view>
+    </block>
+
+    <view class="empty-state" wx:if="{{!healthData && !healthLoading}}">
+      <text class="empty-icon">📊</text>
+      <text class="empty-text">暂无健康数据</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== 告警详情弹窗 ==================== -->
+  <view class="detail-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
+    <view class="detail-panel" catchtap>
+      <view class="detail-header">
+        <text class="detail-title">告警详情</text>
+        <text class="detail-close" bindtap="closeDetail"></text>
+      </view>
+
+      <scroll-view scroll-y class="detail-body">
+        <view class="detail-loading" wx:if="{{detailLoading}}">
+          <text>加载中...</text>
+        </view>
+
+        <block wx:if="{{currentAlert && !detailLoading}}">
+          <view class="detail-row">
+            <text class="detail-label">标题</text>
+            <text class="detail-value">{{currentAlert.title}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">级别</text>
+            <text class="detail-value" style="color: {{currentAlert.severityColor}}">{{currentAlert.severityLabel}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">状态</text>
+            <text class="detail-value">{{currentAlert.statusLabel}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">来源模块</text>
+            <text class="detail-value">{{currentAlert.source_module || '未知'}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">请求URL</text>
+            <text class="detail-value">{{currentAlert.request_url || '无'}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">创建时间</text>
+            <text class="detail-value">{{currentAlert.created_at}}</text>
+          </view>
+
+          <view class="detail-section" wx:if="{{currentAlert.description}}">
+            <text class="section-title">描述</text>
+            <text class="section-content">{{currentAlert.description}}</text>
+          </view>
+
+          <view class="detail-section" wx:if="{{currentAlert.stack_trace}}">
+            <text class="section-title">堆栈信息</text>
+            <scroll-view scroll-x class="stack-scroll">
+              <text class="stack-content">{{currentAlert.stack_trace}}</text>
+            </scroll-view>
+          </view>
+
+          <view class="detail-section" wx:if="{{currentAlert.request_params}}">
+            <text class="section-title">请求参数</text>
+            <scroll-view scroll-x class="stack-scroll">
+              <text class="stack-content">{{currentAlert.request_params}}</text>
+            </scroll-view>
+          </view>
+
+          <!-- 操作按钮 -->
+          <view class="detail-actions" wx:if="{{currentAlert.status === 'new'}}">
+            <button class="action-btn acknowledge" bindtap="onAcknowledge">确认</button>
+            <button class="action-btn resolve" bindtap="onResolve">解决</button>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+</view>
