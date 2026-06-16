@@ -161,3 +161,80 @@ class WeComBot:
 
         text_content = f"[系统恢复] {message}"
         return self._send(markdown_content, text_content)
+
+    def send_fix_result(self, fix_id, fix_name, status, result, alert_id=None):
+        """发送修复结果通知"""
+        status_icon = '✅' if status == 'success' else '❌'
+        status_text = '成功' if status == 'success' else '失败'
+        message = result.get('message', '') if isinstance(result, dict) else str(result)
+
+        markdown_content = f"""## {status_icon} 自动修复{status_text}
+
+> **{fix_name}**
+
+**修复器**: {fix_id}
+**告警ID**: {alert_id or '无'}
+**结果**: {message[:200]}
+
+---
+自愈系统自动修复"""
+
+        text_content = f"[自动修复{status_text}] {fix_name} | 告警ID:{alert_id or '无'} | {message[:100]}"
+        return self._send(markdown_content, text_content)
+
+    def send_approval_request(self, approval):
+        """发送审批请求通知"""
+        risk_labels = {'medium': '🟡 中危', 'high': '🔴 高危'}
+        risk_text = risk_labels.get(approval.risk_level, approval.risk_level)
+
+        markdown_content = f"""## 📋 待审批修复
+
+> **{approval.fix_name}**
+
+**风险级别**: {risk_text}
+**修复ID**: {approval.fix_id}
+**告警ID**: {approval.alert_id}
+
+**修复方案**:
+{approval.fix_description or '无'}
+
+---
+请登录开发者后台审批"""
+
+        text_content = f"[待审批] {approval.fix_name} | 风险:{approval.risk_level} | 告警ID:{approval.alert_id} | 请登录后台审批"
+        return self._send(markdown_content, text_content)
+
+    def send_evolution_report(self, report):
+        """发送进化报告通知"""
+        health = report.get('health', {})
+        score = health.get('score', 0)
+        level = health.get('level', 'unknown')
+        risks = report.get('risks', {})
+        risk_count = len(risks.get('risks', []))
+
+        level_labels = {
+            'excellent': '优秀',
+            'good': '良好',
+            'warning': '警告',
+            'critical': '危险',
+        }
+
+        markdown_content = f"""## 📊 系统进化报告
+
+> **健康评分: {score}/100 ({level_labels.get(level, level)})**
+
+**评分明细**:
+- 告警频率: {health.get('breakdown', {}).get('alert_score', 0)}
+- 修复成功率: {health.get('breakdown', {}).get('fix_score', 0)}
+- 系统指标: {health.get('breakdown', {}).get('system_score', 0)}
+- 防御覆盖率: {health.get('breakdown', {}).get('defense_score', 0)}
+
+**风险预警**: {risk_count} 项
+
+---
+自愈系统进化分析"""
+
+        top_risks = risks.get('risks', [])[:3]
+        risk_text = '; '.join(r.get('message', '')[:50] for r in top_risks)
+        text_content = f"[进化报告] 健康评分:{score}/100({level_labels.get(level, level)}) | 风险:{risk_count}项 | {risk_text}"
+        return self._send(markdown_content, text_content)
