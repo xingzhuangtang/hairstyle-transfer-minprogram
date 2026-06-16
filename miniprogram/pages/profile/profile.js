@@ -248,6 +248,15 @@ Page({
   },
 
   /**
+   * 跳转到系统监控（开发者功能）
+   */
+  goToMonitor() {
+    wx.navigateTo({
+      url: '/pages/monitor/monitor'
+    })
+  },
+
+  /**
    * 跳转到我的惊喜（推广返佣）
    */
   goToReferral() {

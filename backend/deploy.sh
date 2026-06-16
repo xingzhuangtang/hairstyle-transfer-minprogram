@@ -153,13 +153,13 @@ sync_code() {
         # --- 运维 / 调度 ---
         "scheduler.py"
         "fix_financial_records.py"
-        "debug_config.py"
         # --- 数据库检查 / 监控 ---
         "check_db_schema.py"
         "fix_db_schema.py"
         "monitor_financial.py"
         "manual_fix_recharge.py"
         "migrate_dev_indexes.py"
+        "migrate_self_healing_tables.py"
     )
 
     for file in "${CORE_FILES[@]}"; do
@@ -170,6 +170,13 @@ sync_code() {
             log_warn "  本地不存在: $file (跳过)"
         fi
     done
+
+    # 同步 self_healing 目录
+    if [[ -d "$BACKEND_DIR/self_healing" ]]; then
+        remote_exec "mkdir -p $DEPLOY_PATH/self_healing"
+        remote_scp -r "$BACKEND_DIR"/self_healing/* "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/self_healing/"
+        log_info "  已同步: self_healing/"
+    fi
 
     # 注意: 不同步 .env，避免覆盖远程服务器的重要配置
     # 如需更新远程 .env，请手动执行:
