@@ -47,4 +47,13 @@ def get_config():
 
         # 健康检查缓存（秒）
         'HEALTH_CACHE_TTL': int(os.getenv('HEALTH_CACHE_TTL', '10')),
+
+        # Phase 2: 自动修复配置
+        'AUTO_FIX_ENABLED': os.getenv('AUTO_FIX_ENABLED', 'true').lower() == 'true',
+        'AUTO_FIX_LOW_RISK': os.getenv('AUTO_FIX_LOW_RISK', 'true').lower() == 'true',
+        'APPROVAL_EXPIRES_HOURS': int(os.getenv('APPROVAL_EXPIRES_HOURS', '24')),
+
+        # Phase 3: 防御规则 & 进化分析
+        'DEFENSE_RULE_ENABLED': os.getenv('DEFENSE_RULE_ENABLED', 'true').lower() == 'true',
+        'EVOLUTION_ANALYSIS_INTERVAL': int(os.getenv('EVOLUTION_ANALYSIS_INTERVAL', '3600')),
     }

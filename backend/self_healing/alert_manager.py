@@ -19,12 +19,15 @@ logger = logging.getLogger('self_healing')
 class AlertManager:
     """告警管理器"""
 
-    def __init__(self, app, config, db=None, redis_client=None, wecom_bot=None):
+    def __init__(self, app, config, db=None, redis_client=None, wecom_bot=None,
+                 fixer=None, rule_engine=None):
         self.app = app
         self.config = config
         self.db = db
         self.redis = redis_client
         self.wecom_bot = wecom_bot
+        self.fixer = fixer
+        self.rule_engine = rule_engine
 
         self._queue = queue.Queue(maxsize=config.get('ALERT_QUEUE_MAXSIZE', 1000))
         self._worker_thread = None
@@ -136,6 +139,19 @@ class AlertManager:
                     })
                 except queue.Full:
                     pass
+
+        # Phase 2: 触发自动修复
+        if alert_id and self.fixer and self.config.get('AUTO_FIX_ENABLED', True):
+            try:
+                t = threading.Thread(
+                    target=self.fixer.try_auto_fix,
+                    args=(alert_id,),
+                    daemon=True,
+                    name=f'sh_autofix_{alert_id}',
+                )
+                t.start()
+            except Exception as e:
+                logger.error(f'自动修复触发失败: {e}')
 
         return alert_id
 

@@ -3,16 +3,22 @@
   <!-- 顶部标题 -->
   <view class="header">
     <text class="title">系统监控</text>
-    <text class="subtitle">自愈系统 Phase 1 - 感知层</text>
+    <text class="subtitle">自愈系统 - 感知 / 自愈 / 进化</text>
   </view>
 
   <!-- Tab 切换栏 -->
   <view class="tab-bar">
     <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange">
-      <text>告警列表</text>
+      <text>告警</text>
     </view>
     <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange">
-      <text>系统健康</text>
+      <text>健康</text>
+    </view>
+    <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange">
+      <text>修复</text>
+    </view>
+    <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" data-tab="3" bindtap="onTabChange">
+      <text>进化</text>
     </view>
   </view>
 
@@ -180,6 +186,175 @@
     <view class="empty-state" wx:if="{{!healthData && !healthLoading}}">
       <text class="empty-icon">📊</text>
       <text class="empty-text">暂无健康数据</text>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 2: 自动修复 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 2}}">
+    <!-- 子 Tab -->
+    <view class="sub-tab-bar">
+      <view class="sub-tab {{fixSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onFixSubTabChange">修复器</view>
+      <view class="sub-tab {{fixSubTab === 1 ? 'active' : ''}}" data-sub="1" bindtap="onFixSubTabChange">
+        待审批
+        <text class="badge" wx:if="{{approvals.length > 0}}">{{approvals.length}}</text>
+      </view>
+      <view class="sub-tab {{fixSubTab === 2 ? 'active' : ''}}" data-sub="2" bindtap="onFixSubTabChange">执行历史</view>
+    </view>
+
+    <!-- 修复器列表 -->
+    <view wx:if="{{fixSubTab === 0}}" class="fix-section">
+      <view class="fix-card" wx:for="{{fixList}}" wx:key="id">
+        <view class="fix-card-header">
+          <text class="fix-name">{{item.name}}</text>
+          <text class="risk-tag {{item.risk}}">{{item.risk === 'low' ? '低风险' : item.risk === 'medium' ? '中风险' : '高风险'}}</text>
+        </view>
+        <text class="fix-desc">{{item.description}}</text>
+        <button class="fix-exec-btn {{fixExecuting === item.id ? 'disabled' : ''}}"
+                data-id="{{item.id}}" bindtap="onExecuteFix"
+                disabled="{{fixExecuting === item.id}}">
+          {{fixExecuting === item.id ? '执行中...' : '执行修复'}}
+        </button>
+      </view>
+      <view class="empty-state" wx:if="{{fixList.length === 0 && !fixLoading}}">
+        <text class="empty-icon">🔧</text>
+        <text class="empty-text">暂无可用修复器</text>
+      </view>
+    </view>
+
+    <!-- 待审批 -->
+    <view wx:if="{{fixSubTab === 1}}" class="fix-section">
+      <view class="approval-card" wx:for="{{approvals}}" wx:key="id">
+        <view class="approval-header">
+          <text class="fix-name">{{item.fix_name}}</text>
+          <text class="risk-tag {{item.risk_level}}">{{item.riskLabel}}</text>
+        </view>
+        <view class="approval-info">
+          <text class="approval-status {{item.status}}">{{item.statusText}}</text>
+          <text class="alert-time">{{item.timeText}}</text>
+        </view>
+        <text class="fix-desc" wx:if="{{item.fix_description}}">{{item.fix_description}}</text>
+        <view class="approval-actions" wx:if="{{item.status === 'pending'}}">
+          <button class="approve-btn" data-id="{{item.id}}" bindtap="onApproveFix">批准执行</button>
+          <button class="reject-btn" data-id="{{item.id}}" bindtap="onRejectFix">拒绝</button>
+        </view>
+      </view>
+      <view class="empty-state" wx:if="{{approvals.length === 0 && !fixLoading}}">
+        <text class="empty-icon">📋</text>
+        <text class="empty-text">暂无待审批项</text>
+      </view>
+    </view>
+
+    <!-- 执行历史 -->
+    <view wx:if="{{fixSubTab === 2}}" class="fix-section">
+      <view class="history-card" wx:for="{{fixHistory}}" wx:key="id">
+        <view class="history-header">
+          <text class="history-icon">{{item.statusIcon}}</text>
+          <text class="fix-name">{{item.fix_name}}</text>
+          <text class="alert-time">{{item.timeText}}</text>
+        </view>
+        <view class="approval-info">
+          <text class="approval-status {{item.status}}">{{item.statusText}}</text>
+          <text class="fix-type-tag">{{item.fix_type === 'auto' ? '自动' : item.fix_type === 'approved' ? '审批' : '手动'}}</text>
+          <text class="alert-time" wx:if="{{item.duration_ms}}">{{item.duration_ms}}ms</text>
+        </view>
+      </view>
+      <view class="empty-state" wx:if="{{fixHistory.length === 0 && !fixLoading}}">
+        <text class="empty-icon">📜</text>
+        <text class="empty-text">暂无执行记录</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- ==================== Tab 3: 进化分析 ==================== -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 3}}">
+    <!-- 子 Tab -->
+    <view class="sub-tab-bar">
+      <view class="sub-tab {{evolutionSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onEvolutionSubTabChange">健康评分</view>
+      <view class="sub-tab {{evolutionSubTab === 1 ? 'active' : ''}}" data-sub="1" bindtap="onEvolutionSubTabChange">防御规则</view>
+    </view>
+
+    <!-- 健康评分 -->
+    <view wx:if="{{evolutionSubTab === 0}}">
+      <view class="card" wx:if="{{healthScore}}">
+        <view class="score-display">
+          <view class="score-circle {{healthScore.level}}">
+            <text class="score-number">{{healthScore.score}}</text>
+            <text class="score-unit">分</text>
+          </view>
+          <text class="score-level">{{healthScore.levelLabel}}</text>
+        </view>
+
+        <view class="score-breakdown">
+          <view class="breakdown-item">
+            <text class="breakdown-label">告警频率</text>
+            <view class="breakdown-bar">
+              <view class="bar-fill" style="width: {{healthScore.breakdown.alert_score}}%"></view>
+            </view>
+            <text class="breakdown-value">{{healthScore.breakdown.alert_score}}</text>
+          </view>
+          <view class="breakdown-item">
+            <text class="breakdown-label">修复成功率</text>
+            <view class="breakdown-bar">
+              <view class="bar-fill" style="width: {{healthScore.breakdown.fix_score}}%"></view>
+            </view>
+            <text class="breakdown-value">{{healthScore.breakdown.fix_score}}</text>
+          </view>
+          <view class="breakdown-item">
+            <text class="breakdown-label">系统指标</text>
+            <view class="breakdown-bar">
+              <view class="bar-fill" style="width: {{healthScore.breakdown.system_score}}%"></view>
+            </view>
+            <text class="breakdown-value">{{healthScore.breakdown.system_score}}</text>
+          </view>
+          <view class="breakdown-item">
+            <text class="breakdown-label">防御覆盖率</text>
+            <view class="breakdown-bar">
+              <view class="bar-fill" style="width: {{healthScore.breakdown.defense_score}}%"></view>
+            </view>
+            <text class="breakdown-value">{{healthScore.breakdown.defense_score}}</text>
+          </view>
+        </view>
+
+        <view class="score-summary">
+          <text>今日告警: {{healthScore.summary.today_alerts}} | 本周告警: {{healthScore.summary.week_alerts}} | 本周修复: {{healthScore.summary.week_fixes}}</text>
+        </view>
+      </view>
+
+      <view class="action-bar">
+        <button class="analyze-btn" bindtap="onRunAnalysis" loading="{{evolutionLoading}}">运行进化分析</button>
+      </view>
+
+      <!-- 风险预测 -->
+      <view class="card" wx:if="{{evolutionReport && evolutionReport.risks}}">
+        <view class="card-title">风险预测</view>
+        <view class="risk-item" wx:for="{{evolutionReport.risks.risks}}" wx:key="message">
+          <text class="risk-level-tag {{item.level}}">{{item.level === 'high' ? '高' : item.level === 'medium' ? '中' : '低'}}</text>
+          <text class="risk-message">{{item.message}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 防御规则 -->
+    <view wx:if="{{evolutionSubTab === 1}}">
+      <view class="rule-card" wx:for="{{defenseRules}}" wx:key="id">
+        <view class="rule-header">
+          <view class="rule-toggle" data-id="{{item.id}}" data-enabled="{{item.enabled}}" bindtap="onToggleRule">
+            <view class="toggle-switch {{item.enabled ? 'on' : ''}}">
+              <view class="toggle-dot"></view>
+            </view>
+          </view>
+          <text class="fix-name" style="flex:1">{{item.name}}</text>
+          <text class="action-tag" style="color: {{item.actionColor}}">{{item.actionLabel}}</text>
+        </view>
+        <view class="rule-info">
+          <text class="rule-pattern">{{item.pattern_type}}: {{item.pattern_value}}</text>
+          <text class="rule-hits">命中 {{item.hit_count}} 次</text>
+        </view>
+      </view>
+      <view class="empty-state" wx:if="{{defenseRules.length === 0 && !evolutionLoading}}">
+        <text class="empty-icon">🛡️</text>
+        <text class="empty-text">暂无防御规则</text>
+      </view>
     </view>
   </scroll-view>
 
