@@ -1,7 +1,7 @@
 // pages/member/member.js
-import { getMemberInfo, buyMember, getMemberOrders, payMemberOrder } from '../../api/member.js'
+import { getMemberInfo, getMemberOrders } from '../../api/member.js'
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
 import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
@@ -93,14 +93,7 @@ Page({
         if (modalRes.confirm) {
           try {
             wx.showLoading({ title: '创建订单中...' })
-
-            // iOS端使用虚拟支付
-            if (this.data.isVirtualPay || this.data.isDevTools) {
-              await this.handleVirtualPay()
-            } else {
-              // Android端使用普通微信支付
-              await this.handleNormalPay()
-            }
+            await this.handleVirtualPay()
           } catch (e) {
             wx.hideLoading()
             wx.showToast({ title: e.message || '创建订单失败', icon: 'none' })
@@ -111,67 +104,52 @@ Page({
   },
 
   /**
-   * 处理普通微信支付（Android端）
-   */
-  async handleNormalPay() {
-    const orderRes = await buyMember('wechat')
-    if (!orderRes.success) throw new Error(orderRes.error)
-
-    const orderNo = orderRes.order_no
-    this.setData({ currentOrderNo: orderNo })
-    wx.hideLoading()
-    await this.handleWechatPay(orderNo)
-  },
-
-  /**
-   * 处理微信虚拟支付（iOS端）
+   * 处理微信虚拟支付（全平台统一使用）
    */
   async handleVirtualPay() {
     const goodsKey = getVirtualGoodsKey('member', 99)
-    const orderRes = await createVirtualPayOrder('member', 99, goodsKey)
+    
+    // 先获取 session_key（用于虚拟支付签名）
+    const sessionKey = await getSessionKey()
+    
+    const orderRes = await createVirtualPayOrder('member', 99, goodsKey, sessionKey)
     if (!orderRes.success) throw new Error(orderRes.error)
 
     const orderNo = orderRes.order_no
     this.setData({ currentOrderNo: orderNo })
-    wx.hideLoading()
 
-    wx.showModal({
-      title: '虚拟支付',
-      content: '正在调起微信虚拟支付 ¥99',
-      showCancel: false,
-      success: () => {
-        this.checkVirtualPayOrderStatus(orderNo)
-      }
-    })
-  },
-
-  async handleWechatPay(orderNo) {
-    try {
-      const payRes = await payMemberOrder(orderNo, 'wechat')
-      if (!payRes.success) throw new Error(payRes.error)
-
-      // 调起微信支付
-      wx.requestPayment({
-        ...payRes.wxpay_params,
-        total_fee: payRes.wxpay_params.total_fee || 0,
+    if (orderRes.is_developer_mode) {
+      wx.hideLoading()
+      wx.showModal({
+        title: '模拟支付',
+        content: '开发者模式：开通会员成功，已赠送 1000 发丝',
+        showCancel: false,
         success: () => {
-          wx.showToast({ title: '支付成功', icon: 'success' })
-          setTimeout(() => this.loadMemberInfo(), 1500)
-        },
-        fail: (err) => {
-          wx.showToast({
-            title: err.errMsg.includes('cancel') ? '取消支付' : '支付失败',
-            icon: 'none'
-          })
+          this.loadMemberInfo()
         }
       })
-    } catch (e) {
-      wx.showToast({ title: e.message || '发起支付失败', icon: 'none' })
+      return
+    }
+
+    wx.hideLoading()
+
+    const payParams = orderRes.virtual_pay_params
+    if (!payParams) throw new Error('获取虚拟支付参数失败')
+
+    try {
+      await requestVirtualPay(payParams)
+      this.checkVirtualPayOrderStatus(orderNo)
+    } catch (err) {
+      console.error('调起虚拟支付失败:', err)
+      wx.showToast({
+        title: '调起支付失败',
+        icon: 'none'
+      })
     }
   },
 
   /**
-   * 查询虚拟支付订单状态（iOS端）
+   * 查询虚拟支付订单状态
    */
   async checkVirtualPayOrderStatus(orderNo) {
     wx.showLoading({ title: '处理中...' })
