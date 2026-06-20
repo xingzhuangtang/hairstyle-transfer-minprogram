@@ -2,7 +2,7 @@
 import { getMemberInfo, getMemberOrders } from '../../api/member.js'
 import { getUserInfo } from '../../api/user.js'
 import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
-import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
+import { getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
   data: {
@@ -10,38 +10,15 @@ Page({
     isVip: false,
     remainingDays: 0,
     expireAt: '',
-    orders: [],
-    isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false
+    orders: []
   },
 
   onLoad() {
     this.loadMemberInfo()
-    this.checkPlatform()
   },
 
   onShow() {
     this.loadMemberInfo()
-  },
-
-  /**
-   * 检测当前平台
-   */
-  async checkPlatform() {
-    const isVirtual = needsVirtualPay()
-    const systemInfo = wx.getSystemInfoSync()
-    const isDev = systemInfo.platform === 'devtools'
-
-    this.setData({
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
-
-    console.log('会员页平台检测:', {
-      platform: systemInfo.platform,
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
   },
 
   async loadMemberInfo() {
