@@ -28,17 +28,21 @@ class WeChatVirtualPayService:
         """生成随机字符串"""
         return uuid.uuid4().hex[:32]
 
+    def _get_sign_key(self):
+        """获取签名密钥：虚拟支付使用 AppKey，非普通微信支付 API Key"""
+        return self.config.VIRTUAL_PRODUCTION_APP_KEY or self.config.VIRTUAL_SANDBOX_APP_KEY
+
     def _generate_sign(self, params):
         """生成签名"""
-        # 按 key 排序并拼接
         sorted_params = sorted(params.items())
         string_a = "&".join([f"{k}={v}" for k, v in sorted_params if v is not None])
-        string_sign_temp = f"{string_a}&key={self.config.WECHAT_PAY_API_V3_KEY}"
+        sign_key = self._get_sign_key()
+        string_sign_temp = f"{string_a}&key={sign_key}"
         return hashlib.md5(string_sign_temp.encode("utf-8")).hexdigest().upper()
 
-    def create_virtual_pay_order(self, user_openid, order_no, amount_yuan, goods_id, body):
+    def create_virtual_pay_order(self, user_openid, order_no, amount_yuan, goods_id, body, session_key, product_id=None):
         """
-        创建虚拟支付订单
+        创建虚拟支付订单（用于 wx.requestVirtualPayment）
 
         Args:
             user_openid: 用户 openid
@@ -46,47 +50,68 @@ class WeChatVirtualPayService:
             amount_yuan: 金额（元）
             goods_id: 虚拟商品 ID
             body: 商品描述
+            session_key: 用户 session_key（从 wx.login 获取）
+            product_id: 道具 ID（productId）
 
         Returns:
             dict: 虚拟支付参数，前端用于调起支付
         """
-        # 虚拟支付使用"米"为单位，1元 = 10米
-        amount_mi = int(amount_yuan * 10)
+        # 虚拟支付使用"分"为单位，1元 = 100分
+        amount_fen = int(amount_yuan * 100)
 
-        timestamp = str(int(time.time()))
-        nonce_str = self._generate_nonce_str()
-
-        # 请求参数
-        params = {
-            "mch_id": self.mch_id,
-            "appid": self.app_id,
-            "out_trade_no": order_no,
-            "body": body,
-            "total_fee": amount_mi,
-            "notify_url": self.config.WECHAT_VIRTUAL_PAY_NOTIFY_URL,
-            "spbill_create_ip": "127.0.0.1",  # 虚拟支付不需要实际IP
-            "openid": user_openid,
-            "goods_id": goods_id,
-            "nonce_str": nonce_str,
-            "timestamp": timestamp,
+        # 构建 signData（不包含 mode，mode 是独立参数）
+        sign_data = {
+            "offerId": self.config.VIRTUAL_OFFER_ID,
+            "buyQuantity": 1,
+            "env": 0,  # 0=正式环境
+            "currencyType": "CNY",
+            "productId": product_id or goods_id,
+            "goodsPrice": amount_fen,
+            "outTradeNo": order_no,
+            "attach": body
         }
 
-        # 生成签名
-        sign = self._generate_sign(params)
-        params["sign"] = sign
+        sign_data_str = json.dumps(sign_data, separators=(',', ':'))
+
+        # 生成支付签名（pay_sig）- 使用 HMAC-SHA256，密钥是 session_key
+        pay_sig = self._generate_pay_sig(sign_data_str, session_key)
+
+        # 生成用户态签名（signature）- 使用 HMAC-SHA256，密钥是 session_key
+        signature = self._generate_signature(sign_data_str, session_key)
 
         # 返回前端用于调起虚拟支付的参数
         return {
-            "mch_id": self.mch_id,
-            "appid": self.app_id,
-            "package": "WXBiz",
-            "nonce_str": nonce_str,
-            "time_stamp": timestamp,
-            "sign": sign,
-            "out_trade_no": order_no,
-            "goods_id": goods_id,
-            "total_fee": amount_mi,
+            "signData": sign_data_str,
+            "pay_sig": pay_sig,
+            "signature": signature,
+            "mode": "short_series_goods"
         }
+
+    def _generate_pay_sig(self, sign_data_str, session_key):
+        """
+        生成支付签名（pay_sig）
+        签名算法：hmac_sha256(session_key, signData) 大写
+        """
+        import hmac
+        signature = hmac.new(
+            session_key.encode('utf-8'),
+            sign_data_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest().upper()
+        return signature
+
+    def _generate_signature(self, sign_data_str, session_key):
+        """
+        生成用户态签名（signature）
+        签名算法：hmac_sha256(session_key, signData) 小写
+        """
+        import hmac
+        signature = hmac.new(
+            session_key.encode('utf-8'),
+            sign_data_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return signature
 
     def verify_callback(self, request_data):
         """

@@ -1,7 +1,6 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
-import { createRechargeOrder as createRechargeApi, pay, getOrderStatus } from '../../api/payment.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
 import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
@@ -120,15 +119,7 @@ Page({
 
     try {
       wx.showLoading({ title: '创建订单中...' })
-
-      // iOS端使用虚拟支付
-      if (this.data.isVirtualPay || this.data.isDevTools) {
-        await this.handleVirtualPay(amount)
-      } else {
-        // Android端使用普通微信支付
-        await this.handleNormalPay(amount, paymentMethod)
-      }
-
+      await this.handleVirtualPay(amount)
     } catch (e) {
       console.error('创建订单失败:', e)
       wx.hideLoading()
@@ -140,31 +131,15 @@ Page({
   },
 
   /**
-   * 处理普通微信支付（Android端）
-   */
-  async handleNormalPay(amount, paymentMethod) {
-    // 1. 创建充值订单
-    const orderRes = await createRechargeApi(amount, paymentMethod)
-
-    if (!orderRes.success) {
-      throw new Error(orderRes.error || '创建订单失败')
-    }
-
-    const orderNo = orderRes.order_no
-    this.setData({ currentOrderNo: orderNo })
-
-    // 2. 调用微信支付
-    await this.handleWechatPay(orderNo)
-  },
-
-  /**
-   * 处理微信虚拟支付（iOS端）
+   * 处理微信虚拟支付
    */
   async handleVirtualPay(amount) {
     const goodsKey = getVirtualGoodsKey('recharge', amount)
 
-    // 1. 创建虚拟支付订单
-    const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey)
+    // 先获取 session_key（用于虚拟支付签名）
+    const sessionKey = await getSessionKey()
+
+    const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey, sessionKey)
 
     if (!orderRes.success) {
       throw new Error(orderRes.error || '创建虚拟支付订单失败')
@@ -173,7 +148,6 @@ Page({
     const orderNo = orderRes.order_no
     this.setData({ currentOrderNo: orderNo })
 
-    // 2. 开发者模式：直接显示成功
     if (orderRes.is_developer_mode) {
       wx.hideLoading()
       wx.showModal({
@@ -181,67 +155,33 @@ Page({
         content: `开发者模式：充值 ${amount} 元成功，头发丝已到账`,
         showCancel: false,
         success: () => {
-          this.loadUserInfo()  // 刷新用户信息
+          this.loadUserInfo()
         }
       })
       return
     }
 
-    // 3. 正常模式：调起虚拟支付并轮询
+    const payParams = orderRes.virtual_pay_params
+    if (!payParams) {
+      throw new Error('获取虚拟支付参数失败')
+    }
+
     wx.hideLoading()
-    wx.showModal({
-      title: '虚拟支付',
-      content: `正在调起微信虚拟支付 ¥${amount}`,
-      showCancel: false,
-      success: () => {
-        this.checkVirtualPayOrderStatus(orderNo)
-      }
-    })
-  },
 
-  /**
-   * 处理微信支付
-   */
-  async handleWechatPay(orderNo) {
     try {
-      // 获取支付参数
-      const payRes = await pay(orderNo, 'wechat')
-
-      if (!payRes.success) {
-        throw new Error(payRes.error || '获取支付参数失败')
-      }
-
-      wx.hideLoading()
-
-      // 调起微信支付
-      wx.requestPayment({
-        ...payRes.wxpay_params,
-        total_fee: payRes.wxpay_params.total_fee || 0,
-        success: () => {
-          // 支付成功，查询订单状态
-          this.checkOrderStatus(orderNo)
-        },
-        fail: (err) => {
-          if (err.errMsg.includes('cancel')) {
-            wx.showToast({
-              title: '取消支付',
-              icon: 'none'
-            })
-          } else {
-            wx.showToast({
-              title: '支付失败',
-              icon: 'none'
-            })
-          }
-        }
+      await requestVirtualPay(payParams)
+      this.checkVirtualPayOrderStatus(orderNo)
+    } catch (err) {
+      console.error('调起虚拟支付失败:', err)
+      wx.showToast({
+        title: '调起支付失败',
+        icon: 'none'
       })
-    } catch (e) {
-      throw e
     }
   },
 
   /**
-   * 查询虚拟支付订单状态（iOS端）
+   * 查询虚拟支付订单状态
    */
   async checkVirtualPayOrderStatus(orderNo) {
     wx.showLoading({ title: '处理中...' })
@@ -309,128 +249,7 @@ Page({
     }, 30000)
   },
 
-  /**
-   * 查询订单状态
-   */
-  async checkOrderStatus(orderNo) {
-    wx.showLoading({ title: '处理中...' })
-
-    // 轮询查询（最多 30 秒）
-    let count = 0
-    const maxCount = 30 // 最多查询 30 次 (30 * 1 秒 = 30 秒)
-
-    // 立即查询一次（不等 1 秒）
-    const checkOnce = async () => {
-      count++
-
-      try {
-        const res = await getOrderStatus(orderNo)
-
-        if (res.success) {
-          const paymentStatus = res.payment_status
-
-          if (paymentStatus === 'success') {
-            wx.hideLoading()
-            wx.showToast({ title: '支付成功', icon: 'success' })
-            setTimeout(() => this.loadUserInfo(), 1000)
-            return true
-          } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
-            wx.hideLoading()
-            wx.showToast({
-              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
-              icon: 'none'
-            })
-            return true
-          }
-        }
-        return false
-      } catch (e) {
-        console.error('查询订单状态失败:', e)
-        return false
-      }
-    }
-
-    // 立即查询第一次
-    const done = await checkOnce()
-    if (done) return
-
-    // 之后每秒轮询
-    const timer = setInterval(async () => {
-      if (count >= maxCount) {
-        clearInterval(timer)
-        await this.queryWechatPayStatus(orderNo)
-        return
-      }
-
-      const done = await checkOnce()
-      if (done) clearInterval(timer)
-    }, 1000) // 每 1 秒查询一次
-
-    // 30 秒后停止轮询（兜底）
-    setTimeout(() => clearInterval(timer), 30000)
-  },
-
-  /**
-   * 主动查询微信支付状态（轮询超时后调用）
-   */
-  async queryWechatPayStatus(orderNo) {
-    try {
-      wx.showLoading({ title: '查询支付状态...' })
-
-      const { get } = require('../../utils/request.js')
-      const res = await get(`/api/recharge/query-wechat/${orderNo}`)
-
-      wx.hideLoading()
-
-      if (res.success) {
-        if (res.payment_status === 'success') {
-          wx.showToast({
-            title: '支付成功',
-            icon: 'success'
-          })
-
-          setTimeout(() => {
-            this.loadUserInfo()
-          }, 1500)
-        } else if (res.payment_status === 'failed') {
-          wx.showToast({
-            title: '支付失败',
-            icon: 'none'
-          })
-        } else {
-          wx.showToast({
-            title: '支付处理中，请稍后查看',
-            icon: 'none'
-          })
-        }
-      } else {
-        wx.showToast({
-          title: res.error || '查询失败',
-          icon: 'none'
-        })
-      }
-    } catch (e) {
-      wx.hideLoading()
-      console.error('主动查询微信支付状态失败:', e)
-      wx.showToast({
-        title: '查询失败，请稍后查看',
-        icon: 'none'
-      })
-    }
-  },
-
-  /**
-   * 页面显示时检查订单状态（从支付宝支付页面返回时调用）
-   */
   onShow() {
-    // 如果有当前订单号，检查支付状态
-    if (this.data.currentOrderNo) {
-      // 延迟检查，给支付回调一些时间
-      setTimeout(() => {
-        this.checkOrderStatus(this.data.currentOrderNo)
-        // 清空当前订单号，避免重复检查
-        this.setData({ currentOrderNo: null })
-      }, 1000)
-    }
+    this.loadUserInfo()
   }
 })

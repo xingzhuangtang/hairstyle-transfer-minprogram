@@ -209,6 +209,49 @@ def merge_account():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/auth/get-session-key', methods=['POST'])
+@login_required
+def get_session_key():
+    """用 wx.login 的 code 换取 session_key（用于虚拟支付签名）"""
+    try:
+        import requests as http_requests
+        from config import get_config
+        
+        data = request.get_json()
+        code = data.get('code')
+        
+        if not code:
+            return jsonify({'success': False, 'error': '缺少 code 参数'}), 400
+        
+        cfg = get_config()
+        url = "https://api.weixin.qq.com/sns/jscode2session"
+        params = {
+            "appid": cfg.WECHAT_APP_ID,
+            "secret": cfg.WECHAT_APP_SECRET,
+            "js_code": code,
+            "grant_type": "authorization_code",
+        }
+        
+        response = http_requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        
+        if "errcode" in result:
+            return jsonify({'success': False, 'error': result['errmsg']}), 400
+        
+        session_key = result.get("session_key")
+        if not session_key:
+            return jsonify({'success': False, 'error': '获取 session_key 失败'}), 500
+        
+        return jsonify({
+            'success': True,
+            'session_key': session_key
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================
 # 用户相关接口
 # ============================================
@@ -2263,9 +2306,10 @@ def create_virtual_pay_order():
         order_type = data.get("order_type")  # 'recharge' 或 'member'
         amount = data.get("amount")  # 金额（元）
         goods_key = data.get("goods_key")  # 商品键，如 recharge_10, member_vip
+        session_key = data.get("session_key")  # 用户 session_key（从 wx.login 获取）
 
-        if not order_type or not amount or not goods_key:
-            return jsonify({"error": "参数不完整"}), 400
+        if not order_type or not amount or not goods_key or not session_key:
+            return jsonify({"error": "参数不完整，需要 session_key"}), 400
 
         # 检查虚拟支付是否已启用
         virtual_pay_service = WeChatVirtualPayService()
@@ -2335,6 +2379,7 @@ def create_virtual_pay_order():
             amount_yuan=amount,
             goods_id=goods_id,
             body=body,
+            session_key=session_key,
         )
 
         return jsonify({

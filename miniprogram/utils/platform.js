@@ -67,13 +67,12 @@ function isDevTools() {
 
 /**
  * 是否需要使用虚拟支付
- * iOS 端需要使用微信虚拟支付，Android 使用普通微信支付
+ * 微信要求所有虚拟商品（发丝、会员等）必须使用小程序虚拟支付
+ * 支持全终端（iOS、Android 等）
  */
 function needsVirtualPay() {
-  const platform = getPlatform()
-  // iOS 需要虚拟支付
-  // 开发者工具可以跳过，用于测试
-  return platform === 'ios'
+  // 全平台都使用虚拟支付
+  return true
 }
 
 /**

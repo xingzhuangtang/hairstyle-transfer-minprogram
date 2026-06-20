@@ -66,6 +66,9 @@ class Config:
     # 微信虚拟支付配置（iOS端）
     WECHAT_VIRTUAL_PAY_MCH_ID = os.getenv("WECHAT_VIRTUAL_PAY_MCH_ID", "")  # 虚拟支付商户号
     WECHAT_VIRTUAL_PAY_NOTIFY_URL = os.getenv("WECHAT_VIRTUAL_PAY_NOTIFY_URL", "")  # 虚拟支付回调URL
+    VIRTUAL_OFFER_ID = os.getenv("VIRTUAL_OFFER_ID", "")  # 虚拟支付 OfferID
+    VIRTUAL_SANDBOX_APP_KEY = os.getenv("VIRTUAL_SANDBOX_APP_KEY", "")  # 沙箱 AppKey
+    VIRTUAL_PRODUCTION_APP_KEY = os.getenv("VIRTUAL_PRODUCTION_APP_KEY", "")  # 现网 AppKey
     # 虚拟商品ID映射（充值档位和会员）
     # 格式: {"10": "virtual_goods_id_10", "20": "virtual_goods_id_20", ...}
     WECHAT_VIRTUAL_GOODS_IDS = {
