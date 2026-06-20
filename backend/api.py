@@ -2333,22 +2333,31 @@ def create_virtual_pay_order():
 
         # 根据订单类型创建记录
         if order_type == "recharge":
-            # 计算头发丝数量（1元=10根）
-            hairs = int(amount * 10)
+            # 根据用户类型和充值金额获取正确的发丝数量
+            from config import RECHARGE_RULES
+            user_level = user.member_level if hasattr(user, 'member_level') and user.member_level else "normal"
+            recharge_rules = RECHARGE_RULES.get(user_level, RECHARGE_RULES["normal"])
+            amount_int = int(amount)
+            rule = recharge_rules.get(amount_int, {"scissor_hairs": int(amount * 10), "comb_hairs": 0})
+            
+            scissor_hairs = rule.get("scissor_hairs", int(amount * 10))
+            comb_hairs = rule.get("comb_hairs", 0)
+            
             order = RechargeRecord(
                 user_id=user.id,
                 order_no=order_no,
                 amount=amount,
-                scissor_hairs=hairs,
-                comb_hairs=0,
+                scissor_hairs=scissor_hairs,
+                comb_hairs=comb_hairs,
                 payment_method="wechat_virtual",
                 payment_status=payment_status,
             )
             db.session.add(order)
             
-            # 开发者模式：立即充值
+            # 开发者模式：立即充值（加到正确的卡槽）
             if is_developer:
-                user.comb_hairs += hairs
+                user.scissor_hairs += scissor_hairs
+                user.comb_hairs += comb_hairs
         elif order_type == "member":
             order = MemberOrder(
                 user_id=user.id,
