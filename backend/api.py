@@ -2373,7 +2373,11 @@ def create_virtual_pay_order():
             # 开发者模式：立即开通会员
             if is_developer:
                 user.member_level = "vip"
-                user.member_expire_at = datetime.now() + timedelta(days=365)
+                # 如果已经是未过期的会员，累计365天；否则从当前时间算365天
+                if user.member_expire_at and user.member_expire_at > datetime.now():
+                    user.member_expire_at = user.member_expire_at + timedelta(days=365)
+                else:
+                    user.member_expire_at = datetime.now() + timedelta(days=365)
                 user.comb_hairs += 1000
         else:
             return jsonify({"error": "不支持的订单类型"}), 400
