@@ -49,7 +49,7 @@
       <view class="privilege-item">
         <view class="privilege-icon">赠</view>
         <view class="privilege-info">
-          <text class="privilege-title">购买即赠 1000 发丝</text>
+          <text class="privilege-title">购买即赠 1000 梳子发丝</text>
           <text class="privilege-desc">购买会员即赠送 1000 根梳子发丝</text>
         </view>
       </view>
@@ -73,11 +73,14 @@
         <text class="period">/年</text>
       </view>
       <view class="purchase-tips">
-        <text>✓ 购买即赠 1000 发丝</text>
+        <text>✓ 购买即赠 1000 梳子发丝</text>
         <text>✓ 服务 5 折优惠</text>
         <text>✓ 历史记录保留 45 天</text>
       </view>
-      <button class="purchase-btn" bindtap="buyMember">立即开通</button>
+      <button class="purchase-btn" bindtap="buyMember">
+        <text class="btn-text">虚拟支付开通</text>
+      </button>
+      <text class="pay-hint">通过微信官方虚拟支付完成购买</text>
     </view>
   </view>
 
@@ -93,7 +96,7 @@
         </view>
         <view class="order-body">
           <text class="order-amount">¥{{item.amount}}</text>
-          <text class="order-bonus">赠送 {{item.bonus_hairs}} 发丝</text>
+          <text class="order-bonus">赠送 {{item.bonus_hairs}} 梳子发丝</text>
         </view>
         <view class="order-footer">
           <text class="order-time">{{item.created_at}}</text>
@@ -106,7 +109,10 @@
   <view class="renew-section" wx:if="{{isVip && remainingDays <= 30}}">
     <view class="renew-card">
       <text class="renew-tip">会员即将到期，及时续费继续享受特权</text>
-      <button class="renew-btn" bindtap="renewMember">立即续费</button>
+      <button class="renew-btn" bindtap="renewMember">
+        <text class="btn-text">虚拟支付续费</text>
+      </button>
+      <text class="pay-hint">通过微信官方虚拟支付完成续费</text>
     </view>
   </view>
 </view>

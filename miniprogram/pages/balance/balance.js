@@ -1,7 +1,7 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
 import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
-import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
+import { getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
   data: {
@@ -9,36 +9,12 @@ Page({
     combHairs: 0,
     totalHairs: 0,
     selectedAmount: null,
-    paymentMethod: 'wechat', // 默认微信支付
-    currentOrderNo: null, // 当前订单号
-    isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false, // 是否在开发者工具
-    isVip: false // 是否VIP会员
+    currentOrderNo: null,
+    isVip: false
   },
 
   onLoad() {
     this.loadUserInfo()
-    this.checkPlatform()
-  },
-
-  /**
-   * 检测当前平台
-   */
-  async checkPlatform() {
-    const isVirtual = needsVirtualPay()
-    const systemInfo = wx.getSystemInfoSync()
-    const isDev = systemInfo.platform === 'devtools'
-
-    this.setData({
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
-
-    console.log('充值页平台检测:', {
-      platform: systemInfo.platform,
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
   },
 
   /**
@@ -75,43 +51,14 @@ Page({
   },
 
   /**
-   * 选择支付方式
-   */
-  selectPaymentMethod(e) {
-    const method = e.currentTarget.dataset.method
-    this.setData({
-      paymentMethod: method
-    })
-  },
-
-  /**
-   * 处理支付宝不可用提示
-   */
-  handleAlipayNotAvailable() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
-    })
-  },
-
-  /**
    * 创建订单并支付
    */
   async createOrder() {
     const amount = this.data.selectedAmount
-    const paymentMethod = this.data.paymentMethod
 
     if (!amount) {
       wx.showToast({
         title: '请选择充值金额',
-        icon: 'none'
-      })
-      return
-    }
-
-    if (!paymentMethod) {
-      wx.showToast({
-        title: '请选择支付方式',
         icon: 'none'
       })
       return

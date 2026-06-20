@@ -5,11 +5,13 @@
     <view class="balance-item">
       <text class="balance-value">{{scissorHairs}}</text>
       <text class="balance-label">剪刀发丝</text>
+      <text class="balance-sub">购买获得</text>
     </view>
     <view class="divider"></view>
     <view class="balance-item">
       <text class="balance-value">{{combHairs}}</text>
       <text class="balance-label">梳子发丝</text>
+      <text class="balance-sub">充值赠送</text>
     </view>
     <view class="divider"></view>
     <view class="balance-item">
@@ -18,31 +20,20 @@
     </view>
   </view>
 
-  <!-- 充值规则 -->
+  <!-- 虚拟支付提示 -->
+  <view class="virtual-pay-notice">
+    <view class="notice-icon">🔒</view>
+    <view class="notice-content">
+      <text class="notice-title">微信虚拟支付</text>
+      <text class="notice-desc">本商品为虚拟商品，通过微信官方虚拟支付购买</text>
+    </view>
+  </view>
+
+  <!-- 充值档位 -->
   <view class="recharge-section">
-    <text class="section-title">选择充值金额</text>
-
-    <!-- 支付方式选择 -->
-    <view class="payment-method-section">
-      <text class="section-title">选择支付方式</text>
-      <view class="payment-method-list">
-        <view
-          class="payment-method-item {{paymentMethod === 'wechat' ? 'active' : ''}}"
-          bindtap="selectPaymentMethod"
-          data-method="wechat">
-          <view class="payment-icon wechat">💚</view>
-          <text class="payment-name">微信支付</text>
-          <view class="payment-check {{paymentMethod === 'wechat' ? 'active' : ''}}">✓</view>
-        </view>
-
-        <view
-          class="payment-method-item disabled"
-          catchtap="handleAlipayNotAvailable">
-          <view class="payment-icon alipay">💙</view>
-          <text class="payment-name">支付宝</text>
-          <text class="coming-soon">功能开发中</text>
-        </view>
-      </view>
+    <view class="section-header">
+      <text class="section-title">选择充值档位</text>
+      <text class="section-subtitle" wx:if="{{isVip}}">会员专享优惠</text>
     </view>
 
     <view class="recharge-list">
@@ -53,7 +44,7 @@
           bindtap="selectAmount"
           data-amount="10">
           <text class="amount">¥10</text>
-          <text class="hairs">1000发丝+赠送0梳子槽</text>
+          <text class="hairs-main">1000 剪刀发丝</text>
         </view>
 
         <view
@@ -62,7 +53,8 @@
           data-amount="20">
           <view class="recommended">推荐</view>
           <text class="amount">¥20</text>
-          <text class="hairs">2000发丝+赠送88梳子槽</text>
+          <text class="hairs-main">2000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 88 梳子发丝</text>
         </view>
 
         <view
@@ -70,7 +62,8 @@
           bindtap="selectAmount"
           data-amount="50">
           <text class="amount">¥50</text>
-          <text class="hairs">5000发丝+赠送588梳子槽</text>
+          <text class="hairs-main">5000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 588 梳子发丝</text>
         </view>
 
         <view
@@ -78,7 +71,8 @@
           bindtap="selectAmount"
           data-amount="100">
           <text class="amount">¥100</text>
-          <text class="hairs">10000发丝+赠送1688梳子槽</text>
+          <text class="hairs-main">10000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 1688 梳子发丝</text>
         </view>
       </block>
 
@@ -89,7 +83,8 @@
           bindtap="selectAmount"
           data-amount="10">
           <text class="amount">¥10</text>
-          <text class="hairs">1000发丝+赠送8梳子槽</text>
+          <text class="hairs-main">1000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 8 梳子发丝</text>
         </view>
 
         <view
@@ -98,7 +93,8 @@
           data-amount="20">
           <view class="recommended">推荐</view>
           <text class="amount">¥20</text>
-          <text class="hairs">2000发丝+赠送48梳子槽</text>
+          <text class="hairs-main">2000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 48 梳子发丝</text>
         </view>
 
         <view
@@ -106,7 +102,8 @@
           bindtap="selectAmount"
           data-amount="50">
           <text class="amount">¥50</text>
-          <text class="hairs">5000发丝+赠送299梳子槽</text>
+          <text class="hairs-main">5000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 299 梳子发丝</text>
         </view>
 
         <view
@@ -114,21 +111,38 @@
           bindtap="selectAmount"
           data-amount="100">
           <text class="amount">¥100</text>
-          <text class="hairs">10000发丝+赠送888梳子槽</text>
+          <text class="hairs-main">10000 剪刀发丝</text>
+          <text class="hairs-bonus">+ 888 梳子发丝</text>
         </view>
       </block>
     </view>
 
-    <button class="pay-btn" bindtap="createOrder" disabled="{{!selectedAmount || !paymentMethod}}">
-      立即支付 {{selectedAmount ? '¥' + selectedAmount : ''}}
+    <button class="pay-btn" bindtap="createOrder" disabled="{{!selectedAmount}}">
+      <text class="btn-text">虚拟支付 {{selectedAmount ? '¥' + selectedAmount : ''}}</text>
     </button>
+    <text class="pay-hint">通过微信官方虚拟支付完成购买</text>
   </view>
 
   <!-- 充值说明 -->
   <view class="tips">
-    <text class="tip-title">充值说明：</text>
-    <text class="tip-text">• 充值后发丝立即到账</text>
-    <text class="tip-text">• 剪刀槽发丝优先消费</text>
-    <text class="tip-text">• 如有疑问请联系客服</text>
+    <text class="tip-title">充值说明</text>
+    <view class="tip-list">
+      <view class="tip-item">
+        <text class="tip-dot">•</text>
+        <text class="tip-text">剪刀发丝：充值购买获得，优先消费</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot">•</text>
+        <text class="tip-text">梳子发丝：充值额外赠送，剪刀发丝不足时消费</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot">•</text>
+        <text class="tip-text">充值后发丝立即到账</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot">•</text>
+        <text class="tip-text">如有疑问请联系客服</text>
+      </view>
+    </view>
   </view>
 </view>
