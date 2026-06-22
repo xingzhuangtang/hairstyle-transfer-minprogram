@@ -3,6 +3,8 @@ import { refreshUserInfo, sendVerificationCode } from '../../utils/auth.js'
 import { put, uploadFile, post } from '../../utils/request.js'
 import { getLocale, setLocale, getSupportedLocales, getLocaleDisplayName, onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 Page({
   data: {
     avatarUrl: '',

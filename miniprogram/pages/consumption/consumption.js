@@ -105,7 +105,11 @@ Page({
       tConsStatusPending: t('consumption.statusPending'),
       tConsStatusFailed: t('consumption.statusFailed'),
       tConsLoadFail: t('consumption.loadFail'),
-      tConsNetworkFail: t('message.networkFail')
+      tConsNetworkFail: t('message.networkFail'),
+      tConsJustNow: t('consumption.justNow'),
+      tConsMinutesAgo: t('consumption.minutesAgo'),
+      tConsHoursAgo: t('consumption.hoursAgo'),
+      tConsDaysAgo: t('consumption.daysAgo')
     })
     // 更新服务类型名称
     this._serviceTypeNames = {
