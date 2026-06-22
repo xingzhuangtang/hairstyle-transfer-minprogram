@@ -2,23 +2,86 @@
 import { getUserInfo, checkBalance } from '../../api/user.js'
 import { refreshUserInfo } from '../../utils/auth.js'
 import { PRICING, API_BASE_URL } from '../../utils/constants.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
 Page({
   data: {
     resultUrl: '',
-    originalUrl: '',     // 原图 URL（素描模式）
-    rawResultUrl: '',    // 原始结果 URL（用于保存）
-    rawOriginalUrl: '',  // 原始原图 URL（用于保存）
+    originalUrl: '',
+    rawResultUrl: '',
+    rawOriginalUrl: '',
     cost: 0,
-    mode: 'normal',     // 显示模式：normal/sketch
-    showComparison: false,  // 是否显示对比
+    mode: 'normal',
+    showComparison: false,
     combCost: 0,
     scissorCost: 0,
     remainingHairs: 0,
-    showSaveSuccess: false
+    showSaveSuccess: false,
+    // i18n
+    tResultSketchSuccess: '素描优化成功',
+    tResultProcessSuccess: '处理成功',
+    tResultOriginal: '原图',
+    tResultSketch: '素描',
+    tResultCombSlot: '梳子槽',
+    tResultScissorSlot: '剪刀槽',
+    tResultRemaining: '剩余发丝',
+    tResultSaveOriginal: '保存原图',
+    tResultSaveSketch: '保存素描',
+    tResultSaveAlbum: '保存相册',
+    tResultGoHome: '返回首页',
+    tResultTip1: '点击图片可放大查看',
+    tResultTip2: '历史记录可在"我的"中查看（会员专享）',
+    tResultSaveSuccessModal: '保存成功',
+    tResultNeedPermission: '需要授权保存权限，是否前往设置？',
+    tResultDevToolLimit: '开发者工具限制，请在手机上测试或长按图片保存',
+    tResultImageLoadFailTip: '图片加载失败，请尝试长按图片选择保存到手机',
+    tResultParamError: '参数错误',
+    tResultSaving: '保存中...',
+    tResultSaveFail: '保存失败'
   },
 
   onLoad(options) {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'result.title')
+    this._loadResult(options)
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'result.title')
+    })
+  },
+
+  _loadI18n() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+    this.setData({
+      tResultSketchSuccess: t('result.sketchSuccess'),
+      tResultProcessSuccess: t('result.processSuccess'),
+      tResultOriginal: t('result.original'),
+      tResultSketch: t('result.sketch'),
+      tResultCombSlot: t('result.combSlot'),
+      tResultScissorSlot: t('result.scissorSlot'),
+      tResultRemaining: t('result.remaining'),
+      tResultSaveOriginal: t('result.saveOriginal'),
+      tResultSaveSketch: t('result.saveSketch'),
+      tResultSaveAlbum: t('result.saveAlbum'),
+      tResultGoHome: t('result.goHome'),
+      tResultTip1: t('result.tip1'),
+      tResultTip2: t('result.tip2'),
+      tResultSaveSuccessModal: t('result.saveSuccessModal'),
+      tResultNeedPermission: t('result.needPermission'),
+      tResultDevToolLimit: t('result.devToolLimit'),
+      tResultImageLoadFailTip: t('result.imageLoadFailTip'),
+      tResultParamError: t('result.paramError'),
+      tResultSaving: t('result.saving'),
+      tResultSaveFail: t('result.saveFail')
+    })
+  },
+
+  _loadResult(options) {
     // 获取结果 URL、原图 URL、消耗和模式
     const { resultUrl, originalUrl, cost, mode, extractedUrl } = options
 
@@ -27,7 +90,7 @@ Page({
 
     if (!finalResultUrl) {
       wx.showToast({
-        title: '参数错误',
+        title: this.data.tResultParamError,
         icon: 'none'
       })
       setTimeout(() => {
@@ -163,7 +226,8 @@ Page({
   /**
    * 保存图片到相册（通用方法）
    */
-  async saveImageToAlbum(imageUrl, successMsg = '保存成功') {
+  async saveImageToAlbum(imageUrl, successMsg) {
+    successMsg = successMsg || this.data.tResultSaveSuccessModal || this.data.tCommonSaveSuccess
     try {
       // 获取完整的图片 URL
       let fullUrl = imageUrl
@@ -178,7 +242,7 @@ Page({
         fullUrl = API_BASE_URL + fullUrl
       }
 
-      wx.showLoading({ title: '保存中...' })
+      wx.showLoading({ title: this.data.tResultSaving })
 
       // 方法 1: 使用 getImageInfo 获取图片本地路径
       wx.getImageInfo({
@@ -203,8 +267,8 @@ Page({
               // 检查是否是权限问题
               if (err.errMsg && err.errMsg.includes('auth deny')) {
                 wx.showModal({
-                  title: '提示',
-                  content: '需要授权保存权限，是否前往设置？',
+                  title: this.data.tCommonTip,
+                  content: this.data.tResultNeedPermission,
                   success: (modalRes) => {
                     if (modalRes.confirm) {
                       wx.openSetting()
@@ -215,8 +279,8 @@ Page({
                 // 开发者工具可能不支持 saveImageToPhotosAlbum
                 // 使用长按保存作为备选方案
                 wx.showModal({
-                  title: '提示',
-                  content: '开发者工具限制，请在手机上测试或长按图片保存',
+                  title: this.data.tCommonTip,
+                  content: this.data.tResultDevToolLimit,
                   showCancel: false
                 })
               }
@@ -227,8 +291,8 @@ Page({
           wx.hideLoading()
           console.error('获取图片信息失败:', err)
           wx.showModal({
-            title: '提示',
-            content: '图片加载失败，请尝试长按图片选择保存到手机',
+            title: this.data.tCommonTip,
+            content: this.data.tResultImageLoadFailTip,
             showCancel: false
           })
         }
@@ -237,7 +301,7 @@ Page({
       wx.hideLoading()
       console.error('保存失败:', e)
       wx.showToast({
-        title: '保存失败',
+        title: this.data.tResultSaveFail,
         icon: 'none'
       })
     }
@@ -247,14 +311,14 @@ Page({
    * 保存原图到相册
    */
   async saveOriginalToAlbum() {
-    this.saveImageToAlbum(this.data.rawOriginalUrl || this.data.originalUrl, '保存成功')
+    this.saveImageToAlbum(this.data.rawOriginalUrl || this.data.originalUrl)
   },
 
   /**
    * 保存结果到相册
    */
   async saveToAlbum() {
-    this.saveImageToAlbum(this.data.rawResultUrl || this.data.resultUrl, '保存成功')
+    this.saveImageToAlbum(this.data.rawResultUrl || this.data.resultUrl)
   },
 
   /**

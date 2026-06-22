@@ -4,6 +4,7 @@ import { post, get } from '../../utils/request.js'
 import { API_BASE_URL } from '../../utils/constants.js'
 import { getDeviceInfo } from '../../utils/device.js'
 import { setToken, setUserInfo } from '../../utils/storage.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
 Page({
   data: {
@@ -26,11 +27,117 @@ Page({
     bindLoading: false,
     // 微信登录成功后暂存的 token 和用户信息
     pendingToken: '',
-    pendingUserInfo: null
+    pendingUserInfo: null,
+    // i18n
+    tAppName: '发型迁移',
+    tAppDesc: 'AI智能发型虚拟试戴',
+    tLoginWechatLogin: '微信一键登录',
+    tLoginLogin: '登录',
+    tLoginNickNamePlaceholder: '请输入你的昵称',
+    tLoginPhonePlaceholder: '请输入手机号',
+    tLoginCodePlaceholder: '请输入验证码',
+    tLoginGetVerifyCode: '获取验证码',
+    tLoginBindPhone: '绑定手机号',
+    tLoginBindPhoneDesc: '微信登录需绑定手机号，请输入手机号并验证',
+    tLoginBindAndContinue: '绑定并继续',
+    tLoginBindPhonePlaceholder: '请输入手机号',
+    tLoginBindCodePlaceholder: '请输入验证码',
+    tLoginAgreeText: '我已阅读并同意',
+    tLoginUserAgreement: '《用户协议》',
+    tLoginPrivacyPolicy: '《隐私政策》',
+    tLoginAnd: '和',
+    tLoginTip1: '新用户请使用微信一键登录注册',
+    tLoginTip2: '已注册用户可使用手机号登录',
+    tLoginTip3: '会员享受50%消费折扣',
+    tLoginAgreeFirst: '请先同意用户协议和隐私政策',
+    tLoginSuccess: '登录成功',
+    tLoginFail: '登录失败',
+    tLoginBindSuccess: '绑定成功',
+    tLoginBindFail: '绑定失败',
+    tLoginMergeTip: '账号合并提示',
+    tLoginMergeContent: '该手机号已绑定其他账号，是否合并到该账号？',
+    tLoginMergeSuccess: '合并成功',
+    tLoginMergeFail: '合并失败',
+    tLoginCodeSent: '验证码已发送',
+    tLoginSendFail: '发送失败',
+    tLoginPhoneFormatError: '手机号格式不正确',
+    tLoginPleaseInputPhone: '请输入手机号',
+    tLoginPleaseInputCode: '请输入验证码',
+    tLoginNotRegistered: '该手机号尚未注册。请先点击"微信一键登录"完成注册并绑定微信，之后即可使用手机号登录。',
+    tLoginGoWechatLogin: '去微信登录',
+    tLoginLoading: '加载中...',
+    tLoginNetworkError: '网络错误，请稍后重试'
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
     console.log('登录页面加载')
+  },
+
+  onShow() {
+    this._loadI18n()
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      this._updateNavTitle()
+    })
+  },
+
+  _updateNavTitle() {
+    const app = getApp()
+    app.setNavTitle(this, 'login.login')
+  },
+
+  _loadI18n() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+
+    this.setData({
+      tAppName: t('app.name'),
+      tAppDesc: t('app.desc'),
+      tLoginWechatLogin: t('login.wechatLogin'),
+      tLoginLogin: t('login.login'),
+      tLoginNickNamePlaceholder: t('login.nickNamePlaceholder'),
+      tLoginPhonePlaceholder: t('login.phonePlaceholder'),
+      tLoginCodePlaceholder: t('login.codePlaceholder'),
+      tLoginGetVerifyCode: t('common.getVerifyCode'),
+      tLoginBindPhone: t('login.bindPhone'),
+      tLoginBindPhoneDesc: t('login.bindPhoneDesc'),
+      tLoginBindAndContinue: t('login.bindAndContinue'),
+      tLoginBindPhonePlaceholder: t('login.bindPhonePlaceholder'),
+      tLoginBindCodePlaceholder: t('login.bindCodePlaceholder'),
+      tLoginAgreeText: t('login.agreeText'),
+      tLoginUserAgreement: t('login.userAgreement'),
+      tLoginPrivacyPolicy: t('login.privacyPolicy'),
+      tLoginAnd: t('common.and'),
+      tLoginTip1: t('login.tip1'),
+      tLoginTip2: t('login.tip2'),
+      tLoginTip3: t('login.tip3'),
+      tLoginAgreeFirst: t('login.agreeFirst'),
+      tLoginSuccess: t('login.loginSuccess'),
+      tLoginFail: t('login.loginFail'),
+      tLoginBindSuccess: t('login.bindSuccess'),
+      tLoginBindFail: t('login.bindFail'),
+      tLoginMergeTip: t('login.mergeTip'),
+      tLoginMergeContent: t('login.mergeContent'),
+      tLoginMergeSuccess: t('login.mergeSuccess'),
+      tLoginMergeFail: t('login.mergeFail'),
+      tLoginCodeSent: t('common.verifyCodeSent'),
+      tLoginSendFail: t('common.sendFail'),
+      tLoginPhoneFormatError: t('login.phoneFormatError'),
+      tLoginPleaseInputPhone: t('login.pleaseInputPhone'),
+      tLoginPleaseInputCode: t('login.pleaseInputCode'),
+      tLoginNotRegistered: t('login.notRegistered'),
+      tLoginGoWechatLogin: t('login.goWechatLogin'),
+      tLoginRegisterWechatFirst: t('login.registerWechatFirst'),
+      tLoginLoading: t('common.loading'),
+      tLoginNetworkError: t('common.networkError'),
+      tCommonCancel: t('common.cancel'),
+      tCommonMerge: t('common.merge')
+    })
   },
 
   onUnload() {
@@ -84,7 +191,7 @@ Page({
     // 检查是否同意协议
     if (!this.data.agreed) {
       wx.showToast({
-        title: '请先同意用户协议和隐私政策',
+        title: this.data.tLoginAgreeFirst,
         icon: 'none'
       })
       return
@@ -106,7 +213,7 @@ Page({
       const res = await post('/api/auth/wechat/login', {
         code: loginRes.code,
         device_info: deviceInfo,
-        nickname: this.data.nickName || '微信用户'
+        nickname: this.data.nickName || getApp().t('member.wechatUser')
       })
 
       if (res.success) {
@@ -121,7 +228,7 @@ Page({
         app.globalData.isPremium = res.user.member_level === 'vip'
 
         wx.showToast({
-          title: '登录成功',
+          title: this.data.tLoginSuccess,
           icon: 'success'
         })
 
@@ -141,13 +248,13 @@ Page({
         }
       } else {
         wx.showToast({
-          title: res.error || '登录失败',
+          title: res.error || this.data.tLoginFail,
           icon: 'none'
         })
       }
     } catch (e) {
       console.error('微信登录失败:', e)
-      const errMsg = (typeof e === 'object') ? (e.error || e.message || '登录失败') : e
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || this.data.tLoginFail) : e
       wx.showToast({
         title: errMsg,
         icon: 'none'
@@ -173,7 +280,7 @@ Page({
     // 检查是否同意协议
     if (!this.data.agreed) {
       wx.showToast({
-        title: '请先同意用户协议和隐私政策',
+        title: this.data.tLoginAgreeFirst,
         icon: 'none'
       })
       return
@@ -186,7 +293,7 @@ Page({
 
       if (res.success) {
         wx.showToast({
-          title: '验证码已发送',
+          title: this.data.tLoginCodeSent,
           icon: 'success'
         })
 
@@ -194,13 +301,13 @@ Page({
         this.startCountDown()
       } else {
         wx.showToast({
-          title: (typeof res.error === 'string' ? res.error : '发送失败'),
+          title: (typeof res.error === 'string' ? res.error : this.data.tLoginSendFail),
           icon: 'none'
         })
       }
     } catch (e) {
       console.error('发送验证码失败:', e)
-      const errMsg = typeof e === 'object' ? (e.error || e.message || '发送失败') : e
+      const errMsg = typeof e === 'object' ? (e.error || e.message || this.data.tLoginSendFail) : e
       wx.showToast({
         title: errMsg,
         icon: 'none'
@@ -220,7 +327,7 @@ Page({
     // 验证验证码
     if (!this.data.code) {
       wx.showToast({
-        title: '请输入验证码',
+        title: this.data.tLoginPleaseInputCode,
         icon: 'none'
       })
       return
@@ -229,7 +336,7 @@ Page({
     // 检查是否同意协议
     if (!this.data.agreed) {
       wx.showToast({
-        title: '请先同意用户协议和隐私政策',
+        title: this.data.tLoginAgreeFirst,
         icon: 'none'
       })
       return
@@ -245,7 +352,7 @@ Page({
 
       if (res.success) {
         wx.showToast({
-          title: '登录成功',
+          title: this.data.tLoginSuccess,
           icon: 'success'
         })
 
@@ -254,13 +361,13 @@ Page({
           redirectAfterLogin()
         }, 1500)
       } else {
-        const errorMsg = res.error || '登录失败'
+        const errorMsg = res.error || this.data.tLoginFail
         if (errorMsg.includes('未注册')) {
           wx.showModal({
-            title: '请先注册微信账号',
-            content: '该手机号尚未注册。请先点击"微信一键登录"完成注册并绑定微信，之后即可使用手机号登录。',
+            title: this.data.tLoginRegisterWechatFirst,
+            content: this.data.tLoginNotRegistered,
             showCancel: false,
-            confirmText: '去微信登录'
+            confirmText: this.data.tLoginGoWechatLogin
           })
         } else {
           wx.showToast({
@@ -271,7 +378,7 @@ Page({
       }
     } catch (e) {
       console.error('手机号登录失败:', e)
-      const errMsg = (typeof e === 'object') ? (e.error || e.message || '登录失败') : e
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || this.data.tLoginFail) : e
       wx.showToast({
         title: errMsg,
         icon: 'none'
@@ -289,7 +396,7 @@ Page({
 
     if (!phone) {
       wx.showToast({
-        title: '请输入手机号',
+        title: this.data.tLoginPleaseInputPhone,
         icon: 'none'
       })
       return false
@@ -299,7 +406,7 @@ Page({
     const phoneReg = /^1[3-9]\d{9}$/
     if (!phoneReg.test(phone)) {
       wx.showToast({
-        title: '手机号格式不正确',
+        title: this.data.tLoginPhoneFormatError,
         icon: 'none'
       })
       return false
@@ -343,8 +450,9 @@ Page({
    * 查看用户协议
    */
   viewUserAgreement() {
-    wx.showLoading({ title: '加载中...' })
-    
+    const app = getApp()
+    wx.showLoading({ title: app.t('common.loading') })
+
     // 调用后端 API 获取用户协议内容
     wx.request({
       url: 'https://xn--gmq63iba0780e.com/api/legal/user-agreement',
@@ -355,11 +463,11 @@ Page({
           // 使用富文本方式显示协议内容
           wx.setStorageSync('agreement_html', res.data.content)
           wx.navigateTo({
-            url: '/pages/legal/legal?type=agreement&title=' + encodeURIComponent(res.data.title || '用户协议')
+            url: '/pages/legal/legal?type=agreement&title=' + encodeURIComponent(res.data.title || app.t('legal.userAgreement'))
           })
         } else {
           wx.showToast({
-            title: '加载失败',
+            title: app.t('common.loadFail'),
             icon: 'none'
           })
         }
@@ -368,7 +476,7 @@ Page({
         wx.hideLoading()
         console.error('获取用户协议失败:', err)
         wx.showToast({
-          title: '网络错误，请稍后重试',
+          title: app.t('common.networkError'),
           icon: 'none'
         })
       }
@@ -379,8 +487,9 @@ Page({
    * 查看隐私政策
    */
   viewPrivacyPolicy() {
-    wx.showLoading({ title: '加载中...' })
-    
+    const app = getApp()
+    wx.showLoading({ title: app.t('common.loading') })
+
     // 调用后端 API 获取隐私政策内容
     wx.request({
       url: 'https://xn--gmq63iba0780e.com/api/legal/privacy-policy',
@@ -391,11 +500,11 @@ Page({
           // 使用富文本方式显示协议内容
           wx.setStorageSync('privacy_html', res.data.content)
           wx.navigateTo({
-            url: '/pages/legal/legal?type=privacy&title=' + encodeURIComponent(res.data.title || '隐私政策')
+            url: '/pages/legal/legal?type=privacy&title=' + encodeURIComponent(res.data.title || app.t('legal.privacyPolicy'))
           })
         } else {
           wx.showToast({
-            title: '加载失败',
+            title: app.t('common.loadFail'),
             icon: 'none'
           })
         }
@@ -404,7 +513,7 @@ Page({
         wx.hideLoading()
         console.error('获取隐私政策失败:', err)
         wx.showToast({
-          title: '网络错误，请稍后重试',
+          title: app.t('common.networkError'),
           icon: 'none'
         })
       }
@@ -431,25 +540,25 @@ Page({
   async sendBindCode() {
     const phone = this.data.bindPhone
     if (!phone) {
-      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      wx.showToast({ title: this.data.tLoginPleaseInputPhone, icon: 'none' })
       return
     }
     const phoneReg = /^1[3-9]\d{9}$/
     if (!phoneReg.test(phone)) {
-      wx.showToast({ title: '手机号格式不正确', icon: 'none' })
+      wx.showToast({ title: this.data.tLoginPhoneFormatError, icon: 'none' })
       return
     }
 
     try {
       const res = await sendVerificationCode(phone)
       if (res.success) {
-        wx.showToast({ title: '验证码已发送', icon: 'success' })
+        wx.showToast({ title: this.data.tLoginCodeSent, icon: 'success' })
         this.startBindCountDown()
       } else {
-        wx.showToast({ title: res.error || '发送失败', icon: 'none' })
+        wx.showToast({ title: res.error || this.data.tLoginSendFail, icon: 'none' })
       }
     } catch (e) {
-      wx.showToast({ title: '发送失败', icon: 'none' })
+      wx.showToast({ title: this.data.tLoginSendFail, icon: 'none' })
     }
   },
 
@@ -461,11 +570,11 @@ Page({
     const code = this.data.bindCode
 
     if (!phone) {
-      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      wx.showToast({ title: this.data.tLoginPleaseInputPhone, icon: 'none' })
       return
     }
     if (!code) {
-      wx.showToast({ title: '请输入验证码', icon: 'none' })
+      wx.showToast({ title: this.data.tLoginPleaseInputCode, icon: 'none' })
       return
     }
 
@@ -478,8 +587,8 @@ Page({
       })
 
       if (res.success) {
-        wx.showToast({ title: '绑定成功', icon: 'success' })
-        
+        wx.showToast({ title: this.data.tLoginBindSuccess, icon: 'success' })
+
         // 更新 token 和用户信息（可能合并到了已有账号）
         setToken(res.token)
         setUserInfo(res.user)
@@ -502,10 +611,10 @@ Page({
         // 如果是手机号已被其他用户绑定，询问是否合并
         if (res.error && res.error.includes('已被绑定')) {
           wx.showModal({
-            title: '账号合并提示',
-            content: '该手机号已绑定其他账号，是否合并到该账号？',
-            confirmText: '合并',
-            cancelText: '取消',
+            title: this.data.tLoginMergeTip,
+            content: this.data.tLoginMergeContent,
+            confirmText: this.data.tCommonMerge,
+            cancelText: this.data.tCommonCancel,
             success: async (modalRes) => {
               if (modalRes.confirm) {
                 // 调用合并接口
@@ -514,7 +623,7 @@ Page({
                   code: code
                 })
                 if (mergeRes.success) {
-                  wx.showToast({ title: '合并成功', icon: 'success' })
+                  wx.showToast({ title: this.data.tLoginMergeSuccess, icon: 'success' })
                   setToken(mergeRes.token)
                   setUserInfo(mergeRes.user)
                   const app = getApp()
@@ -524,18 +633,18 @@ Page({
                   this.setData({ showBindPhoneModal: false, pendingToken: '', pendingUserInfo: null })
                   setTimeout(() => redirectAfterLogin(), 1500)
                 } else {
-                  wx.showToast({ title: mergeRes.error || '合并失败', icon: 'none' })
+                  wx.showToast({ title: mergeRes.error || this.data.tLoginMergeFail, icon: 'none' })
                 }
               }
             }
           })
         } else {
-          wx.showToast({ title: res.error || '绑定失败', icon: 'none' })
+          wx.showToast({ title: res.error || this.data.tLoginBindFail, icon: 'none' })
         }
       }
     } catch (e) {
       console.error('绑定手机号失败:', e)
-      const errMsg = (typeof e === 'object') ? (e.error || e.message || '绑定失败') : e
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || this.data.tLoginBindFail) : e
       wx.showToast({ title: errMsg, icon: 'none' })
     } finally {
       this.setData({ bindLoading: false })

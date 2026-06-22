@@ -1,5 +1,8 @@
 const { applyRefund } = require('../../api/refund.js')
 const { getToken } = require('../../utils/storage.js')
+const { onLocaleChange } = require('../../utils/i18n.js')
+
+const app = getApp()
 
 Page({
   data: {
@@ -10,10 +13,39 @@ Page({
     applicantName: '',
     applicantPhone: '',
     submitting: false,
-    userInfo: null
+    userInfo: null,
+    // i18n
+    tRefundRefundType: '',
+    tRefundRechargeRefund: '',
+    tRefundMembershipRefund: '',
+    tRefundRefundAmount: '',
+    tRefundAmountPlaceholder: '',
+    tRefundMembershipAutoCalc: '',
+    tRefundReasonLabel: '',
+    tRefundReasonPlaceholder: '',
+    tRefundSuggestionsLabel: '',
+    tRefundSuggestionsPlaceholder: '',
+    tRefundApplicantInfo: '',
+    tRefundNameLabel: '',
+    tRefundNamePlaceholder: '',
+    tRefundPhoneLabel: '',
+    tRefundPhonePlaceholder: '',
+    tRefundSubmitBtn: '',
+    tRefundSubmitting: '',
+    tRefundSelectRefundType: '',
+    tRefundEnterAmount: '',
+    tRefundEnterReason: '',
+    tRefundEnterName: '',
+    tRefundEnterPhone: '',
+    tRefundLoginFirst: '',
+    tRefundSubmitSuccess: '',
+    tRefundSubmitFail: '',
+    tRefundNetworkError: ''
   },
 
-  onLoad() {
+  onLoad(options) {
+    this._loadI18n()
+    this._setupLocaleListener()
     // 获取用户信息
     const userInfo = wx.getStorageSync('user_info')
     if (userInfo) {
@@ -23,6 +55,53 @@ Page({
         applicantPhone: userInfo.phone || ''
       })
     }
+  },
+
+  onShow() {
+    this._loadI18n()
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tRefundRefundType: t('refund.refundType'),
+      tRefundRechargeRefund: t('refund.rechargeRefund'),
+      tRefundMembershipRefund: t('refund.membershipRefund'),
+      tRefundRefundAmount: t('refund.refundAmount'),
+      tRefundAmountPlaceholder: t('refund.amountPlaceholder'),
+      tRefundMembershipAutoCalc: t('refund.membershipAutoCalc'),
+      tRefundReasonLabel: t('refund.reasonLabel'),
+      tRefundReasonPlaceholder: t('refund.reasonPlaceholder'),
+      tRefundSuggestionsLabel: t('refund.suggestionsLabel'),
+      tRefundSuggestionsPlaceholder: t('refund.suggestionsPlaceholder'),
+      tRefundApplicantInfo: t('refund.applicantInfo'),
+      tRefundNameLabel: t('refund.nameLabel'),
+      tRefundNamePlaceholder: t('refund.namePlaceholder'),
+      tRefundPhoneLabel: t('refund.phoneLabel'),
+      tRefundPhonePlaceholder: t('refund.phonePlaceholder'),
+      tRefundSubmitBtn: t('refund.submitBtn'),
+      tRefundSubmitting: t('refund.submitting'),
+      tRefundSelectRefundType: t('refund.selectRefundType'),
+      tRefundEnterAmount: t('refund.enterAmount'),
+      tRefundEnterReason: t('refund.enterReason'),
+      tRefundEnterName: t('refund.enterName'),
+      tRefundEnterPhone: t('refund.enterPhone'),
+      tRefundLoginFirst: t('refund.loginFirst'),
+      tRefundSubmitSuccess: t('refund.submitSuccess'),
+      tRefundSubmitFail: t('refund.submitFail'),
+      tRefundNetworkError: t('refund.networkError')
+    })
+    this._updateNavTitle()
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+    })
+  },
+
+  _updateNavTitle() {
+    app.setNavTitle(this, 'refund.title')
   },
 
   onRefundTypeChange(e) {
@@ -59,34 +138,34 @@ Page({
 
     // 验证
     if (!refundType) {
-      wx.showToast({ title: '请选择退款类型', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundSelectRefundType, icon: 'none' })
       return
     }
 
     if (!refundAmount || parseFloat(refundAmount) <= 0) {
-      wx.showToast({ title: '请输入退款金额', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundEnterAmount, icon: 'none' })
       return
     }
 
     if (!reason || reason.trim().length === 0) {
-      wx.showToast({ title: '请填写退款原因', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundEnterReason, icon: 'none' })
       return
     }
 
     if (!applicantName || applicantName.trim().length === 0) {
-      wx.showToast({ title: '请填写姓名', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundEnterName, icon: 'none' })
       return
     }
 
     if (!applicantPhone || !/^1\d{10}$/.test(applicantPhone)) {
-      wx.showToast({ title: '请填写正确的手机号', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundEnterPhone, icon: 'none' })
       return
     }
 
     // 检查 token
     const token = getToken()
     if (!token) {
-      wx.showToast({ title: '请先登录', icon: 'none' })
+      wx.showToast({ title: this.data.tRefundLoginFirst, icon: 'none' })
       return
     }
 
@@ -101,16 +180,16 @@ Page({
       suggestions: suggestions.trim() || undefined
     }).then(res => {
       if (res.success) {
-        wx.showToast({ title: '申请提交成功', icon: 'success' })
+        wx.showToast({ title: this.data.tRefundSubmitSuccess, icon: 'success' })
         setTimeout(() => {
           wx.navigateBack()
         }, 1500)
       } else {
-        wx.showToast({ title: res.error || '提交失败', icon: 'none' })
+        wx.showToast({ title: res.error || this.data.tRefundSubmitFail, icon: 'none' })
       }
     }).catch(err => {
       console.error('提交退款申请失败:', err)
-      wx.showToast({ title: err.error || '网络错误，请稍后重试', icon: 'none' })
+      wx.showToast({ title: err.error || this.data.tRefundNetworkError, icon: 'none' })
     }).finally(() => {
       this.setData({ submitting: false })
     })

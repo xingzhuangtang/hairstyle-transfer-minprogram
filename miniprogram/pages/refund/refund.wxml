@@ -1,44 +1,44 @@
 <view class="container">
   <!-- 退款类型选择 -->
   <view class="form-section">
-    <view class="section-title">退款类型</view>
+    <view class="section-title">{{tRefundRefundType}}</view>
     <radio-group class="radio-group" bindchange="onRefundTypeChange">
       <label class="radio-item">
         <radio value="recharge" checked="{{refundType === 'recharge'}}"/>
-        <text>充值退款</text>
+        <text>{{tRefundRechargeRefund}}</text>
       </label>
       <label class="radio-item">
         <radio value="membership" checked="{{refundType === 'membership'}}"/>
-        <text>会员退款</text>
+        <text>{{tRefundMembershipRefund}}</text>
       </label>
     </radio-group>
   </view>
 
   <!-- 退款金额 -->
   <view class="form-section">
-    <view class="section-title">退款金额</view>
+    <view class="section-title">{{tRefundRefundAmount}}</view>
     <view class="input-wrapper">
       <text class="currency">¥</text>
-      <input 
-        class="amount-input" 
-        type="digit" 
-        placeholder="请输入退款金额" 
+      <input
+        class="amount-input"
+        type="digit"
+        placeholder="{{tRefundAmountPlaceholder}}"
         value="{{refundAmount}}"
         bindinput="onAmountInput"
         disabled="{{refundType === 'membership'}}"
       />
     </view>
     <view class="hint" wx:if="{{refundType === 'membership'}}">
-      会员退款将按剩余天数自动计算可退金额
+      {{tRefundMembershipAutoCalc}}
     </view>
   </view>
 
   <!-- 退款原因 -->
   <view class="form-section">
-    <view class="section-title">退款原因 <text class="required">*</text></view>
-    <textarea 
-      class="textarea" 
-      placeholder="请详细说明退款原因" 
+    <view class="section-title">{{tRefundReasonLabel}} <text class="required">*</text></view>
+    <textarea
+      class="textarea"
+      placeholder="{{tRefundReasonPlaceholder}}"
       value="{{reason}}"
       bindinput="onReasonInput"
       maxlength="500"
@@ -48,10 +48,10 @@
 
   <!-- 对本项目的建议 -->
   <view class="form-section">
-    <view class="section-title">对本项目的建议（选填）</view>
-    <textarea 
-      class="textarea" 
-      placeholder="您的建议对我们很重要" 
+    <view class="section-title">{{tRefundSuggestionsLabel}}</view>
+    <textarea
+      class="textarea"
+      placeholder="{{tRefundSuggestionsPlaceholder}}"
       value="{{suggestions}}"
       bindinput="onSuggestionsInput"
       maxlength="500"
@@ -60,22 +60,22 @@
 
   <!-- 申请人信息 -->
   <view class="form-section">
-    <view class="section-title">申请人信息</view>
+    <view class="section-title">{{tRefundApplicantInfo}}</view>
     <view class="input-row">
-      <text class="label">姓名</text>
-      <input 
-        class="input" 
-        placeholder="请输入姓名" 
+      <text class="label">{{tRefundNameLabel}}</text>
+      <input
+        class="input"
+        placeholder="{{tRefundNamePlaceholder}}"
         value="{{applicantName}}"
         bindinput="onNameInput"
       />
     </view>
     <view class="input-row">
-      <text class="label">电话</text>
-      <input 
-        class="input" 
-        type="number" 
-        placeholder="请输入手机号" 
+      <text class="label">{{tRefundPhoneLabel}}</text>
+      <input
+        class="input"
+        type="number"
+        placeholder="{{tRefundPhonePlaceholder}}"
         value="{{applicantPhone}}"
         bindinput="onPhoneInput"
         maxlength="11"
@@ -85,12 +85,12 @@
 
   <!-- 提交按钮 -->
   <view class="submit-wrapper">
-    <button 
-      class="submit-btn {{submitting ? 'disabled' : ''}}" 
+    <button
+      class="submit-btn {{submitting ? 'disabled' : ''}}"
       bindtap="onSubmit"
       disabled="{{submitting}}"
     >
-      {{submitting ? '提交中...' : '提交退款申请'}}
+      {{submitting ? tRefundSubmitting : tRefundSubmitBtn}}
     </button>
   </view>
 </view>

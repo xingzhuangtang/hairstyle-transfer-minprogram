@@ -234,6 +234,29 @@
   border: none;
 }
 
+/* 语言设置项 */
+.language-item {
+  justify-content: space-between;
+}
+
+.language-icon-text {
+  font-size: 36rpx;
+  margin-right: 20rpx;
+}
+
+.language-item .picker {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  color: #667eea;
+}
+
+.language-item .arrow {
+  width: 24rpx;
+  height: 24rpx;
+  margin-left: 8rpx;
+}
+
 /* 保存按钮区域 */
 .save-section {
   margin-top: 60rpx;

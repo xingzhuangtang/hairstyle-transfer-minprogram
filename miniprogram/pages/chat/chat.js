@@ -2,6 +2,9 @@
 import { sendChatMessage, getChatMessages, getUnreadCount } from '../../api/chat.js'
 import { API_BASE_URL } from '../../utils/constants.js'
 import { getToken } from '../../utils/storage.js'
+import { onLocaleChange } from '../../utils/i18n.js'
+
+const app = getApp()
 
 const POLL_INTERVAL = 5000 // 5秒轮询
 const MAX_RETRY = 3 // 连续失败最大重试次数
@@ -12,7 +15,16 @@ Page({
     inputValue: '',
     scrollToView: '',
     loading: false,
-    lastMessageTime: null // 最后一条消息的时间戳，用于增量轮询
+    lastMessageTime: null, // 最后一条消息的时间戳，用于增量轮询
+    // i18n
+    tChatWelcome: '',
+    tChatPlaceholder: '',
+    tChatSend: '',
+    tChatLoading: '',
+    tChatSending: '⏳',
+    tChatFailed: '❌',
+    tChatSent: '✓',
+    tChatSendFail: ''
   },
 
   _pollTimer: null,
@@ -20,10 +32,13 @@ Page({
   _isPolling: false,
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
     this.loadHistory()
   },
 
   onShow() {
+    this._loadI18n()
     this.startPolling()
     this.refreshBadge()
   },
@@ -36,6 +51,28 @@ Page({
   onUnload() {
     this.stopPolling()
     this.markRead()
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tChatWelcome: t('chat.welcome'),
+      tChatPlaceholder: t('chat.placeholder'),
+      tChatSend: t('chat.send'),
+      tChatLoading: t('chat.loading'),
+      tChatSendFail: t('chat.sendFail')
+    })
+    this._updateNavTitle()
+  },
+
+  _setupLocaleListener() {
+    app.onLocaleChange(() => {
+      this._loadI18n()
+    })
+  },
+
+  _updateNavTitle() {
+    app.setNavTitle(this, 'chat.title')
   },
 
   /**
@@ -65,7 +102,7 @@ Page({
       }
     } catch (e) {
       console.error('加载历史消息失败:', e)
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      wx.showToast({ title: this.data.tChatSendFail, icon: 'none' })
     } finally {
       this.setData({ loading: false })
     }
@@ -195,7 +232,7 @@ Page({
       )
 
       this.setData({ messages: updatedMessages })
-      wx.showToast({ title: e.message || '发送失败', icon: 'none' })
+      wx.showToast({ title: e.message || this.data.tChatSendFail, icon: 'none' })
     }
   },
 

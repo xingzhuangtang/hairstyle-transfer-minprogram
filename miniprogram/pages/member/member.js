@@ -3,6 +3,9 @@ import { getMemberInfo, buyMember, getMemberOrders, payMemberOrder } from '../..
 import { getUserInfo } from '../../api/user.js'
 import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
 import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
+import { onLocaleChange } from '../../utils/i18n.js'
+
+const app = getApp()
 
 Page({
   data: {
@@ -12,16 +15,116 @@ Page({
     expireAt: '',
     orders: [],
     isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false
+    isDevTools: false,
+    currentOrderNo: '',
+    // i18n
+    tMemberUser: '',
+    tMemberWechatUser: '',
+    tMemberCompanionVip: '',
+    tMemberNormalUser: '',
+    tMemberRemainingDays: '',
+    tMemberExpireTime: '',
+    tMemberDays: '',
+    tMemberPrivileges: '',
+    tMemberPrivilege1Title: '',
+    tMemberPrivilege1Desc: '',
+    tMemberPrivilege2Title: '',
+    tMemberPrivilege2Desc: '',
+    tMemberPrivilege3Title: '',
+    tMemberPrivilege3Desc: '',
+    tMemberPrivilege4Title: '',
+    tMemberPrivilege4Desc: '',
+    tMemberOpenMember: '',
+    tMemberPricePeriod: '',
+    tMemberOpenNow: '',
+    tMemberOrders: '',
+    tMemberNoOrders: '',
+    tMemberOrderNo: '',
+    tMemberBonusHairs: '',
+    tMemberRenewTip: '',
+    tMemberRenewNow: '',
+    tMemberConfirmOpen: '',
+    tMemberConfirmOpenContent: '',
+    tMemberCreatingOrder: '',
+    tMemberVirtualPay: '',
+    tMemberVirtualPayTip: '',
+    tMemberPaySuccess: '',
+    tMemberPayFail: '',
+    tMemberPayCancel: '',
+    tMemberPayTimeout: '',
+    tMemberQueryFail: '',
+    tMemberOrderPaid: '',
+    tMemberOrderPending: '',
+    tMemberOrderFailed: '',
+    tMemberProcessing: '',
+    tMemberLoadFail: ''
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'member.title')
     this.loadMemberInfo()
     this.checkPlatform()
   },
 
   onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'member.title')
     this.loadMemberInfo()
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tMemberUser: t('member.user'),
+      tMemberWechatUser: t('member.wechatUser'),
+      tMemberCompanionVip: t('member.companionVip'),
+      tMemberNormalUser: t('member.normalUser'),
+      tMemberRemainingDays: t('member.remainingDays'),
+      tMemberExpireTime: t('member.expireTime'),
+      tMemberDays: t('member.days'),
+      tMemberPrivileges: t('member.privileges'),
+      tMemberPrivilege1Title: t('member.privilege1Title'),
+      tMemberPrivilege1Desc: t('member.privilege1Desc'),
+      tMemberPrivilege2Title: t('member.privilege2Title'),
+      tMemberPrivilege2Desc: t('member.privilege2Desc'),
+      tMemberPrivilege3Title: t('member.privilege3Title'),
+      tMemberPrivilege3Desc: t('member.privilege3Desc'),
+      tMemberPrivilege4Title: t('member.privilege4Title'),
+      tMemberPrivilege4Desc: t('member.privilege4Desc'),
+      tMemberOpenMember: t('member.openMember'),
+      tMemberPricePeriod: t('member.price'),
+      tMemberOpenNow: t('member.openNow'),
+      tMemberOrders: t('member.memberOrders'),
+      tMemberNoOrders: t('member.noOrders'),
+      tMemberOrderNo: t('member.orderNo'),
+      tMemberBonusHairs: t('member.bonusHairs'),
+      tMemberRenewTip: t('member.renewTip'),
+      tMemberRenewNow: t('member.renewNow'),
+      tMemberConfirmOpen: t('member.confirmOpen'),
+      tMemberConfirmOpenContent: t('member.confirmOpenContent'),
+      tMemberCreatingOrder: t('balance.creatingOrder'),
+      tMemberVirtualPay: t('balance.virtualPay'),
+      tMemberVirtualPayTip: t('balance.virtualPayTip'),
+      tMemberPaySuccess: t('balance.paySuccess'),
+      tMemberPayFail: t('balance.payFail'),
+      tMemberPayCancel: t('balance.payCancel'),
+      tMemberPayTimeout: t('balance.payTimeout'),
+      tMemberQueryFail: t('balance.queryFail'),
+      tMemberOrderPaid: t('member.orderPaid'),
+      tMemberOrderPending: t('member.orderPending'),
+      tMemberOrderFailed: t('member.orderFailed'),
+      tMemberProcessing: t('balance.processing'),
+      tMemberLoadFail: t('common.loadFail')
+    })
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'member.title')
+    })
   },
 
   /**
@@ -75,7 +178,8 @@ Page({
         const orders = res.orders.map(order => ({
           ...order,
           payment_status_text: this.getPaymentStatusText(order.payment_status),
-          created_at: this.formatDate(order.created_at)
+          created_at: this.formatDate(order.created_at),
+          bonus_hairs_text: this.data.tMemberBonusHairs.replace('{hairs}', String(order.bonus_hairs || 0))
         }))
         this.setData({ orders })
       }
@@ -86,12 +190,12 @@ Page({
 
   async buyMember() {
     wx.showModal({
-      title: '确认开通',
-      content: '开通陪跑会员 ¥99/年，购买即赠 1000 发丝，确认继续？',
+      title: this.data.tMemberConfirmOpen,
+      content: this.data.tMemberConfirmOpenContent,
       success: async (modalRes) => {
         if (modalRes.confirm) {
           try {
-            wx.showLoading({ title: '创建订单中...' })
+            wx.showLoading({ title: this.data.tMemberCreatingOrder })
 
             // iOS端使用虚拟支付
             if (this.data.isVirtualPay || this.data.isDevTools) {
@@ -102,7 +206,7 @@ Page({
             }
           } catch (e) {
             wx.hideLoading()
-            wx.showToast({ title: e.message || '创建订单失败', icon: 'none' })
+            wx.showToast({ title: e.message || this.data.tMemberPayFail, icon: 'none' })
           }
         }
       }
@@ -135,8 +239,8 @@ Page({
     wx.hideLoading()
 
     wx.showModal({
-      title: '虚拟支付',
-      content: '正在调起微信虚拟支付 ¥99',
+      title: this.data.tMemberVirtualPay,
+      content: this.data.tMemberVirtualPayTip + ' ¥99',
       showCancel: false,
       success: () => {
         this.checkVirtualPayOrderStatus(orderNo)
@@ -154,18 +258,18 @@ Page({
         ...payRes.wxpay_params,
         total_fee: payRes.wxpay_params.total_fee || 0,
         success: () => {
-          wx.showToast({ title: '支付成功', icon: 'success' })
+          wx.showToast({ title: this.data.tMemberPaySuccess, icon: 'success' })
           setTimeout(() => this.loadMemberInfo(), 1500)
         },
         fail: (err) => {
           wx.showToast({
-            title: err.errMsg.includes('cancel') ? '取消支付' : '支付失败',
+            title: err.errMsg.includes('cancel') ? this.data.tMemberPayCancel : this.data.tMemberPayFail,
             icon: 'none'
           })
         }
       })
     } catch (e) {
-      wx.showToast({ title: e.message || '发起支付失败', icon: 'none' })
+      wx.showToast({ title: e.message || this.data.tMemberPayFail, icon: 'none' })
     }
   },
 
@@ -173,7 +277,7 @@ Page({
    * 查询虚拟支付订单状态（iOS端）
    */
   async checkVirtualPayOrderStatus(orderNo) {
-    wx.showLoading({ title: '处理中...' })
+    wx.showLoading({ title: this.data.tMemberProcessing })
 
     let count = 0
     const maxCount = 15
@@ -190,7 +294,7 @@ Page({
             clearInterval(timer)
             wx.hideLoading()
 
-            wx.showToast({ title: '支付成功，会员已开通', icon: 'success' })
+            wx.showToast({ title: this.data.tMemberOrderPaid, icon: 'success' })
             setTimeout(() => this.loadMemberInfo(), 1500)
 
           } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
@@ -198,14 +302,14 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
+              title: paymentStatus === 'failed' ? this.data.tMemberOrderFailed : this.data.tMemberPayCancel,
               icon: 'none'
             })
 
           } else if (count >= maxCount) {
             clearInterval(timer)
             wx.hideLoading()
-            wx.showToast({ title: '支付处理超时', icon: 'none' })
+            wx.showToast({ title: this.data.tMemberPayTimeout, icon: 'none' })
           }
         }
 
@@ -213,7 +317,7 @@ Page({
         clearInterval(timer)
         wx.hideLoading()
         console.error('查询虚拟支付订单状态失败:', e)
-        wx.showToast({ title: '查询订单失败', icon: 'none' })
+        wx.showToast({ title: this.data.tMemberQueryFail, icon: 'none' })
       }
     }, 2000)
 
@@ -228,7 +332,11 @@ Page({
   },
 
   getPaymentStatusText(status) {
-    const map = { 'success': '已支付', 'pending': '待支付', 'failed': '支付失败' }
+    const map = {
+      'success': this.data.tMemberOrderPaid,
+      'pending': this.data.tMemberOrderPending,
+      'failed': this.data.tMemberOrderFailed
+    }
     return map[status] || status
   },
 

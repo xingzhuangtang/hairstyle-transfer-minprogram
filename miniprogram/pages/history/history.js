@@ -1,15 +1,18 @@
 // pages/History/history.js
 import { getMemberInfo } from '../../api/member.js'
 import { getHistoryRecords } from '../../api/hair.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
-// 服务类型映射
-const SERVICE_TYPE_MAP = {
-  hair_segment: '发型提取',
-  face_merge: '发型融合',
-  sketch: '素描转换',
-  combined: '一键生成',
-  fm_step: '融合步骤',
-  sk_step: '素描步骤'
+const app = getApp()
+
+// 服务类型映射 key
+const SERVICE_TYPE_KEYS = {
+  hair_segment: 'history.serviceHairSegment',
+  face_merge: 'history.serviceFaceMerge',
+  sketch: 'history.serviceSketch',
+  combined: 'history.serviceCombined',
+  fm_step: 'history.serviceFmStep',
+  sk_step: 'history.serviceSkStep'
 }
 
 Page({
@@ -21,14 +24,73 @@ Page({
     page: 1,
     pageSize: 20,
     hasMore: true,
-    countdownTimer: null
+    countdownTimer: null,
+    // i18n
+    tHistoryTitle: '',
+    tHistoryRemainingDays: '',
+    tHistoryMemberOnly: '',
+    tHistoryOpenMember: '',
+    tHistoryMemberBenefit: '',
+    tHistoryEmpty: '',
+    tHistoryEmptyTip: '',
+    tHistoryLoadingText: '',
+    tHistoryNoSketch: '',
+    tHistoryResult: '',
+    tHistorySketch: '',
+    tHistoryLoadMore: '',
+    tHistoryFeature1Title: '',
+    tHistoryFeature1Desc: '',
+    tHistoryFeature2Title: '',
+    tHistoryFeature2Desc: '',
+    tHistoryFeature3Title: '',
+    tHistoryFeature3Desc: '',
+    tHistoryPreviewAll: '',
+    tHistoryDownloadOriginal: '',
+    tHistoryDownloadSketch: '',
+    tHistorySaveCombined: '',
+    tHistoryDeleteRecord: '',
+    tHistoryRecordExpired: '',
+    tHistoryRecordExpiredDownload: '',
+    tHistoryNoImage: '',
+    tHistoryDownloadTip: '',
+    tHistoryGoPreview: '',
+    tHistoryGotIt: '',
+    tHistoryPreviewImage: '',
+    tHistoryDownloadToPhone: '',
+    tHistoryDownloading: '',
+    tHistoryAlbumSaved: '',
+    tHistoryNeedAlbumPermission: '',
+    tHistoryGoAuth: '',
+    tHistorySaveFail: '',
+    tHistoryDownloadFail: '',
+    tHistoryConfirmDelete: '',
+    tHistoryDeleteContent: '',
+    tHistoryDeleteSuccess: '',
+    tHistoryDeleteFail: '',
+    tHistoryGeneratingCombined: '',
+    tHistoryCombinedSaved: '',
+    tHistoryGenerateFail: '',
+    tHistoryOriginalLabel: '',
+    tHistorySketchLabel: '',
+    tHistoryNoMoreRecords: '',
+    tHistoryLoadFail: '',
+    tHistoryRemainingDaysTpl: '',
+    tHistoryDaysRemaining: '',
+    tHistoryHoursRemaining: ''
   },
 
+  _serviceTypeMap: {},
+
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'history.title')
     this.loadMemberInfo()
   },
 
   onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'history.title')
     this.loadMemberInfo()
     this.startCountdownTimer()
   },
@@ -41,13 +103,81 @@ Page({
     this.stopCountdownTimer()
   },
 
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tHistoryTitle: t('history.title'),
+      tHistoryRemainingDays: t('history.remainingDays'),
+      tHistoryMemberOnly: t('history.memberOnly'),
+      tHistoryOpenMember: t('history.openMember'),
+      tHistoryMemberBenefit: t('history.memberBenefit'),
+      tHistoryEmpty: t('history.empty'),
+      tHistoryEmptyTip: t('history.emptyTip'),
+      tHistoryLoadingText: t('history.loadingText'),
+      tHistoryNoSketch: t('history.noSketch'),
+      tHistoryResult: t('history.result'),
+      tHistorySketch: t('history.sketch'),
+      tHistoryLoadMore: t('history.loadMore'),
+      tHistoryFeature1Title: t('history.feature1Title'),
+      tHistoryFeature1Desc: t('history.feature1Desc'),
+      tHistoryFeature2Title: t('history.feature2Title'),
+      tHistoryFeature2Desc: t('history.feature2Desc'),
+      tHistoryFeature3Title: t('history.feature3Title'),
+      tHistoryFeature3Desc: t('history.feature3Desc'),
+      tHistoryPreviewAll: t('history.previewAll'),
+      tHistoryDownloadOriginal: t('history.downloadOriginal'),
+      tHistoryDownloadSketch: t('history.downloadSketch'),
+      tHistorySaveCombined: t('history.saveCombined'),
+      tHistoryDeleteRecord: t('history.deleteRecord'),
+      tHistoryRecordExpired: t('history.recordExpired'),
+      tHistoryRecordExpiredDownload: t('history.recordExpiredDownload'),
+      tHistoryNoImage: t('history.noImage'),
+      tHistoryDownloadTip: t('history.downloadTip'),
+      tHistoryGoPreview: t('history.goPreview'),
+      tHistoryGotIt: t('history.gotIt'),
+      tHistoryPreviewImage: t('history.previewImage'),
+      tHistoryDownloadToPhone: t('history.downloadToPhone'),
+      tHistoryDownloading: t('history.downloading'),
+      tHistoryAlbumSaved: t('history.albumSaved'),
+      tHistoryNeedAlbumPermission: t('history.needAlbumPermission'),
+      tHistoryGoAuth: t('history.goAuth'),
+      tHistorySaveFail: t('history.saveFail'),
+      tHistoryDownloadFail: t('history.downloadFail'),
+      tHistoryConfirmDelete: t('history.confirmDelete'),
+      tHistoryDeleteContent: t('history.deleteContent'),
+      tHistoryDeleteSuccess: t('history.deleteSuccess'),
+      tHistoryDeleteFail: t('history.deleteFail'),
+      tHistoryGeneratingCombined: t('history.generatingCombined'),
+      tHistoryCombinedSaved: t('history.combinedSaved'),
+      tHistoryGenerateFail: t('history.generateFail'),
+      tHistoryOriginalLabel: t('history.originalLabel'),
+      tHistorySketchLabel: t('history.sketchLabel'),
+      tHistoryNoMoreRecords: t('history.noMoreRecords'),
+      tHistoryLoadFail: t('history.loadFail'),
+      tHistoryRemainingDaysTpl: t('history.remainingDays'),
+      tHistoryDaysRemaining: t('history.daysRemaining'),
+      tHistoryHoursRemaining: t('history.hoursRemaining')
+    })
+    // 更新服务类型映射
+    this._serviceTypeMap = {}
+    for (const [key, i18nKey] of Object.entries(SERVICE_TYPE_KEYS)) {
+      this._serviceTypeMap[key] = t(i18nKey)
+    }
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'history.title')
+    })
+  },
+
   async loadMemberInfo() {
     try {
       const res = await getMemberInfo()
       console.log('会员信息API返回:', res)
-      
+
       if (res.member_level !== undefined) {
-        // 后端返回的是 member_level: 'vip' 或 'normal'
         const isVip = res.member_level === 'vip'
         const remainingDays = res.remaining_days || 0
 
@@ -75,43 +205,42 @@ Page({
 
       if (res.records !== undefined) {
         console.log('历史记录API返回:', res)
-        
+
         const newRecords = res.records.map(record => {
           const resultImage = record.result_image || record.result_url || ''
           const sketchImage = record.sketch_url || ''
-          
-          // 计算倒计时
+
           let countdownText = ''
           let countdownClass = 'valid'
           let remainingHours = 0
-          
+
           if (record.expire_at) {
             const expireDate = new Date(record.expire_at)
             const now = new Date()
             const diffMs = expireDate - now
-            
+
             if (diffMs <= 0) {
-              countdownText = '已过期'
+              countdownText = this.data.tHistoryRecordExpired
               countdownClass = 'expired'
             } else {
               const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
               const diffDays = Math.floor(diffHours / 24)
               remainingHours = diffHours
-              
+
               if (diffDays >= 1) {
-                countdownText = `剩余${diffDays}天`
+                countdownText = this.data.tHistoryDaysRemaining.replace('{d}', String(diffDays))
                 if (diffDays <= 3) {
                   countdownClass = 'warning'
                 }
               } else {
-                countdownText = `剩余${diffHours}小时`
+                countdownText = this.data.tHistoryHoursRemaining.replace('{h}', String(diffHours))
                 countdownClass = 'urgent'
               }
             }
           }
-          
+
           console.log('记录ID:', record.id, 'result_url:', record.result_url, 'sketch_url:', sketchImage)
-          
+
           return {
             ...record,
             id: record.id,
@@ -119,7 +248,7 @@ Page({
             sketch_image: sketchImage,
             has_sketch: !!sketchImage,
             service_type: record.service_type || 'combined',
-            service_type_text: SERVICE_TYPE_MAP[record.service_type] || '发型迁移',
+            service_type_text: this._serviceTypeMap[record.service_type] || this._serviceTypeMap['combined'] || '',
             is_expired: record.is_expired || false,
             created_at: this.formatDate(record.created_at),
             countdown_text: countdownText,
@@ -129,7 +258,7 @@ Page({
         })
 
         console.log('处理后的记录:', newRecords)
-        
+
         this.setData({
           records: refresh ? newRecords : [...this.data.records, ...newRecords],
           page: currentPage + 1,
@@ -143,13 +272,13 @@ Page({
     } catch (e) {
       console.error('加载历史记录失败:', e)
       this.setData({ loading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryLoadFail, icon: 'none' })
     }
   },
 
   loadMore() {
     if (!this.data.hasMore && !this.data.loading) {
-      wx.showToast({ title: '没有更多了', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryNoMoreRecords, icon: 'none' })
       return
     }
     this.loadHistoryRecords(false)
@@ -157,28 +286,27 @@ Page({
 
   viewDetail(e) {
     const { id } = e.currentTarget.dataset
-    
+
     const record = this.data.records.find(r => r.id === id)
     if (!record) return
-    
+
     if (record.is_expired) {
-      wx.showToast({ title: '记录已过期', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryRecordExpired, icon: 'none' })
       return
     }
 
-    // 弹出操作菜单
-    const menuItems = ['预览所有图片']
-    if (record.result_image) menuItems.push('下载原图')
-    if (record.sketch_image) menuItems.push('下载素描')
-    if (record.result_image && record.sketch_image) menuItems.push('保存合并图片')
-    menuItems.push('删除记录')
+    const menuItems = [this.data.tHistoryPreviewAll]
+    if (record.result_image) menuItems.push(this.data.tHistoryDownloadOriginal)
+    if (record.sketch_image) menuItems.push(this.data.tHistoryDownloadSketch)
+    if (record.result_image && record.sketch_image) menuItems.push(this.data.tHistorySaveCombined)
+    menuItems.push(this.data.tHistoryDeleteRecord)
 
     wx.showActionSheet({
       itemList: menuItems,
       success: (res) => {
         const action = menuItems[res.tapIndex]
-        
-        if (action === '预览所有图片') {
+
+        if (action === this.data.tHistoryPreviewAll) {
           const imageUrls = []
           if (record.result_image) imageUrls.push(record.result_image)
           if (record.sketch_image) imageUrls.push(record.sketch_image)
@@ -188,13 +316,13 @@ Page({
               current: imageUrls[0]
             })
           }
-        } else if (action === '下载原图') {
-          this.downloadImage(record.result_image, '原图')
-        } else if (action === '下载素描') {
-          this.downloadImage(record.sketch_image, '素描')
-        } else if (action === '保存合并图片') {
+        } else if (action === this.data.tHistoryDownloadOriginal) {
+          this.downloadImage(record.result_image, this.data.tHistoryOriginalLabel)
+        } else if (action === this.data.tHistoryDownloadSketch) {
+          this.downloadImage(record.sketch_image, this.data.tHistorySketchLabel)
+        } else if (action === this.data.tHistorySaveCombined) {
           this.saveCombinedImage(record)
-        } else if (action === '删除记录') {
+        } else if (action === this.data.tHistoryDeleteRecord) {
           this.deleteRecord({ currentTarget: { dataset: { id } } })
         }
       }
@@ -202,23 +330,20 @@ Page({
   },
 
   saveCombinedImage(record) {
-    wx.showLoading({ title: '生成合并图片中...' })
-    
+    wx.showLoading({ title: this.data.tHistoryGeneratingCombined })
+
     const ctx = wx.createCanvasContext('combinedCanvas', this)
-    
-    // 填充背景
+
     ctx.setFillStyle('#ffffff')
     ctx.fillRect(0, 0, 800, 1600)
-    
+
     let loadedCount = 0
     const totalImages = (record.result_image ? 1 : 0) + (record.sketch_image ? 1 : 0)
-    
+
     const onLoadComplete = () => {
       loadedCount++
       if (loadedCount === totalImages) {
-        // 所有图片加载完成，调用 draw() 渲染
         ctx.draw(false, () => {
-          // draw 完成后保存图片
           setTimeout(() => {
             wx.canvasToTempFilePath({
               canvasId: 'combinedCanvas',
@@ -231,38 +356,35 @@ Page({
                   filePath: res.tempFilePath,
                   success: () => {
                     wx.hideLoading()
-                    wx.showToast({ title: '合并图片已保存到相册', icon: 'success' })
+                    wx.showToast({ title: this.data.tHistoryCombinedSaved, icon: 'success' })
                   },
                   fail: () => {
                     wx.hideLoading()
-                    wx.showToast({ title: '保存失败', icon: 'none' })
+                    wx.showToast({ title: this.data.tHistorySaveFail, icon: 'none' })
                   }
                 })
               },
               fail: () => {
                 wx.hideLoading()
-                wx.showToast({ title: '生成失败', icon: 'none' })
+                wx.showToast({ title: this.data.tHistoryGenerateFail, icon: 'none' })
               }
             }, this)
-          }, 1000) // 等待 1 秒确保渲染完成
+          }, 1000)
         })
       }
     }
-    
-    // 加载原图
+
     if (record.result_image) {
       wx.downloadFile({
         url: record.result_image,
         success: (res) => {
           if (res.statusCode === 200) {
             ctx.drawImage(res.tempFilePath, 0, 0, 800, 800)
-            
-            // 添加标签
             ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
             ctx.fillRect(10, 760, 100, 30)
             ctx.setFillStyle('#ffffff')
             ctx.setFontSize(18)
-            ctx.fillText('原图', 30, 782)
+            ctx.fillText(this.data.tHistoryOriginalLabel, 30, 782)
           }
           onLoadComplete()
         },
@@ -271,21 +393,18 @@ Page({
     } else {
       onLoadComplete()
     }
-    
-    // 加载素描图
+
     if (record.sketch_image) {
       wx.downloadFile({
         url: record.sketch_image,
         success: (res) => {
           if (res.statusCode === 200) {
             ctx.drawImage(res.tempFilePath, 0, 800, 800, 800)
-            
-            // 添加标签
             ctx.setFillStyle('rgba(0, 0, 0, 0.6)')
             ctx.fillRect(10, 1560, 100, 30)
             ctx.setFillStyle('#ffffff')
             ctx.setFontSize(18)
-            ctx.fillText('素描', 30, 1582)
+            ctx.fillText(this.data.tHistorySketchLabel, 30, 1582)
           }
           onLoadComplete()
         },
@@ -302,21 +421,20 @@ Page({
     if (!record) return
 
     if (record.is_expired) {
-      wx.showToast({ title: '记录已过期，无法下载', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryRecordExpiredDownload, icon: 'none' })
       return
     }
 
     if (!record.result_image && !record.sketch_image) {
-      wx.showToast({ title: '暂无图片', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryNoImage, icon: 'none' })
       return
     }
 
-    // 提示用户长按保存
     wx.showModal({
-      title: '下载图片',
-      content: '点击"预览所有图片"后，长按图片即可保存到相册',
-      confirmText: '去预览',
-      cancelText: '知道了',
+      title: this.data.tHistoryDownloadToPhone,
+      content: this.data.tHistoryDownloadTip,
+      confirmText: this.data.tHistoryGoPreview,
+      cancelText: this.data.tHistoryGotIt,
       success: (res) => {
         if (res.confirm) {
           this.viewDetail({ currentTarget: { dataset: { id } } })
@@ -349,36 +467,34 @@ Page({
     if (!record) return
 
     if (record.is_expired) {
-      wx.showToast({ title: '记录已过期，无法下载', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryRecordExpiredDownload, icon: 'none' })
       return
     }
 
     const imageUrl = type === 'sketch' ? record.sketch_image : record.result_image
     if (!imageUrl) {
-      wx.showToast({ title: '暂无图片', icon: 'none' })
+      wx.showToast({ title: this.data.tHistoryNoImage, icon: 'none' })
       return
     }
 
     wx.showActionSheet({
-      itemList: ['预览图片', '下载到手机'],
+      itemList: [this.data.tHistoryPreviewImage, this.data.tHistoryDownloadToPhone],
       success: (res) => {
         if (res.tapIndex === 0) {
-          // 预览
           wx.previewImage({
             urls: [imageUrl],
             current: imageUrl
           })
         } else if (res.tapIndex === 1) {
-          // 下载
-          this.downloadImage(imageUrl, type === 'sketch' ? '素描' : '结果')
+          this.downloadImage(imageUrl, type === 'sketch' ? this.data.tHistorySketchLabel : this.data.tHistoryResult)
         }
       }
     })
   },
 
   downloadImage(imageUrl, imageType) {
-    wx.showLoading({ title: '下载中...' })
-    
+    wx.showLoading({ title: this.data.tHistoryDownloading })
+
     wx.downloadFile({
       url: imageUrl,
       success: (res) => {
@@ -387,15 +503,15 @@ Page({
             filePath: res.tempFilePath,
             success: () => {
               wx.hideLoading()
-              wx.showToast({ title: `${imageType}图片已保存到相册`, icon: 'success' })
+              wx.showToast({ title: `${imageType}${this.data.tHistoryAlbumSaved}`, icon: 'success' })
             },
             fail: (err) => {
               wx.hideLoading()
               if (err.errMsg && err.errMsg.includes('auth deny')) {
                 wx.showModal({
-                  title: '提示',
-                  content: '需要授权访问相册',
-                  confirmText: '去授权',
+                  title: this.data.tHistoryGotIt,
+                  content: this.data.tHistoryNeedAlbumPermission,
+                  confirmText: this.data.tHistoryGoAuth,
                   success: (modalRes) => {
                     if (modalRes.confirm) {
                       wx.openSetting()
@@ -403,18 +519,18 @@ Page({
                   }
                 })
               } else {
-                wx.showToast({ title: '保存失败', icon: 'none' })
+                wx.showToast({ title: this.data.tHistorySaveFail, icon: 'none' })
               }
             }
           })
         } else {
           wx.hideLoading()
-          wx.showToast({ title: '下载失败', icon: 'none' })
+          wx.showToast({ title: this.data.tHistoryDownloadFail, icon: 'none' })
         }
       },
       fail: () => {
         wx.hideLoading()
-        wx.showToast({ title: '下载失败', icon: 'none' })
+        wx.showToast({ title: this.data.tHistoryDownloadFail, icon: 'none' })
       }
     })
   },
@@ -425,10 +541,10 @@ Page({
 
   startCountdownTimer() {
     this.stopCountdownTimer()
-    
+
     this.data.countdownTimer = setInterval(() => {
       this.updateCountdowns()
-    }, 60 * 60 * 1000) // 每小时更新一次
+    }, 60 * 60 * 1000)
   },
 
   stopCountdownTimer() {
@@ -444,30 +560,30 @@ Page({
         const expireDate = new Date(record.expire_at)
         const now = new Date()
         const diffMs = expireDate - now
-        
+
         let countdownText = ''
         let countdownClass = 'valid'
         let remainingHours = 0
-        
+
         if (diffMs <= 0) {
-          countdownText = '已过期'
+          countdownText = this.data.tHistoryRecordExpired
           countdownClass = 'expired'
         } else {
           const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
           const diffDays = Math.floor(diffHours / 24)
           remainingHours = diffHours
-          
+
           if (diffDays >= 1) {
-            countdownText = `剩余${diffDays}天`
+            countdownText = this.data.tHistoryDaysRemaining.replace('{d}', String(diffDays))
             if (diffDays <= 3) {
               countdownClass = 'warning'
             }
           } else {
-            countdownText = `剩余${diffHours}小时`
+            countdownText = this.data.tHistoryHoursRemaining.replace('{h}', String(diffHours))
             countdownClass = 'urgent'
           }
         }
-        
+
         return {
           ...record,
           countdown_text: countdownText,
@@ -477,16 +593,16 @@ Page({
       }
       return record
     })
-    
+
     this.setData({ records })
   },
 
   deleteRecord(e) {
     const { id } = e.currentTarget.dataset
-    
+
     wx.showModal({
-      title: '确认删除',
-      content: '删除后无法恢复，是否继续？',
+      title: this.data.tHistoryConfirmDelete,
+      content: this.data.tHistoryDeleteContent,
       confirmColor: '#ff3b30',
       success: (res) => {
         if (res.confirm) {
@@ -497,11 +613,11 @@ Page({
   },
 
   executeDelete(recordId) {
-    wx.showLoading({ title: '删除中...' })
-    
+    wx.showLoading({ title: this.data.tHistoryDeleteRecord })
+
     const token = wx.getStorageSync('token')
     const API_BASE_URL = 'https://xn--gmq63iba0780e.com'
-    
+
     wx.request({
       url: `${API_BASE_URL}/api/history/delete`,
       method: 'DELETE',
@@ -512,23 +628,22 @@ Page({
       },
       success: (res) => {
         wx.hideLoading()
-        
+
         if (res.statusCode === 200) {
-          wx.showToast({ title: '删除成功', icon: 'success' })
-          
-          // 从列表中移除
+          wx.showToast({ title: this.data.tHistoryDeleteSuccess, icon: 'success' })
+
           const records = this.data.records.filter(r => r.id !== recordId)
           this.setData({ records })
         } else {
-          wx.showToast({ 
-            title: res.data.error || '删除失败', 
-            icon: 'none' 
+          wx.showToast({
+            title: res.data.error || this.data.tHistoryDeleteFail,
+            icon: 'none'
           })
         }
       },
       fail: () => {
         wx.hideLoading()
-        wx.showToast({ title: '删除失败', icon: 'none' })
+        wx.showToast({ title: this.data.tHistoryDeleteFail, icon: 'none' })
       }
     })
   },

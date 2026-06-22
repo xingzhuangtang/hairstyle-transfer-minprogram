@@ -56,7 +56,8 @@ function getDeviceInfo() {
     }
 
     // 生成设备名称
-    const deviceName = `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`
+    const unknown = getApp().t('common.unknown')
+    const deviceName = `${systemInfo.brand || unknown} ${systemInfo.model || unknown}`
 
     return {
       device_id: deviceId,
@@ -110,14 +111,14 @@ export async function wechatLogin() {
     } else {
       return {
         success: false,
-        error: res.error || '登录失败'
+        error: res.error || getApp().t('login.loginFail')
       }
     }
   } catch (e) {
     console.error('微信登录失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '登录失败'
+      error: e.error || e.message || getApp().t('login.loginFail')
     }
   }
 }
@@ -174,14 +175,14 @@ export async function guestLogin() {
     } else {
       return {
         success: false,
-        error: res.error || '登录失败'
+        error: res.error || getApp().t('login.loginFail')
       }
     }
   } catch (e) {
     console.error('游客登录失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '登录失败'
+      error: e.error || e.message || getApp().t('login.loginFail')
     }
   }
 }
@@ -237,14 +238,14 @@ export async function phoneLogin(phone, code, deviceInfo) {
     } else {
       return {
         success: false,
-        error: res.error || '登录失败'
+        error: res.error || getApp().t('login.loginFail')
       }
     }
   } catch (e) {
     console.error('手机号登录失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '登录失败'
+      error: e.error || e.message || getApp().t('login.loginFail')
     }
   }
 }
@@ -271,7 +272,7 @@ export async function sendVerificationCode(phone) {
     console.error('发送验证码失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '发送失败'
+      error: e.error || e.message || getApp().t('common.sendFail')
     }
   }
 }
@@ -300,14 +301,14 @@ export async function bindPhone(phone, code) {
     } else {
       return {
         success: false,
-        error: res.error || '绑定失败'
+        error: res.error || getApp().t('login.bindFail')
       }
     }
   } catch (e) {
     console.error('绑定手机号失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '绑定失败'
+      error: e.error || e.message || getApp().t('login.bindFail')
     }
   }
 }
@@ -341,11 +342,12 @@ export function checkPremium(showTip = true) {
   }
 
   if (showTip) {
+    const t = (key) => getApp().t(key)
     wx.showModal({
-      title: '升级会员',
-      content: '此功能仅限陪跑会员使用，升级后即可享受50%折扣特权',
-      confirmText: '立即升级',
-      cancelText: '取消',
+      title: t('common.upgradeMember'),
+      content: t('common.upgradeMemberContent'),
+      confirmText: t('common.upgradeNowBtn'),
+      cancelText: t('common.cancel'),
       success: (res) => {
         if (res.confirm) {
           wx.navigateTo({
@@ -381,7 +383,7 @@ export async function refreshUserInfo() {
     } else {
       return {
         success: false,
-        error: res.error || '刷新失败'
+        error: res.error || getApp().t('common.fail')
       }
     }
   } catch (e) {
@@ -390,14 +392,14 @@ export async function refreshUserInfo() {
     if (e && e.code === 401) {
       return {
         success: false,
-        error: '请先登录',
+        error: getApp().t('common.pleaseLogin'),
         code: 401,
         needLogin: true
       }
     }
     return {
       success: false,
-      error: e.error || e.message || '刷新失败'
+      error: e.error || e.message || getApp().t('common.fail')
     }
   }
 }
@@ -408,14 +410,16 @@ export async function refreshUserInfo() {
  * @param {string} action - 需要登录才能执行的操作描述
  * @returns {Promise<boolean>} - 用户是否选择登录
  */
-export function optionalLogin(action = '使用此功能') {
+export function optionalLogin(action) {
+  const t = (key, params) => getApp().t(key, params)
+  const actionText = action || t('index.loginMore')
   return new Promise((resolve) => {
     if (!checkLogin()) {
       wx.showModal({
-        title: '提示',
-        content: `登录后即可${action}，是否立即登录？`,
-        confirmText: '去登录',
-        cancelText: '暂不',
+        title: t('common.tip'),
+        content: t('common.optionalLoginContent', { action: actionText }),
+        confirmText: t('common.loginAction'),
+        cancelText: t('common.notNowAction'),
         success: (res) => {
           if (res.confirm) {
             // 保存当前路径
@@ -519,7 +523,7 @@ export function isDeveloperAccount() {
  * 开发者模式必须通过配置 DEVELOPER_MODE_ENABLED=true 和 DEVELOPER_ACCOUNTS 来启用
  */
 export function getDeveloperModeInstructions() {
-  return '开发者模式需联系管理员配置，无法自行切换'
+  return getApp().t('profile.devInstructions')
 }
 
 /**
@@ -547,14 +551,14 @@ export async function toggleVip() {
     } else {
       return {
         success: false,
-        error: res.error || '切换失败'
+        error: res.error || getApp().t('profile.switchFail')
       }
     }
   } catch (e) {
     console.error('切换会员状态失败:', e)
     return {
       success: false,
-      error: e.error || e.message || '切换失败'
+      error: e.error || e.message || getApp().t('profile.switchFail')
     }
   }
 }

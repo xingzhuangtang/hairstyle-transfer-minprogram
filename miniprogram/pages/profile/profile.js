@@ -1,8 +1,9 @@
 // pages/profile/profile.js
 import { getUser, isPremium, logout, refreshUserInfo, isDeveloperAccount, toggleVip, getDeveloperModeInstructions } from '../../utils/auth.js'
 import { checkPremium, requireLogin } from '../../utils/auth.js'
-import { MEMBER_LEVEL_NAMES, API_BASE_URL } from '../../utils/constants.js'
+import { API_BASE_URL } from '../../utils/constants.js'
 import { getUnreadCount } from '../../api/chat.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
 Page({
   data: {
@@ -15,13 +16,148 @@ Page({
     toggleLoading: false,
     resetLoading: false,
     chatUnreadCount: 0,
-    refundEnabled: false
+    refundEnabled: false,
+    // i18n
+    tProfileGuestMode: '您当前是游客模式',
+    tProfileLoginNow: '立即登录',
+    tProfileLoginSync: '登录后可同步数据、享受会员折扣和更多功能',
+    tProfileNoNickname: '未设置昵称',
+    tProfileNoPhone: '未绑定手机',
+    tProfileRemainingDays: '还剩{days}天',
+    tProfileScissorHairs: '剪刀发丝',
+    tProfileCombHairs: '梳子发丝',
+    tProfileHistory: '历史记录',
+    tProfileConsumption: '消费记录',
+    tProfileRecharge: '充值中心',
+    tProfileMemberCenter: '会员中心',
+    tProfileOnlineService: '在线客服',
+    tProfileMessage: '客户留言',
+    tProfileMySurprise: '我的惊喜',
+    tProfileRefundApply: '退款申请',
+    tProfileDeviceManage: '设备管理',
+    tProfileAboutUs: '关于我们',
+    tProfileDeveloperMode: '开发者模式',
+    tProfileDevStatus: '当前状态：',
+    tProfileDevOn: '已开启',
+    tProfileDevMethod: '激活方式：',
+    tProfileDevInstructions: '联系管理员配置',
+    tProfileViewDevMode: '查看开发者模式说明',
+    tProfileTestTools: '测试工具',
+    tProfileCurrentAccount: '当前账号：',
+    tProfileUserType: '用户类型：',
+    tProfileRegistered: '普通用户',
+    tProfileClearData: '清除数据，重新测试（模拟新客户）',
+    tProfileDeveloperTools: '开发者工具',
+    tProfileCurrentVipStatus: '当前会员状态：',
+    tProfileVipMember: 'VIP 会员',
+    tProfileNormalUser: '普通用户',
+    tProfileExpireTime: '到期时间：',
+    tProfilePermanent: '永久',
+    tProfileSwitchToNormal: '切换为普通用户',
+    tProfileSwitchToVip: '切换为 VIP 会员',
+    tMessageAdminTitle: '留言管理',
+    tIndexTotal: '总计',
+    tCommonUnknown: '未知',
+    tCommonSettings: '设置',
+    tCommonLogout: '退出登录',
+    tCommonNotLoggedIn: '未登录',
+    tCommonGuest: '游客',
+    tProfileConfirmLogout: '确认退出',
+    tProfileLogoutContent: '确定要退出登录吗？',
+    tProfileConfirmClear: '确认清除',
+    tProfileClearContent: '将清除当前账号的所有数据，重新以新客户身份体验。确定继续？',
+    tProfileConfirmClearBtn: '确定清除',
+    tProfileDataCleared: '数据已清除，重新登录中...',
+    tProfileClearFail: '清除失败',
+    tProfileSwitchSuccess: '切换成功'
+  },
+
+  onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
   },
 
   onShow() {
-    // 每次显示时刷新用户信息
+    this._loadI18n()
     this.loadUserInfo()
     this.loadChatUnreadCount()
+    this._updateNavTitle()
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      this._updateNavTitle()
+    })
+  },
+
+  _updateNavTitle() {
+    const app = getApp()
+    app.setNavTitle(this, 'tabBar.profile')
+  },
+
+  _loadI18n() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+    const userInfo = this.data.userInfo || {}
+    const days = this.data.daysRemaining
+
+    this.setData({
+      tProfileGuestMode: t('profile.guestMode'),
+      tProfileLoginNow: t('profile.loginNow'),
+      tProfileLoginSync: t('profile.loginSync'),
+      tProfileNoNickname: t('profile.noNickname'),
+      tProfileNoPhone: t('profile.noPhone'),
+      tProfileRemainingDays: t('profile.remainingDays').replace('{days}', String(days)),
+      tProfileScissorHairs: t('profile.scissorHairs'),
+      tProfileCombHairs: t('profile.combHairs'),
+      tProfileHistory: t('profile.history'),
+      tProfileConsumption: t('profile.consumption'),
+      tProfileRecharge: t('profile.recharge'),
+      tProfileMemberCenter: t('profile.memberCenter'),
+      tProfileOnlineService: t('profile.onlineService'),
+      tProfileMessage: t('profile.message'),
+      tProfileMySurprise: t('profile.mySurprise'),
+      tProfileRefundApply: t('profile.refundApply'),
+      tProfileDeviceManage: t('profile.deviceManage'),
+      tProfileAboutUs: t('profile.aboutUs'),
+      tProfileDeveloperMode: t('profile.developerMode'),
+      tProfileDevStatus: t('profile.devStatus'),
+      tProfileDevOn: t('profile.devOn'),
+      tProfileDevMethod: t('profile.devMethod'),
+      tProfileDevInstructions: t('profile.devInstructions'),
+      tProfileViewDevMode: t('profile.viewDevMode'),
+      tProfileTestTools: t('profile.testTools'),
+      tProfileCurrentAccount: t('profile.currentAccount'),
+      tProfileUserType: t('profile.userType'),
+      tProfileRegistered: t('profile.registered'),
+      tProfileClearData: t('profile.clearData'),
+      tProfileDeveloperTools: t('profile.developerTools'),
+      tProfileCurrentVipStatus: t('profile.currentVipStatus'),
+      tProfileVipMember: t('profile.vipMember'),
+      tProfileNormalUser: t('profile.normalUser'),
+      tProfileExpireTime: t('profile.expireTime'),
+      tProfilePermanent: t('profile.permanent'),
+      tProfileSwitchToNormal: t('profile.switchToNormal'),
+      tProfileSwitchToVip: t('profile.switchToVip'),
+      tMessageAdminTitle: t('messageAdmin.title'),
+      tIndexTotal: t('index.total'),
+      tCommonUnknown: t('common.unknown'),
+      tCommonSettings: t('common.settings'),
+      tCommonLogout: t('common.logout'),
+      tCommonNotLoggedIn: t('common.notLoggedIn'),
+      tCommonGuest: t('common.guest'),
+      tCommonConfirm: t('common.confirm'),
+      tCommonCancel: t('common.cancel'),
+      tProfileConfirmLogout: t('profile.confirmLogout'),
+      tProfileLogoutContent: t('profile.logoutContent'),
+      tProfileConfirmClear: t('profile.confirmClear'),
+      tProfileClearContent: t('profile.clearContent'),
+      tProfileConfirmClearBtn: t('profile.confirmClearBtn'),
+      tProfileDataCleared: t('profile.dataCleared'),
+      tProfileClearFail: t('profile.clearFail'),
+      tProfileSwitchSuccess: t('profile.switchSuccess')
+    })
   },
 
   /**
@@ -50,7 +186,7 @@ Page({
           userInfo: userInfo,
           isPremium: isPremium,
           isDeveloper: isDeveloper,
-          memberLevelName: (typeof MEMBER_LEVEL_NAMES !== 'undefined' && MEMBER_LEVEL_NAMES[userInfo.member_level]) || '普通用户',
+          memberLevelName: userInfo.member_level === 'vip' ? getApp().t('member.companionVip') : this.data.tProfileNormalUser,
           totalHairs: totalHairs,
           daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
           refundEnabled: userInfo.refund_enabled || false
@@ -87,7 +223,7 @@ Page({
    */
   onViewDeveloperMode() {
     wx.showModal({
-      title: '开发者模式',
+      title: getApp().t('profile.developerMode'),
       content: getDeveloperModeInstructions(),
       showCancel: false
     })
@@ -252,10 +388,10 @@ Page({
    */
   handleLogout() {
     wx.showModal({
-      title: '确认退出',
-      content: '确定要退出登录吗？',
-      confirmText: '确定',
-      cancelText: '取消',
+      title: this.data.tProfileConfirmLogout,
+      content: this.data.tProfileLogoutContent,
+      confirmText: this.data.tCommonConfirm,
+      cancelText: this.data.tCommonCancel,
       success: (res) => {
         if (res.confirm) {
           logout()
@@ -269,10 +405,10 @@ Page({
    */
   onResetForTest() {
     wx.showModal({
-      title: '确认清除',
-      content: '将清除当前账号的所有数据，重新以新客户身份体验。确定继续？',
-      confirmText: '确定清除',
-      cancelText: '取消',
+      title: this.data.tProfileConfirmClear,
+      content: this.data.tProfileClearContent,
+      confirmText: this.data.tProfileConfirmClearBtn,
+      cancelText: this.data.tCommonCancel,
       confirmColor: '#ff4d4f',
       success: (res) => {
         if (res.confirm) {
@@ -331,7 +467,7 @@ Page({
       app.globalData.isPremium = false
 
       wx.showToast({
-        title: '数据已清除，重新登录中...',
+        title: getApp().t('profile.dataCleared'),
         icon: 'loading',
         duration: 2000
       })
@@ -346,7 +482,7 @@ Page({
     } catch (e) {
       console.error('清除测试数据失败:', e)
       wx.showToast({
-        title: '清除失败: ' + e.message,
+        title: getApp().t('profile.clearFail', { msg: e.message }),
         icon: 'none',
         duration: 3000
       })
@@ -370,7 +506,7 @@ Page({
 
       if (res.success) {
         wx.showToast({
-          title: res.message || '切换成功',
+          title: res.message || getApp().t('profile.switchSuccess'),
           icon: 'success'
         })
 
@@ -378,14 +514,14 @@ Page({
         await this.loadUserInfo()
       } else {
         wx.showToast({
-          title: res.error || '切换失败',
+          title: res.error || getApp().t('profile.switchFail'),
           icon: 'none'
         })
       }
     } catch (e) {
       console.error('切换 VIP 状态失败:', e)
       wx.showToast({
-        title: e.error || '切换失败',
+        title: e.error || getApp().t('profile.switchFail'),
         icon: 'none'
       })
     } finally {
