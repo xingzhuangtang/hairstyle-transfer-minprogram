@@ -130,7 +130,12 @@ Page({
       tReferralSaveSuccess: t('referral.savedToAlbum'),
       tReferralSaveFail: t('common.uploadFail'),
       tDownloadFail: t('common.downloadFailNetwork'),
-      tWithdrawing: t('referral.withdrawing')
+      tWithdrawing: t('referral.withdrawing'),
+      tReferralJustNow: t('referral.justNow'),
+      tReferralMinutesAgo: t('referral.minutesAgo'),
+      tReferralHoursAgo: t('referral.hoursAgo'),
+      tReferralDaysAgo: t('referral.daysAgo'),
+      tReferralDateFormat: t('referral.dateFormat')
     })
     this._updateNavTitle()
   },
@@ -188,15 +193,15 @@ Page({
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return '刚刚'
-    if (diffMins < 60) return `${diffMins}分钟前`
-    if (diffHours < 24) return `${diffHours}小时前`
-    if (diffDays < 7) return `${diffDays}天前`
+    if (diffMins < 1) return this.data.tReferralJustNow
+    if (diffMins < 60) return this.data.tReferralMinutesAgo.replace('{m}', diffMins)
+    if (diffHours < 24) return this.data.tReferralHoursAgo.replace('{h}', diffHours)
+    if (diffDays < 7) return this.data.tReferralDaysAgo.replace('{d}', diffDays)
 
     // 超过7天显示具体日期
     const month = date.getMonth() + 1
     const day = date.getDate()
-    return `${month}月${day}日`
+    return this.data.tReferralDateFormat.replace('{m}', month).replace('{d}', day)
   },
 
   /**

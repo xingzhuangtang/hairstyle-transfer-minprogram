@@ -550,7 +550,12 @@ module.exports = {
     "emptyTip": "Share your referral code to earn rewards",
     "saving": "Saving...",
     "savedToAlbum": "Saved to album",
-    "withdrawing": "Withdrawing..."
+    "withdrawing": "Withdrawing...",
+    "justNow": "Just now",
+    "minutesAgo": "{m} min ago",
+    "hoursAgo": "{h} hours ago",
+    "daysAgo": "{d} days ago",
+    "dateFormat": "{m}/{d}"
   },
   "refund": {
     "title": "Refund Request",
