@@ -5,6 +5,8 @@ import { API_BASE_URL } from '../../utils/constants.js'
 import { getUnreadCount } from '../../api/chat.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 Page({
   data: {
     userInfo: {},
@@ -197,7 +199,7 @@ Page({
           userInfo: {},
           isPremium: false,
           isDeveloper: false,
-          memberLevelName: '游客',
+          memberLevelName: this.data.tCommonGuest,
           totalHairs: 0,
           daysRemaining: 0,
           refundEnabled: false
@@ -210,7 +212,7 @@ Page({
         userInfo: {},
         isPremium: false,
         isDeveloper: false,
-        memberLevelName: '游客',
+        memberLevelName: this.data.tCommonGuest,
         totalHairs: 0,
         daysRemaining: 0,
         refundEnabled: false

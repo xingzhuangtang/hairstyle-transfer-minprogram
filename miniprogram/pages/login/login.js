@@ -6,6 +6,8 @@ import { getDeviceInfo } from '../../utils/device.js'
 import { setToken, setUserInfo } from '../../utils/storage.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 Page({
   data: {
     phone: '',

@@ -48,28 +48,27 @@ export function getRechargeOrders(page = 1, page_size = 20) {
 // ==================== 微信虚拟支付（iOS端）====================
 
 /**
- * 获取用户 session_key（从 wx.login 获取）
+ * 通过 wx.login 获取 code，换取 session_key（虚拟支付签名用）
  */
 export function getSessionKey() {
   return new Promise((resolve, reject) => {
     wx.login({
-      success: (res) => {
-        if (res.code) {
-          // 调用后端接口，用 code 换取 session_key
-          post('/api/auth/get-session-key', { code: res.code })
-            .then(result => {
-              if (result.success) {
-                resolve(result.session_key)
-              } else {
-                reject(new Error(result.error || '获取 session_key 失败'))
-              }
-            })
-            .catch(reject)
-        } else {
-          reject(new Error('wx.login 失败: ' + res.errMsg))
+      success: (loginRes) => {
+        if (!loginRes.code) {
+          reject(new Error('wx.login 获取 code 失败'))
+          return
         }
+        post('/api/auth/get-session-key', { code: loginRes.code })
+          .then((res) => {
+            if (res.success && res.session_key) {
+              resolve(res.session_key)
+            } else {
+              reject(new Error(res.error || '获取 session_key 失败'))
+            }
+          })
+          .catch(reject)
       },
-      fail: reject
+      fail: (err) => reject(err)
     })
   })
 }
@@ -79,7 +78,7 @@ export function getSessionKey() {
  * @param {string} orderType - 'recharge' 或 'member'
  * @param {number} amount - 金额（元）
  * @param {string} goodsKey - 虚拟商品键
- * @param {string} sessionKey - 用户 session_key
+ * @param {string} sessionKey - 从 wx.login 换取的 session_key
  */
 export function createVirtualPayOrder(orderType, amount, goodsKey, sessionKey) {
   return post('/api/virtual-pay/create-order', {
@@ -98,20 +97,24 @@ export function getVirtualPayOrderStatus(orderNo) {
 }
 
 /**
- * 调起微信虚拟支付（使用官方 wx.requestVirtualPayment API）
+ * 调起微信虚拟支付
  * @param {Object} payParams - 后端返回的虚拟支付参数
- * @param {string} payParams.signData - signData JSON 字符串
- * @param {string} payParams.paySig - 支付签名
- * @param {string} payParams.signature - 用户态签名
- * @param {string} payParams.mode - 支付类型（short_series_goods 或 short_series_coin）
  */
-export function requestVirtualPay(payParams) {
+function requestVirtualPay(payParams) {
   return new Promise((resolve, reject) => {
-    wx.requestVirtualPayment({
-      signData: payParams.signData,
-      paySig: payParams.pay_sig,
-      signature: payParams.signature,
-      mode: payParams.mode || 'short_series_goods',
+    wx.openBusinessView({
+      businessType: 'weappVirtualPay',
+      extraData: {
+        mch_id: payParams.mch_id,
+        appid: payParams.appid,
+        package: payParams.package,
+        nonce_str: payParams.nonce_str,
+        time_stamp: payParams.time_stamp,
+        sign: payParams.sign,
+        out_trade_no: payParams.out_trade_no,
+        goods_id: payParams.goods_id,
+        total_fee: payParams.total_fee
+      },
       success: (res) => {
         resolve({ success: true, data: res })
       },
@@ -128,6 +131,7 @@ export default {
   pay,
   getOrderStatus,
   getRechargeOrders,
+  getSessionKey,
   createVirtualPayOrder,
   getVirtualPayOrderStatus,
   requestVirtualPay
