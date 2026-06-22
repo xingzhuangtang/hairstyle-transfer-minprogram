@@ -4,6 +4,8 @@ import { refreshUserInfo } from '../../utils/auth.js'
 import { PRICING, API_BASE_URL } from '../../utils/constants.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 Page({
   data: {
     resultUrl: '',
