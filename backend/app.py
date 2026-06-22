@@ -96,11 +96,12 @@ except ImportError as e:
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.urandom(24)
 
-# 使用绝对路径，基于 app.py 所在位置
+# 使用绝对路径，基于项目根目录（app.py 的父目录）
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.config["UPLOAD_FOLDER"] = os.path.join(_BASE_DIR, "static", "uploads")
-app.config["RESULT_FOLDER"] = os.path.join(_BASE_DIR, "static", "results")
-app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_BASE_DIR, "static", "hair_extracted")
+_PROJECT_ROOT = os.path.dirname(_BASE_DIR)
+app.config["UPLOAD_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "uploads")
+app.config["RESULT_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "results")
+app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "hair_extracted")
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20MB
 
 # 导入详细日志配置
@@ -1224,6 +1225,31 @@ def init_app_monitoring():
         logger.warning(f"监控系统初始化失败: {e}")
 
 
+def init_self_healing_system():
+    """初始化自愈系统 Phase 1"""
+    try:
+        from self_healing import init_self_healing
+        from models import is_developer
+
+        redis_client = None
+        try:
+            from cache_service import get_cache_service
+            cache = get_cache_service()
+            redis_client = cache.redis_client if cache else None
+        except Exception:
+            pass
+
+        init_self_healing(
+            app=app,
+            db=db,
+            is_developer_func=is_developer,
+            redis_client=redis_client,
+        )
+        logger.info("自愈系统 Phase 1 初始化成功")
+    except Exception as e:
+        logger.warning(f"自愈系统初始化失败（不影响主业务）: {e}")
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("🚀 发型迁移系统 - 阿里云API版本")
@@ -1250,10 +1276,25 @@ if __name__ == "__main__":
     # 初始化监控系统
     init_app_monitoring()
 
+    # 初始化自愈系统
+    init_self_healing_system()
+
     print("\n🌐 启动Flask应用...")
     print("   访问地址: http://localhost:5003")
     print("   监控端点: http://localhost:5003/api/monitoring/metrics")
     print("   健康检查: http://localhost:5003/api/monitoring/health")
     print("=" * 60 + "\n")
+
+    # 启动前检查数据库连接
+    if DB_AVAILABLE:
+        try:
+            with app.app_context():
+                with db.engine.connect() as conn:
+                    conn.execute(db.text("SELECT 1"))
+            print("✅ 数据库连接正常")
+        except Exception as e:
+            print(f"\n❌ 数据库连接失败: {e}")
+            print("请检查 .env 中的 MYSQL_* 配置，或确认 MySQL 服务正在运行")
+            sys.exit(1)
 
     app.run(host="0.0.0.0", port=5003, debug=False)  # 生产环境关闭debug

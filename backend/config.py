@@ -66,6 +66,9 @@ class Config:
     # 微信虚拟支付配置（iOS端）
     WECHAT_VIRTUAL_PAY_MCH_ID = os.getenv("WECHAT_VIRTUAL_PAY_MCH_ID", "")  # 虚拟支付商户号
     WECHAT_VIRTUAL_PAY_NOTIFY_URL = os.getenv("WECHAT_VIRTUAL_PAY_NOTIFY_URL", "")  # 虚拟支付回调URL
+    VIRTUAL_OFFER_ID = os.getenv("VIRTUAL_OFFER_ID", "")  # 虚拟支付 OfferID
+    VIRTUAL_SANDBOX_APP_KEY = os.getenv("VIRTUAL_SANDBOX_APP_KEY", "")  # 沙箱 AppKey
+    VIRTUAL_PRODUCTION_APP_KEY = os.getenv("VIRTUAL_PRODUCTION_APP_KEY", "")  # 现网 AppKey
     # 虚拟商品ID映射（充值档位和会员）
     # 格式: {"10": "virtual_goods_id_10", "20": "virtual_goods_id_20", ...}
     WECHAT_VIRTUAL_GOODS_IDS = {
@@ -311,10 +314,12 @@ GUEST_MODE_CONFIG = {
 # ============================================
 # 从环境变量读取开发者模式开关和开发者账号，未配置则禁用（功能默认禁用）
 # 本地开发时可在 .env 中设置：DEVELOPER_MODE_ENABLED=true, DEVELOPER_ACCOUNTS=5,7
-try:
-    # 优先从本地 debug_config.py 读取（不提交到 git）
-    from debug_config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
-except ImportError:
-    # 否则从环境变量读取
-    DEVELOPER_MODE_ENABLED = os.getenv("DEVELOPER_MODE_ENABLED", "False").lower() == "true"
-    DEVELOPER_ACCOUNTS = [int(x.strip()) for x in os.getenv("DEVELOPER_ACCOUNTS", "").split(",") if x.strip()]
+# 优先级：.env > debug_config.py（生产环境 .env 是权威配置源）
+DEVELOPER_MODE_ENABLED = os.getenv("DEVELOPER_MODE_ENABLED", "False").lower() == "true"
+DEVELOPER_ACCOUNTS = [int(x.strip()) for x in os.getenv("DEVELOPER_ACCOUNTS", "").split(",") if x.strip()]
+if not DEVELOPER_MODE_ENABLED or not DEVELOPER_ACCOUNTS:
+    try:
+        # fallback 到本地 debug_config.py（仅开发环境使用）
+        from debug_config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
+    except ImportError:
+        pass

@@ -163,6 +163,7 @@ hairstyle-transfer-minprogram/
 │   ├── config.py              # 配置管理
 │   ├── auth.py                # 认证服务
 │   ├── payment_service.py     # 支付服务
+│   ├── account_service.py     # 账户服务（发丝赠送、余额管理）
 │   ├── virtual_payment_service.py  # 微信虚拟支付
 │   ├── hair_service.py        # 头发服务
 │   ├── member_service.py      # 会员服务
@@ -174,6 +175,7 @@ hairstyle-transfer-minprogram/
 │   ├── aliyun_hair_transfer_fixed.py  # AI 服务
 │   ├── requirements.txt       # Python 依赖
 │   ├── .env.example           # 环境变量模板
+│   ├── deploy.sh              # 生产部署脚本
 │   ├── migrate_*.py           # 数据库迁移脚本
 │   ├── test_*.py              # 测试脚本
 │   └── docs/                  # 文档
@@ -203,6 +205,15 @@ hairstyle-transfer-minprogram/
 
 ## 🔐 安全说明
 
+### 安全审查
+
+项目已通过 **STRIDE 威胁模型分析**（2026-06-10），覆盖支付回调、账户管理、部署脚本等核心模块，未发现可利用漏洞。
+
+关键安全设计：
+- 微信支付回调经签名验证后路由，订单处理函数二次验证订单存在性
+- 所有财务操作（充值、赠送、退款）均写入 `financial_records` 表，完整审计追踪
+- 所有免费/赠送发丝统一进入**梳子卡槽**（`comb_hairs`），与充值发丝（剪刀卡槽）分离管理
+
 ### 敏感信息保护
 
 以下文件**绝对不能**提交到 Git：
@@ -211,9 +222,10 @@ hairstyle-transfer-minprogram/
 backend/.env                    # 环境变量（含 API 密钥）
 backend/certs/wechat/*.pem      # 微信支付证书
 backend/certs/alipay/*.pem      # 支付宝证书
+backend/private.key             # 私钥文件
+backend/debug_config.py         # 开发者本地配置
 backend/static/uploads/         # 用户上传文件
 backend/logs/                   # 日志文件
-*.db, *.sqlite                  # 数据库文件
 ```
 
 ### 推荐的安全实践
@@ -222,6 +234,7 @@ backend/logs/                   # 日志文件
    - 使用强密码和随机密钥
    - 启用 HTTPS
    - 限制数据库访问
+   - 确保 `.env` 中企业微信配置完整
 
 2. **API 密钥管理**
    - 使用环境变量存储
@@ -347,4 +360,32 @@ MIT License
 
 ---
 
-*最后更新：2026-06-06*
+## 📝 更新日志
+
+### v5.3 (2026-06-10)
+
+**功能优化**
+- ✅ 支付回调统一路由：支持充值和会员订单自动分发处理
+- ✅ 财务记录完善：所有赠送发丝路径（注册、余额不足、游客、续赠）均记录财务流水
+- ✅ 会员页到期时间：改为动态倒计时显示（剩余X天/小时）
+- ✅ 历史记录页：头部固定显示"保留45天，到期自动清理"
+- ✅ 合并图片修复：保持原始宽高比，不再强制压缩导致人脸变形
+
+**运维改进**
+- ✅ 部署脚本优化：修复 shell 语法问题，补充 10 个缺失文件，新增环境配置检查
+- ✅ 企业微信配置：标记为生产环境必需，补充 SERVER_URL 配置项
+- ✅ .gitignore 恢复：重新添加敏感文件忽略规则
+
+**安全审查**
+- ✅ STRIDE 威胁模型分析完成，未发现可利用漏洞
+- ✅ 支付回调路由安全验证通过
+
+### v5.2 (2026-06-06)
+
+- ✅ 二维码保存功能优化
+- ✅ 聊天记录系统完善
+- ✅ 商业化部署审查
+
+---
+
+*最后更新：2026-06-10*

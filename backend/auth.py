@@ -385,19 +385,18 @@ class AuthService:
                 # 账号合并：将当前用户的 openid 转移到已有账号
                 print(f"🔄 开始账号合并: user_id={user_id} -> target_user_id={existing_user.id}")
                 
-                # 使用 no_autoflush 避免中间状态触发唯一约束冲突
-                with db.session.no_autoflush:
-                    # 始终使用当前登录微信的 openid（用于微信支付）
-                    if current_user.openid:
-                        if existing_user.openid != current_user.openid:
-                            print(f"   🔄 更新 openid: {existing_user.openid} -> {current_user.openid}")
-                        existing_user.openid = current_user.openid
-                        existing_user.unionid = current_user.unionid or existing_user.unionid
-                    elif existing_user.openid == current_user.openid:
-                        print(f"   ℹ️ 两个账号 openid 相同，无需转移")
-                    else:
-                        print(f"   ⚠️ 当前账号无 openid，保留目标账号的 openid")
+                # 保存当前用户的唯一字段值，用于后续转移到目标账号
+                saved_openid = current_user.openid
+                saved_unionid = current_user.unionid
 
+                # 第一步：先清空当前用户的唯一字段并立即 flush，避免后续更新目标账号时触发唯一约束冲突
+                current_user.openid = None
+                current_user.unionid = None
+                current_user.phone = None
+                db.session.flush()
+
+                # 第二步：在 no_autoflush 内执行合并操作
+                with db.session.no_autoflush:
                     # 合并余额
                     existing_user.scissor_hairs = (existing_user.scissor_hairs or 0) + (current_user.scissor_hairs or 0)
                     existing_user.comb_hairs = (existing_user.comb_hairs or 0) + (current_user.comb_hairs or 0)
@@ -433,20 +432,27 @@ class AuthService:
                     existing_user.total_recharge = (existing_user.total_recharge or 0) + (current_user.total_recharge or 0)
                     existing_user.total_consumed_hairs = (existing_user.total_consumed_hairs or 0) + (current_user.total_consumed_hairs or 0)
 
-                    # 目标账号绑定手机号并升级为 registered
+                    # 目标账号升级为 registered
                     existing_user.user_type = 'registered'
 
                     # 取消当前用户的未完成游客续赠记录
-                    from models import GuestBonusRecord
                     GuestBonusRecord.query.filter_by(
                         user_id=user_id,
                         bonus_type='auto_renew',
                         is_completed=False
                     ).update({'is_completed': True})
 
-                    # 删除当前用户（物理删除）
-                    db.session.delete(current_user)
-                    db.session.commit()
+                # 第三步：转移唯一字段到目标账号并 flush
+                if saved_openid:
+                    if existing_user.openid != saved_openid:
+                        print(f"   🔄 更新 openid: {existing_user.openid} -> {saved_openid}")
+                    existing_user.openid = saved_openid
+                    existing_user.unionid = saved_unionid or existing_user.unionid
+                db.session.flush()
+
+                # 第四步：删除当前用户
+                db.session.delete(current_user)
+                db.session.commit()
 
                 # 生成新 token
                 token = self.generate_token(existing_user.id)

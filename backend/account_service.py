@@ -31,7 +31,7 @@ class AccountService:
 
     def register_user(self, user):
         """
-        用户注册时自动赠送头发丝
+        用户注册时自动赠送头发丝（梳子卡槽）
 
         Args:
             user: User 对象
@@ -42,6 +42,25 @@ class AccountService:
         try:
             # 注册时自动赠送 1000 根头发丝到梳子卡槽
             user.comb_hairs += self.register_bonus_hairs
+
+            # 更新注册赠送标记
+            user.registered_bonus_used_count = (user.registered_bonus_used_count or 0) + 1
+            user.last_registered_bonus_time = datetime.now()
+
+            # 创建财务记录
+            from models import FinancialRecord
+            bonus_record = FinancialRecord(
+                user_id=user.id,
+                record_type='recharge',
+                amount=0,
+                description=f'新用户注册赠送 {self.register_bonus_hairs} 梳子发丝',
+                payment_method='registration_bonus',
+                related_id=user.id,
+                related_type='user_registration',
+                hairs_changed=self.register_bonus_hairs,
+                status='success'
+            )
+            db.session.add(bonus_record)
 
             db.session.commit()
 
@@ -127,6 +146,21 @@ class AccountService:
                         bonus_hairs = self.normal_user_bonus_hairs if user.member_level == 'normal' else self.vip_user_bonus_hairs
 
                         user.comb_hairs += bonus_hairs
+
+                        # 创建财务记录
+                        from models import FinancialRecord
+                        bonus_record = FinancialRecord(
+                            user_id=user.id,
+                            record_type='recharge',
+                            amount=0,
+                            description=f'余额不足自动赠送 {bonus_hairs} 梳子发丝 ({user.member_level}用户)',
+                            payment_method='insufficient_bonus',
+                            related_id=last_reminder.id,
+                            related_type='insufficient_reminder',
+                            hairs_changed=bonus_hairs,
+                            status='success'
+                        )
+                        db.session.add(bonus_record)
 
                         # 更新提醒记录
                         last_reminder.bonus_added = True
@@ -301,6 +335,22 @@ class AccountService:
             )
 
             db.session.add(record)
+
+            # 创建财务记录
+            from models import FinancialRecord
+            bonus_record = FinancialRecord(
+                user_id=user.id,
+                record_type='recharge',
+                amount=0,
+                description=f'游客首次赠送 {self.guest_initial_bonus} 梳子发丝',
+                payment_method='guest_initial_bonus',
+                related_id=user.id,
+                related_type='guest_bonus',
+                hairs_changed=self.guest_initial_bonus,
+                status='success'
+            )
+            db.session.add(bonus_record)
+
             db.session.commit()
 
             print(f"✅ 游客首次赠送头发丝：user_id={user.id}, openid={user.openid}, "
@@ -460,6 +510,21 @@ class AccountService:
             # 更新记录
             record.bonus_added_at = datetime.now()
             record.is_completed = True
+
+            # 创建财务记录
+            from models import FinancialRecord
+            bonus_record = FinancialRecord(
+                user_id=user.id,
+                record_type='recharge',
+                amount=0,
+                description=f'游客 4 小时续赠 {self.guest_auto_renew_bonus} 梳子发丝',
+                payment_method='guest_auto_renew_bonus',
+                related_id=record.id,
+                related_type='guest_bonus_record',
+                hairs_changed=self.guest_auto_renew_bonus,
+                status='success'
+            )
+            db.session.add(bonus_record)
 
             db.session.commit()
 
@@ -652,6 +717,21 @@ class AccountService:
             record.bonus_added_at = datetime.now()
             record.is_completed = True
             record.has_consumption_before_bonus = True
+
+            # 创建财务记录
+            from models import FinancialRecord
+            bonus_record = FinancialRecord(
+                user_id=user.id,
+                record_type='recharge',
+                amount=0,
+                description=f'{user.member_level}用户 4 小时续赠 {bonus_hairs} 梳子发丝',
+                payment_method='registered_auto_renew_bonus',
+                related_id=record.id,
+                related_type='user_bonus_record',
+                hairs_changed=bonus_hairs,
+                status='success'
+            )
+            db.session.add(bonus_record)
 
             db.session.commit()
 
