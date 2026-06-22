@@ -1,0 +1,331 @@
+/* pages/refund-admin/refund-admin.wxss */
+
+.admin-container {
+  min-height: 100vh;
+  background-color: #f8f8f8;
+  padding-bottom: 40rpx;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 60rpx 30rpx 40rpx;
+  text-align: center;
+}
+
+.title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 16rpx;
+}
+
+.subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ==================== Tab 切换栏 ==================== */
+
+.tab-bar {
+  display: flex;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #e8e8e8;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  position: relative;
+}
+
+.tab-item.active {
+  color: #667eea;
+  font-weight: 500;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60rpx;
+  height: 4rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2rpx;
+}
+
+/* ==================== 搜索栏 ==================== */
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  padding: 30rpx;
+  gap: 20rpx;
+}
+
+.search-input {
+  flex: 1;
+  height: 72rpx;
+  background-color: #ffffff;
+  border-radius: 36rpx;
+  padding: 0 30rpx;
+  font-size: 28rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.search-btn {
+  width: 140rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  font-size: 28rpx;
+  border-radius: 36rpx;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.search-btn::after {
+  border: none;
+}
+
+/* ==================== 筛选器 ==================== */
+
+.filter-bar {
+  display: flex;
+  padding: 20rpx 30rpx;
+  gap: 16rpx;
+  overflow-x: auto;
+  background-color: #ffffff;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.filter-item {
+  padding: 12rpx 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+  color: #666;
+  white-space: nowrap;
+}
+
+.filter-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+}
+
+/* ==================== 用户列表 ==================== */
+
+.user-list {
+  margin: 0 30rpx;
+}
+
+.user-card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-info {
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.user-row:last-child {
+  margin-bottom: 0;
+}
+
+.user-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.user-tag {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.tag-on {
+  background-color: #e6f7e9;
+  color: #52c41a;
+}
+
+.tag-off {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.user-detail {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.toggle-btn {
+  width: 160rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  font-size: 24rpx;
+  border-radius: 32rpx;
+  padding: 0;
+  margin: 0;
+  border: none;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.toggle-btn::after {
+  border: none;
+}
+
+.btn-on {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+}
+
+.btn-off {
+  background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%);
+}
+
+/* ==================== 申请记录列表 ==================== */
+
+.app-list {
+  margin: 0 30rpx;
+}
+
+.app-card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 20rpx;
+}
+
+.app-user {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.app-status {
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-approved {
+  background-color: #e6f7e9;
+  color: #52c41a;
+}
+
+.status-rejected {
+  background-color: #fff1f0;
+  color: #ff4d4f;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.app-row {
+  display: flex;
+  font-size: 26rpx;
+}
+
+.app-label {
+  color: #999;
+  width: 160rpx;
+  flex-shrink: 0;
+}
+
+.app-value {
+  color: #333;
+  flex: 1;
+}
+
+.app-value.amount {
+  color: #ff4d4f;
+  font-weight: 500;
+  font-size: 30rpx;
+}
+
+.app-value.reject {
+  color: #ff4d4f;
+}
+
+/* ==================== 空状态 ==================== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 30rpx;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* ==================== 加载更多 ==================== */
+
+.load-more {
+  margin: 30rpx;
+}
+
+.load-more-btn {
+  width: 100%;
+  height: 80rpx;
+  background-color: #ffffff;
+  color: #667eea;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+  border: 2rpx solid #667eea;
+}
+
+.load-more-btn::after {
+  border: none;
+}

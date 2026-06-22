@@ -1,41 +1,44 @@
 <!--pages/referral/referral.wxml-->
 <view class="container">
   <!-- 我的惊喜标题 -->
-  <view class="section-title">{{tReferralTitle}}</view>
+  <view class="section-title">我的惊喜</view>
 
   <!-- 彩色提示文字 -->
   <view class="tip-text">
-    {{tReferralTipText}}
+    甩出二维码，朋友注册账户成功，24小时以后，每使用两次素描效果功能，就能封顶99次迎娶人民币回家！
   </view>
 
   <!-- 推广二维码卡片 -->
   <view class="card qrcode-card">
-    <view class="card-title">{{tReferralQrcodeCardTitle}}</view>
+    <view class="card-title">营销二维码</view>
     <view wx:if="{{qrcodeUrl}}" class="qrcode-container">
-      <image class="qrcode" src="{{qrcodeUrl}}" mode="aspectFit" bindtap="previewQrcode" />
+      <image class="qrcode" src="{{qrcodeLocalPath || qrcodeProxyUrl || qrcodeUrl}}" mode="aspectFit" show-menu-by-longpress bindtap="previewQrcode" />
     </view>
     <view wx:else class="qrcode-placeholder" bindtap="loadQrcode">
-      <text class="placeholder-text">{{tReferralLoadQrcodeHint}}</text>
+      <text class="placeholder-text">点击加载推广二维码</text>
     </view>
     <view class="qrcode-actions">
-      <button class="btn btn-primary" bindtap="downloadQrcode" wx:if="{{qrcodeUrl}}">{{tReferralSaveQrcode}}</button>
-      <button class="btn btn-outline" open-type="share" wx:if="{{qrcodeUrl}}">{{tReferralShareToFriend}}</button>
+      <button class="btn btn-primary" catchtap="downloadQrcode" wx:if="{{qrcodeUrl}}">保存二维码</button>
+      <button class="btn btn-outline" open-type="share" wx:if="{{qrcodeUrl}}">分享给好友</button>
+    </view>
+    <view class="qrcode-tip" wx:if="{{qrcodeUrl}}">
+      <text>长按图片也可保存到相册</text>
     </view>
   </view>
 
   <!-- 存钱罐卡片 -->
   <view class="card piggy-card">
     <view class="piggy-header">
-      <text class="piggy-label">{{tReferralPiggyBank}}</text>
-      <text class="piggy-balance">{{tReferralYuan}}{{balance}}</text>
+      <text class="piggy-label">存钱罐</text>
+      <text class="piggy-balance">¥{{balance}}</text>
     </view>
     <view class="progress-bar">
       <view class="progress-fill" style="width: {{progress}}%"></view>
-      <text class="progress-text">{{tReferralYuan}}{{balance}} / {{tReferralYuan}}10</text>
+      <text class="progress-text">¥{{balance}} / ¥10</text>
     </view>
     <view class="piggy-stats">
-      <text>{{tReferralTotalEarnings}}{{tReferralYuan}}{{totalEarnings}}</text>
-      <text>{{tReferralReferralCount}}{{referralCount}}{{tReferralPeople}}</text>
+      <text>累计收益：¥{{totalEarnings}}</text>
+      <text>推广人数：{{referralCount}}人</text>
     </view>
   </view>
 
@@ -44,16 +47,16 @@
     <view class="feature-header">
       <view class="feature-left">
         <text class="feature-icon">💰</text>
-        <text class="feature-title">{{tReferralLocalConsumption}}</text>
+        <text class="feature-title">本地消费</text>
       </view>
       <view class="feature-status {{localUnlocked ? 'unlocked' : 'locked'}}">
-        <text>{{localUnlocked ? tReferralUnlocked : tReferralLocked}}</text>
+        <text>{{localUnlocked ? '可用' : '未解锁'}}</text>
       </view>
     </view>
     <view class="progress-bar {{localUnlocked ? 'active' : ''}}">
       <view class="progress-fill" style="width: {{progress}}%"></view>
     </view>
-    <text class="feature-desc">{{tReferralUseBalanceDesc}}</text>
+    <text class="feature-desc">用余额购买发丝</text>
   </view>
 
   <!-- 提成现金 -->
@@ -61,25 +64,25 @@
     <view class="feature-header">
       <view class="feature-left">
         <text class="feature-icon"></text>
-        <text class="feature-title">{{tReferralCashWithdraw}}</text>
+        <text class="feature-title">提成现金</text>
       </view>
       <view class="feature-status {{cashUnlocked ? 'unlocked' : 'locked'}}">
-        <text>{{cashUnlocked ? tReferralUnlocked : tReferralLocked}}</text>
+        <text>{{cashUnlocked ? '可用' : '未解锁'}}</text>
       </view>
     </view>
     <view class="progress-bar {{cashUnlocked ? 'active' : ''}}">
       <view class="progress-fill" style="width: {{progress}}%"></view>
     </view>
-    <text class="feature-desc">{{tReferralWithdrawDesc}}</text>
+    <text class="feature-desc">提现到微信零钱</text>
   </view>
 
   <!-- 佣金明细 -->
   <view class="card commission-card">
-    <view class="card-title">{{tReferralCommissionDetail}}</view>
+    <view class="card-title">佣金明细</view>
     <view wx:if="{{commissionHistory.length > 0}}" class="commission-list">
       <view class="commission-item" wx:for="{{commissionHistory}}" wx:key="index">
         <view class="commission-left">
-          <text class="commission-amount">+{{tReferralYuan}}{{item.amount}}</text>
+          <text class="commission-amount">+¥{{item.amount}}</text>
           <text class="commission-reason">{{item.reason}}</text>
           <text class="commission-time">{{item.formattedTime}}</text>
         </view>
@@ -90,25 +93,25 @@
     </view>
     <view wx:else class="empty-commission">
       <text class="empty-icon">📭</text>
-      <text class="empty-text">{{tReferralEmptyCommission}}</text>
-      <text class="empty-hint">{{tReferralEmptyCommissionHint}}</text>
+      <text class="empty-text">暂无佣金记录</text>
+      <text class="empty-hint">朋友使用素描效果后将在此显示佣金明细</text>
     </view>
   </view>
 
   <!-- 本地消费弹窗 -->
   <view wx:if="{{showConsumeModal}}" class="modal-overlay" bindtap="closeConsumeModal">
     <view class="modal-content" catchtap="stopPropagation">
-      <view class="modal-title">{{tReferralConsumeModalTitle}}</view>
+      <view class="modal-title">购买发丝</view>
       <view class="modal-body">
         <view class="input-group">
-          <text class="input-label">{{tReferralConsumeAmountLabel}}</text>
-          <input class="input" type="digit" placeholder="{{tReferralConsumeAmountPlaceholder}}" value="{{consumeAmount}}" bindinput="onConsumeInput" />
+          <text class="input-label">消费金额（元）</text>
+          <input class="input" type="digit" placeholder="请输入金额" value="{{consumeAmount}}" bindinput="onConsumeInput" />
         </view>
-        <view class="exchange-info">{{tReferralExchangeRate}}</view>
+        <view class="exchange-info">兑换比例：1元 = 100发丝</view>
       </view>
       <view class="modal-actions">
-        <button class="btn btn-cancel" bindtap="closeConsumeModal">{{tCommonCancel}}</button>
-        <button class="btn btn-confirm" bindtap="confirmConsume" loading="{{consumeLoading}}">{{tReferralConfirmPurchase}}</button>
+        <button class="btn btn-cancel" bindtap="closeConsumeModal">取消</button>
+        <button class="btn btn-confirm" bindtap="confirmConsume" loading="{{consumeLoading}}">确认购买</button>
       </view>
     </view>
   </view>
@@ -116,17 +119,17 @@
   <!-- 提现弹窗 -->
   <view wx:if="{{showWithdrawModal}}" class="modal-overlay" bindtap="closeWithdrawModal">
     <view class="modal-content" catchtap="stopPropagation">
-      <view class="modal-title">{{tReferralWithdrawModalTitle}}</view>
+      <view class="modal-title">提现到微信零钱</view>
       <view class="modal-body">
         <view class="input-group">
-          <text class="input-label">{{tReferralWithdrawAmountLabel}}</text>
-          <input class="input" type="digit" placeholder="{{tReferralWithdrawAmountPlaceholder}}" value="{{withdrawAmount}}" bindinput="onWithdrawInput" />
+          <text class="input-label">提现金额（元）</text>
+          <input class="input" type="digit" placeholder="请输入金额（最低1元）" value="{{withdrawAmount}}" bindinput="onWithdrawInput" />
         </view>
-        <view class="withdraw-info">{{tReferralWithdrawInfo}}</view>
+        <view class="withdraw-info">提现将到账您的微信零钱，预计即时到账</view>
       </view>
       <view class="modal-actions">
-        <button class="btn btn-cancel" bindtap="closeWithdrawModal">{{tCommonCancel}}</button>
-        <button class="btn btn-confirm" bindtap="confirmWithdraw" loading="{{withdrawLoading}}">{{tReferralConfirmWithdraw}}</button>
+        <button class="btn btn-cancel" bindtap="closeWithdrawModal">取消</button>
+        <button class="btn btn-confirm" bindtap="confirmWithdraw" loading="{{withdrawLoading}}">确认提现</button>
       </view>
     </view>
   </view>
