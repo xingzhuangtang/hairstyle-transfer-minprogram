@@ -7,6 +7,8 @@ import { transferHair, extractHair, addSketch } from '../../api/hair.js'
 import { checkBalance } from '../../api/user.js'
 import { getLocale, onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 const I18N_KEYS = [
   'index.comb', 'index.scissor', 'index.total', 'index.vipDiscount',
   'index.guestTip', 'index.loginMore', 'index.myAccount', 'index.deviceName',
@@ -468,7 +470,7 @@ Page({
   async extractOnly() {
     if (!this.data.hairstyleUrl) {
       wx.showToast({
-        title: t('index.uploadHairstyleFirst'),
+        title: app.t('index.uploadHairstyleFirst'),
         icon: 'none'
       })
       return
@@ -488,7 +490,7 @@ Page({
   async transferOnly() {
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
-        title: t('index.uploadBothFirst'),
+        title: app.t('index.uploadBothFirst'),
         icon: 'none'
       })
       return
@@ -510,7 +512,7 @@ Page({
   async addSketchOnly() {
     if (!this.data.hasResult) {
       wx.showToast({
-        title: t('index.prepareFirst'),
+        title: app.t('index.prepareFirst'),
         icon: 'none'
       })
       return
@@ -521,7 +523,7 @@ Page({
       return
     }
 
-    wx.showLoading({ title: t('index.sketchOptimizing') })
+    wx.showLoading({ title: app.t('index.sketchOptimizing') })
 
     try {
       const params = {
@@ -536,7 +538,7 @@ Page({
 
       if (res.success) {
         wx.showToast({
-          title: t('index.sketchSuccess').replace('{cost}', res.cost),
+          title: app.t('index.sketchSuccess').replace('{cost}', res.cost),
           icon: 'success',
           duration: 2000
         })
@@ -595,7 +597,7 @@ Page({
   async processAll() {
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
-        title: t('index.uploadBothFirst'),
+        title: app.t('index.uploadBothFirst'),
         icon: 'none'
       })
       return
@@ -604,7 +606,7 @@ Page({
     // 检查素描效果开关
     if (!this.data.enableSketch) {
       wx.showToast({
-        title: t('index.enableSketchFirst'),
+        title: app.t('index.enableSketchFirst'),
         icon: 'none'
       })
       return
@@ -631,10 +633,10 @@ Page({
         // 游客余额不足
         return new Promise((resolve) => {
           wx.showModal({
-            title: t('index.balanceNotEnough'),
-            content: t('index.guestBonus'),
-            confirmText: t('common.goToRegister'),
-            cancelText: t('common.later'),
+            title: app.t('index.balanceNotEnough'),
+            content: app.t('index.guestBonus'),
+            confirmText: app.t('common.goToRegister'),
+            cancelText: app.t('common.later'),
             success: (res) => {
               if (res.confirm) {
                 wx.navigateTo({
@@ -651,10 +653,10 @@ Page({
         return new Promise((resolve) => {
           // 第一个标签
           wx.showModal({
-            title: t('index.balanceNotEnough'),
-            content: t('index.normalTip1'),
-            confirmText: t('common.goToRecharge'),
-            cancelText: t('common.cancel'),
+            title: app.t('index.balanceNotEnough'),
+            content: app.t('index.normalTip1'),
+            confirmText: app.t('common.goToRecharge'),
+            cancelText: app.t('common.cancel'),
             success: (res1) => {
               if (res1.confirm) {
                 wx.navigateTo({
@@ -667,8 +669,8 @@ Page({
               // 用户点击"取消"后，弹出第二个标签（仅普通用户）
               if (userInfo && userInfo.member_level === 'normal') {
                 wx.showModal({
-                  title: t('common.warmTip'),
-                  content: t('index.normalTip2'),
+                  title: app.t('common.warmTip'),
+                  content: app.t('index.normalTip2'),
                   showCancel: false,
                   success: () => resolve(false),
                   fail: () => resolve(false)
@@ -700,10 +702,10 @@ Page({
       // 未登录且余额不足，提示登录
       return new Promise((resolve) => {
         wx.showModal({
-          title: t('common.tip'),
-          content: t('index.loginPrompt'),
-          confirmText: t('common.goToLogin'),
-          cancelText: t('common.notNow'),
+          title: app.t('common.tip'),
+          content: app.t('index.loginPrompt'),
+          confirmText: app.t('common.goToLogin'),
+          cancelText: app.t('common.notNow'),
           success: (res) => {
             if (res.confirm) {
               setRedirectUrl('/pages/index/index')
@@ -729,10 +731,10 @@ Page({
       // 游客余额不足，显示特殊提示
       return new Promise((resolve) => {
         wx.showModal({
-          title: t('index.balanceNotEnough'),
-          content: t('index.guestBonus'),
-          confirmText: t('common.goToRegister'),
-          cancelText: t('common.later'),
+          title: app.t('index.balanceNotEnough'),
+          content: app.t('index.guestBonus'),
+          confirmText: app.t('common.goToRegister'),
+          cancelText: app.t('common.later'),
           success: (res) => {
             if (res.confirm) {
               wx.navigateTo({
@@ -754,14 +756,14 @@ Page({
       if (annualLimitReached) {
         // 年度上限提示 - 第一个标签
         wx.showModal({
-          title: t('common.tip'),
-          content: t('index.annualLimitTip'),
+          title: app.t('common.tip'),
+          content: app.t('index.annualLimitTip'),
           showCancel: false,
           success: () => {
             // 第二个标签（趣味提示）
             wx.showModal({
-              title: t('common.warmTip'),
-              content: t('index.annualLimitJoke'),
+              title: app.t('common.warmTip'),
+              content: app.t('index.annualLimitJoke'),
               showCancel: false,
               success: () => resolve(false)
             })
@@ -770,10 +772,10 @@ Page({
       } else {
         // 第一个标签
         wx.showModal({
-          title: t('index.balanceNotEnough'),
-          content: t('index.normalTip1'),
-          confirmText: t('common.goToRecharge'),
-          cancelText: t('common.cancel'),
+          title: app.t('index.balanceNotEnough'),
+          content: app.t('index.normalTip1'),
+          confirmText: app.t('common.goToRecharge'),
+          cancelText: app.t('common.cancel'),
           success: (res1) => {
             if (res1.confirm) {
               wx.navigateTo({
@@ -786,8 +788,8 @@ Page({
             // 普通用户双重提示 - 第二个标签
             if (userInfo && userInfo.member_level === 'normal') {
               wx.showModal({
-                title: t('common.warmTip'),
-                content: t('index.normalTip2'),
+                title: app.t('common.warmTip'),
+                content: app.t('index.normalTip2'),
                 showCancel: false,
                 success: () => resolve(false)
               })
@@ -807,7 +809,7 @@ Page({
   async callExtractAPI() {
     this.setData({
       processing: true,
-      processingText: t('index.extracting')
+      processingText: app.t('index.extracting')
     })
 
     try {
@@ -849,7 +851,7 @@ Page({
 
     this.setData({
       processing: true,
-      processingText: enableSketch ? t('index.processing') : t('index.transferring')
+      processingText: enableSketch ? app.t('index.processing') : app.t('index.transferring')
     })
 
     try {
@@ -917,7 +919,7 @@ Page({
 
           // 分步模式：显示原图和扣费信息，不跳转到结果页
           wx.showToast({
-            title: t('index.transferSuccess').replace('{cost}', res.cost),
+            title: app.t('index.transferSuccess').replace('{cost}', res.cost),
             icon: 'success',
             duration: 2000
           })
@@ -976,10 +978,10 @@ Page({
    */
   showGuestRegisterModal() {
     wx.showModal({
-      title: t('common.tip'),
-      content: t('index.guestBonus'),
-      confirmText: t('common.goToRegister'),
-      cancelText: t('common.later'),
+      title: app.t('common.tip'),
+      content: app.t('index.guestBonus'),
+      confirmText: app.t('common.goToRegister'),
+      cancelText: app.t('common.later'),
       success: (res) => {
         if (res.confirm) {
           wx.navigateTo({
@@ -1100,7 +1102,7 @@ Page({
    */
   imageError(e) {
     wx.showToast({
-      title: t('index.imageLoadFail'),
+      title: app.t('index.imageLoadFail'),
       icon: 'none'
     })
   }
