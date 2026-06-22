@@ -550,7 +550,12 @@ module.exports = {
     "emptyTip": "分享推广码即可获得奖励",
     "saving": "保存中...",
     "savedToAlbum": "已保存到相册",
-    "withdrawing": "提现中..."
+    "withdrawing": "提现中...",
+    "justNow": "刚刚",
+    "minutesAgo": "{m}分钟前",
+    "hoursAgo": "{h}小时前",
+    "daysAgo": "{d}天前",
+    "dateFormat": "{m}月{d}日"
   },
   "refund": {
     "title": "退款申请",
