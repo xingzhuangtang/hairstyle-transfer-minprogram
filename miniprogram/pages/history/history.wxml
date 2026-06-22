@@ -1,17 +1,17 @@
 <!--pages/history/history.wxml-->
 <view class="history-container">
   <view class="header">
-    <view class="header-title">历史记录</view>
-    <view class="header-desc" wx:if="{{isVip}}">保留 {{remainingDays}} 天</view>
-    <view class="header-desc" wx:else>开通会员保留 45 天</view>
+    <view class="header-title">{{tHistoryTitle}}</view>
+    <view class="header-desc" wx:if="{{isVip}}">{{tHistoryRemainingDays}}</view>
+    <view class="header-desc" wx:else>{{tHistoryMemberOnly}}</view>
   </view>
 
   <view class="vip-notice" wx:if="{{!isVip}}" bindtap="goToMember">
     <view class="vip-notice-content">
       <view class="vip-icon">👑</view>
       <view class="vip-text">
-        <text class="vip-title">开通陪跑会员</text>
-        <text class="vip-desc">历史记录保留 45 天，随时查看</text>
+        <text class="vip-title">{{tHistoryOpenMember}}</text>
+        <text class="vip-desc">{{tHistoryMemberBenefit}}</text>
       </view>
       <view class="vip-arrow">></view>
     </view>
@@ -20,41 +20,41 @@
   <view class="history-list" wx:if="{{isVip}}">
     <view class="empty-state" wx:if="{{records.length === 0 && !loading}}">
       <view class="empty-icon">📋</view>
-      <view class="empty-text">暂无历史记录</view>
-      <view class="empty-desc">开始使用发型迁移功能后<br/>历史记录将在这里显示</view>
+      <view class="empty-text">{{tHistoryEmpty}}</view>
+      <view class="empty-desc"><rich-text nodes="{{tHistoryEmptyTip}}"></rich-text></view>
     </view>
 
     <view class="loading-state" wx:if="{{loading}}">
       <view class="loading-spinner"></view>
-      <view class="loading-text">加载中...</view>
+      <view class="loading-text">{{tHistoryLoadingText}}</view>
     </view>
 
     <view wx:for="{{records}}" wx:key="id" class="history-item">
       <!-- 结果图片预览区域 -->
       <view class="item-preview-group">
         <!-- 原始结果图片 -->
-        <view class="preview-item" 
-              catchtap="showDownloadMenu" 
-              data-id="{{item.id}}" 
+        <view class="preview-item"
+              catchtap="showDownloadMenu"
+              data-id="{{item.id}}"
               data-type="result">
           <image src="{{item.result_image}}" mode="aspectFill" lazy-load binderror="onImageError" data-index="{{index}}" data-type="result" />
-          <view class="preview-label">结果</view>
+          <view class="preview-label">{{tHistoryResult}}</view>
         </view>
-        
+
         <!-- 素描图片（如果有） -->
-        <view wx:if="{{item.has_sketch}}" 
-              class="preview-item" 
-              catchtap="showDownloadMenu" 
-              data-id="{{item.id}}" 
+        <view wx:if="{{item.has_sketch}}"
+              class="preview-item"
+              catchtap="showDownloadMenu"
+              data-id="{{item.id}}"
               data-type="sketch">
           <image src="{{item.sketch_image}}" mode="aspectFill" lazy-load binderror="onSketchError" data-index="{{index}}" data-type="sketch" />
-          <view class="preview-label">素描</view>
+          <view class="preview-label">{{tHistorySketch}}</view>
         </view>
         <view wx:else class="preview-item preview-placeholder">
-          <view class="placeholder-text">无素描</view>
+          <view class="placeholder-text">{{tHistoryNoSketch}}</view>
         </view>
       </view>
-      
+
       <view class="item-info">
         <view class="item-title">
           <text class="service-type">{{item.service_type_text}}</text>
@@ -73,28 +73,28 @@
     <view class="feature-item">
       <view class="feature-icon">📸</view>
       <view class="feature-text">
-        <view class="feature-title">查看历史</view>
-        <view class="feature-desc">随时查看发型迁移历史记录</view>
+        <view class="feature-title">{{tHistoryFeature1Title}}</view>
+        <view class="feature-desc">{{tHistoryFeature1Desc}}</view>
       </view>
     </view>
     <view class="feature-item">
       <view class="feature-icon">⏰</view>
       <view class="feature-text">
-        <view class="feature-title">45 天保留</view>
-        <view class="feature-desc">历史记录保留 45 天</view>
+        <view class="feature-title">{{tHistoryFeature2Title}}</view>
+        <view class="feature-desc">{{tHistoryFeature2Desc}}</view>
       </view>
     </view>
     <view class="feature-item">
       <view class="feature-icon">💾</view>
       <view class="feature-text">
-        <view class="feature-title">下载保存</view>
-        <view class="feature-desc">支持下载高清结果图片</view>
+        <view class="feature-title">{{tHistoryFeature3Title}}</view>
+        <view class="feature-desc">{{tHistoryFeature3Desc}}</view>
       </view>
     </view>
   </view>
 
   <view class="load-more" wx:if="{{hasMore && isVip}}">
-    <button class="load-more-btn" bindtap="loadMore">加载更多</button>
+    <button class="load-more-btn" bindtap="loadMore">{{tHistoryLoadMore}}</button>
   </view>
 
   <!-- 隐藏的canvas用于生成合并图片 -->

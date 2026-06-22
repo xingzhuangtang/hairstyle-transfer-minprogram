@@ -5,6 +5,29 @@ import { setRedirectUrl } from '../../utils/storage.js'
 import { PRICING, SERVICE_TYPES, MODEL_VERSIONS, MODEL_VERSION_NAMES, SKETCH_STYLES, API_BASE_URL } from '../../utils/constants.js'
 import { transferHair, extractHair, addSketch } from '../../api/hair.js'
 import { checkBalance } from '../../api/user.js'
+import { getLocale, onLocaleChange } from '../../utils/i18n.js'
+
+const I18N_KEYS = [
+  'index.comb', 'index.scissor', 'index.total', 'index.vipDiscount',
+  'index.guestTip', 'index.loginMore', 'index.myAccount', 'index.deviceName',
+  'index.accountId', 'index.showAfterLogin', 'index.accountIdTip',
+  'index.hairstyleRef', 'index.customerPhoto', 'index.clickUpload',
+  'index.processingMode', 'index.modelVersion', 'index.faceFit', 'index.keepFace',
+  'index.faceFusion', 'index.sketchEffect', 'index.sketchStyle',
+  'index.comprehensiveMode', 'index.stepByStepMode',
+  'index.prepareFirst', 'index.step1Done',
+  'index.estimatedCost', 'index.memberDiscount', 'index.hairs',
+  'index.extractOnly', 'index.transferOnly', 'index.generateHair',
+  'index.sketchOptimize', 'index.memberTip', 'index.upgradeNow',
+  'index.processing', 'index.extracting', 'index.transferring',
+  'index.sketchOptimizing',
+  'index.uploadHairstyleFirst', 'index.uploadBothFirst',
+  'index.enableSketchFirst', 'index.sketchSuccess', 'index.transferSuccess',
+  'index.imageLoadFail', 'index.balanceNotEnough', 'index.loginPrompt',
+  'index.guestBonus', 'index.normalTip1', 'index.normalTip2',
+  'index.annualLimitTip', 'index.annualLimitJoke', 'index.generating',
+  'index.switchToStep', 'index.switchToComprehensive'
+]
 
 Page({
   data: {
@@ -13,26 +36,26 @@ Page({
     combHairs: 0,
     totalHairs: 0,
     isPremium: false,
-    isLoggedIn: false,    // 是否已登录
+    isLoggedIn: false,
 
     // 账号信息（游客模式）
-    accountId: '',       // 后端分配的用户 ID
+    accountId: '',
     deviceName: '',
     deviceId: '',
 
     // 图片
-    hairstyleUrl: '',      // 显示用（临时文件路径）
-    customerUrl: '',       // 显示用（临时文件路径）
-    hairstyleHttpUrl: '',  // API 用（HTTP URL）
-    customerHttpUrl: '',   // API 用（HTTP URL）
-    resultHttpUrl: '',     // 分步模式：API 用结果 HTTP URL
+    hairstyleUrl: '',
+    customerUrl: '',
+    hairstyleHttpUrl: '',
+    customerHttpUrl: '',
+    resultHttpUrl: '',
 
     // 参数
-    modelVersions: ['脸型适配', '保持脸型'],
+    modelVersions: [],
     modelVersionIndex: 0,
     fusionDegree: 70,
     enableSketch: false,
-    sketchStyles: SKETCH_STYLES,
+    sketchStyles: [],
     sketchStyleIndex: 0,
 
     // 消耗
@@ -41,40 +64,144 @@ Page({
 
     // 状态
     processing: false,
-    processingText: '处理中...',
+    processingText: '',
 
     // 分步模式状态
-    modeIndex: 0,           // 0 = 综合模式，1 = 分步模式 - 默认为综合模式
-    modeInitialized: false, // 是否已经初始化过模式，避免每次 onShow 都重置
-    hasResult: false,        // 是否已有发型迁移结果
-    resultUrl: '',           // 发型迁移结果 URL
-    resultTaskId: ''         // 发型迁移任务 ID
+    modeIndex: 0,
+    modeInitialized: false,
+    hasResult: false,
+    resultUrl: '',
+    resultTaskId: '',
+
+    // i18n
+    tIndexComb: '梳子',
+    tIndexScissor: '剪刀',
+    tIndexTotal: '总计',
+    tIndexVipDiscount: '会员 50% 优惠',
+    tIndexGuestTip: '游客体验中',
+    tIndexLoginMore: '登录查看更多',
+    tIndexMyAccount: '我的账号',
+    tIndexDeviceName: '设备名称：',
+    tIndexAccountId: '账号 ID：',
+    tIndexShowAfterLogin: '登录后显示',
+    tIndexAccountIdTip: '账号 ID 固定不变，换设备登录数据不丢失',
+    tIndexHairstyleRef: '发型参考图',
+    tIndexCustomerPhoto: '客户照片',
+    tIndexClickUpload: '点击上传图片',
+    tIndexProcessingMode: '处理模式',
+    tIndexModelVersion: '模型版本',
+    tIndexFaceFusion: '脸型融合度',
+    tIndexSketchEffect: '素描效果',
+    tIndexSketchStyle: '素描风格',
+    tIndexPrepareFirst: '准备：请先生成发型',
+    tIndexStep1Done: '第一步：发型迁移完成',
+    tIndexEstimatedCostPrefix: '预计消耗',
+    tIndexMemberDiscount: '会员优惠',
+    tIndexHairs: '发丝',
+    tIndexExtractOnly: '仅提取发型',
+    tIndexTransferOnly: '仅迁移发型',
+    tIndexGenerateHair: '生成发型',
+    tIndexSketchOptimize: '素描优化',
+    tIndexMemberTip: '升级会员享受 50% 折扣 特权',
+    tIndexUpgradeNow: '立即升级',
+    tIndexSwitchToStep: '已切换到分步模式',
+    tIndexSwitchToComprehensive: '已切换到综合模式',
+    // i18n picker ranges
+    modePickerRange: [],
+    modePickerDisplay: '',
+    modelVersionPickerRange: [],
+    modelVersionPickerDisplay: ''
   },
 
   onLoad() {
-    // 游客模式已在 app.js onLaunch 中全局初始化
-    // 这里只需要等待 onShow 时刷新用户信息即可
+    this._loadI18n()
+    this._setupLocaleListener()
   },
 
   onShow() {
-    // 游客模式下初始化账号信息（优先执行，轮询等待静默登录完成）
+    this._loadI18n()
+
     setTimeout(() => {
       this.initAccountInfo()
     }, 300)
 
-    // 刷新用户信息和余额（延迟执行，等待账号 ID 初始化完成后更新状态）
     setTimeout(() => {
       this.loadUserInfo()
     }, 1500)
 
-    // 只有在第一次进入页面时才设置默认模式，避免每次 onShow 都重置用户选择
     if (!this.data.modeInitialized) {
       this.setData({
-        modeIndex: 0,      // 确保默认综合模式
-        enableSketch: false, // 确保开关默认关闭
-        modeInitialized: true // 标记已初始化
+        modeIndex: 0,
+        enableSketch: false,
+        modeInitialized: true
       })
     }
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      this._updateNavTitle()
+    })
+  },
+
+  _updateNavTitle() {
+    const app = getApp()
+    app.setNavTitle(this, 'app.name')
+  },
+
+  _loadI18n() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+
+    this.setData({
+      tIndexComb: t('index.comb'),
+      tIndexScissor: t('index.scissor'),
+      tIndexTotal: t('index.total'),
+      tIndexVipDiscount: t('index.vipDiscount'),
+      tIndexGuestTip: t('index.guestTip'),
+      tIndexLoginMore: t('index.loginMore'),
+      tIndexMyAccount: t('index.myAccount'),
+      tIndexDeviceName: t('index.deviceName'),
+      tIndexAccountId: t('index.accountId'),
+      tIndexShowAfterLogin: t('index.showAfterLogin'),
+      tIndexAccountIdTip: t('index.accountIdTip'),
+      tIndexHairstyleRef: t('index.hairstyleRef'),
+      tIndexCustomerPhoto: t('index.customerPhoto'),
+      tIndexClickUpload: t('index.clickUpload'),
+      tIndexProcessingMode: t('index.processingMode'),
+      tIndexModelVersion: t('index.modelVersion'),
+      tIndexFaceFusion: t('index.faceFusion'),
+      tIndexSketchEffect: t('index.sketchEffect'),
+      tIndexSketchStyle: t('index.sketchStyle'),
+      tIndexPrepareFirst: t('index.prepareFirst'),
+      tIndexStep1Done: t('index.step1Done'),
+      tIndexEstimatedCostPrefix: t('index.estimatedCost').replace(': {cost}发丝', '').replace(': {cost} hairs', ''),
+      tIndexMemberDiscount: t('index.memberDiscount'),
+      tIndexHairs: t('index.hairs'),
+      tIndexExtractOnly: t('index.extractOnly'),
+      tIndexTransferOnly: t('index.transferOnly'),
+      tIndexGenerateHair: t('index.generateHair'),
+      tIndexSketchOptimize: t('index.sketchOptimize'),
+      tIndexMemberTip: t('index.memberTip'),
+      tIndexUpgradeNow: t('index.upgradeNow'),
+      tIndexSwitchToStep: t('index.switchToStep'),
+      tIndexSwitchToComprehensive: t('index.switchToComprehensive'),
+      modePickerRange: [t('index.comprehensiveMode'), t('index.stepByStepMode')],
+      modePickerDisplay: this.data.modeIndex === 0 ? t('index.comprehensiveMode') : t('index.stepByStepMode'),
+      modelVersionPickerRange: [t('index.faceFit'), t('index.keepFace')],
+      modelVersionPickerDisplay: this.data.modelVersionIndex === 0 ? t('index.faceFit') : t('index.keepFace'),
+      sketchStyles: [
+        { label: t('index.sketchPencil'), value: 'pencil' },
+        { label: t('index.sketchAnime'), value: 'anime' },
+        { label: t('index.sketchInk'), value: 'ink' },
+        { label: t('index.sketchVivid'), value: 'vivid' }
+      ],
+      modelVersions: [t('index.faceFit'), t('index.keepFace')],
+      processingText: this.data.processing ? t('index.processing') : ''
+    })
+
+    this._updateNavTitle()
   },
 
   /**
@@ -174,7 +301,8 @@ Page({
    * 上传图片（先压缩再上传）
    */
   async uploadImage(filePath, type) {
-    wx.showLoading({ title: '上传中...' })
+    const app = getApp()
+    wx.showLoading({ title: app.t('common.uploading') })
 
     try {
       // 先压缩图片（80%质量，显著减少体积）
@@ -233,13 +361,13 @@ Page({
           }
         })
       } else {
-        throw new Error(res.error || '上传失败')
+        throw new Error(res.error || getApp().t('common.uploadFail'))
       }
     } catch (e) {
       console.error('上传图片失败:', e)
       wx.hideLoading()
       wx.showToast({
-        title: e.error || '上传失败',
+        title: e.error || getApp().t('common.uploadFail'),
         icon: 'none'
       })
     }
@@ -318,7 +446,7 @@ Page({
     this.setData(updateData)
 
     wx.showToast({
-      title: newModeIndex === 1 ? '已切换到分步模式' : '已切换到综合模式',
+      title: newModeIndex === 1 ? this.data.tIndexSwitchToStep : this.data.tIndexSwitchToComprehensive,
       icon: 'none'
     })
   },
@@ -340,7 +468,7 @@ Page({
   async extractOnly() {
     if (!this.data.hairstyleUrl) {
       wx.showToast({
-        title: '请先上传发型参考图',
+        title: t('index.uploadHairstyleFirst'),
         icon: 'none'
       })
       return
@@ -360,7 +488,7 @@ Page({
   async transferOnly() {
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
-        title: '请先上传两张图片',
+        title: t('index.uploadBothFirst'),
         icon: 'none'
       })
       return
@@ -382,7 +510,7 @@ Page({
   async addSketchOnly() {
     if (!this.data.hasResult) {
       wx.showToast({
-        title: '请先生成发型',
+        title: t('index.prepareFirst'),
         icon: 'none'
       })
       return
@@ -393,7 +521,7 @@ Page({
       return
     }
 
-    wx.showLoading({ title: '生成素描中...' })
+    wx.showLoading({ title: t('index.sketchOptimizing') })
 
     try {
       const params = {
@@ -408,7 +536,7 @@ Page({
 
       if (res.success) {
         wx.showToast({
-          title: `素描优化成功，已扣费${res.cost}发丝`,
+          title: t('index.sketchSuccess').replace('{cost}', res.cost),
           icon: 'success',
           duration: 2000
         })
@@ -423,13 +551,13 @@ Page({
           url: `/pages/result/result?resultUrl=${encodeURIComponent(fullSketchUrl)}&originalUrl=${encodeURIComponent(this.data.resultHttpUrl || this.data.resultUrl)}&cost=${res.cost}&mode=sketch`
         })
       } else {
-        throw new Error(res.error || '处理失败')
+        throw new Error(res.error || getApp().t('common.processFail'))
       }
     } catch (e) {
       wx.hideLoading()
       console.error('素描优化失败:', e)
       wx.showToast({
-        title: e.error || '处理失败',
+        title: e.error || getApp().t('common.processFail'),
         icon: 'none'
       })
     } finally {
@@ -456,7 +584,7 @@ Page({
     this.setData(updateData)
 
     wx.showToast({
-      title: newModeIndex === 1 ? '已切换到分步模式' : '已切换到综合模式',
+      title: newModeIndex === 1 ? this.data.tIndexSwitchToStep : this.data.tIndexSwitchToComprehensive,
       icon: 'none'
     })
   },
@@ -467,7 +595,7 @@ Page({
   async processAll() {
     if (!this.data.hairstyleUrl || !this.data.customerUrl) {
       wx.showToast({
-        title: '请先上传两张图片',
+        title: t('index.uploadBothFirst'),
         icon: 'none'
       })
       return
@@ -476,7 +604,7 @@ Page({
     // 检查素描效果开关
     if (!this.data.enableSketch) {
       wx.showToast({
-        title: '请先打开素描效果按钮',
+        title: t('index.enableSketchFirst'),
         icon: 'none'
       })
       return
@@ -503,10 +631,10 @@ Page({
         // 游客余额不足
         return new Promise((resolve) => {
           wx.showModal({
-            title: '余额不足',
-            content: `完成新用户注册，领取 1000 根头发丝福利，或 4 小时后继续使用游客免费额度`,
-            confirmText: '去注册',
-            cancelText: '稍后再说',
+            title: t('index.balanceNotEnough'),
+            content: t('index.guestBonus'),
+            confirmText: t('common.goToRegister'),
+            cancelText: t('common.later'),
             success: (res) => {
               if (res.confirm) {
                 wx.navigateTo({
@@ -523,10 +651,10 @@ Page({
         return new Promise((resolve) => {
           // 第一个标签
           wx.showModal({
-            title: '余额不足',
-            content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
-            confirmText: '去充值',
-            cancelText: '取消',
+            title: t('index.balanceNotEnough'),
+            content: t('index.normalTip1'),
+            confirmText: t('common.goToRecharge'),
+            cancelText: t('common.cancel'),
             success: (res1) => {
               if (res1.confirm) {
                 wx.navigateTo({
@@ -539,8 +667,8 @@ Page({
               // 用户点击"取消"后，弹出第二个标签（仅普通用户）
               if (userInfo && userInfo.member_level === 'normal') {
                 wx.showModal({
-                  title: '温馨提示',
-                  content: '升级会员更实惠哦！等你啊  baby！',
+                  title: t('common.warmTip'),
+                  content: t('index.normalTip2'),
                   showCancel: false,
                   success: () => resolve(false),
                   fail: () => resolve(false)
@@ -572,10 +700,10 @@ Page({
       // 未登录且余额不足，提示登录
       return new Promise((resolve) => {
         wx.showModal({
-          title: '提示',
-          content: `登录后即可使用全部功能，消耗发丝扣费，是否立即登录？`,
-          confirmText: '去登录',
-          cancelText: '暂不',
+          title: t('common.tip'),
+          content: t('index.loginPrompt'),
+          confirmText: t('common.goToLogin'),
+          cancelText: t('common.notNow'),
           success: (res) => {
             if (res.confirm) {
               setRedirectUrl('/pages/index/index')
@@ -601,10 +729,10 @@ Page({
       // 游客余额不足，显示特殊提示
       return new Promise((resolve) => {
         wx.showModal({
-          title: '余额不足',
-          content: `完成新用户注册，领取 1000 根头发丝福利，或 4 小时后继续使用游客免费额度`,
-          confirmText: '去注册',
-          cancelText: '稍后再说',
+          title: t('index.balanceNotEnough'),
+          content: t('index.guestBonus'),
+          confirmText: t('common.goToRegister'),
+          cancelText: t('common.later'),
           success: (res) => {
             if (res.confirm) {
               wx.navigateTo({
@@ -626,14 +754,14 @@ Page({
       if (annualLimitReached) {
         // 年度上限提示 - 第一个标签
         wx.showModal({
-          title: '提示',
-          content: '本年度免费额度已用完，请充值消费',
+          title: t('common.tip'),
+          content: t('index.annualLimitTip'),
           showCancel: false,
           success: () => {
             // 第二个标签（趣味提示）
             wx.showModal({
-              title: '温馨提示',
-              content: 'Baby 难道你用了 36 计嘛！？还没等到你的到来？？？请记住升级会员更实惠哦！等你啊 baby！！！',
+              title: t('common.warmTip'),
+              content: t('index.annualLimitJoke'),
               showCancel: false,
               success: () => resolve(false)
             })
@@ -642,10 +770,10 @@ Page({
       } else {
         // 第一个标签
         wx.showModal({
-          title: '余额不足',
-          content: `发丝不足，现在充值立即可用，或 4 小时后使用免费额度`,
-          confirmText: '去充值',
-          cancelText: '取消',
+          title: t('index.balanceNotEnough'),
+          content: t('index.normalTip1'),
+          confirmText: t('common.goToRecharge'),
+          cancelText: t('common.cancel'),
           success: (res1) => {
             if (res1.confirm) {
               wx.navigateTo({
@@ -658,8 +786,8 @@ Page({
             // 普通用户双重提示 - 第二个标签
             if (userInfo && userInfo.member_level === 'normal') {
               wx.showModal({
-                title: '温馨提示',
-                content: '升级会员更实惠哦！等你啊  baby！',
+                title: t('common.warmTip'),
+                content: t('index.normalTip2'),
                 showCancel: false,
                 success: () => resolve(false)
               })
@@ -679,7 +807,7 @@ Page({
   async callExtractAPI() {
     this.setData({
       processing: true,
-      processingText: '提取发型中...'
+      processingText: t('index.extracting')
     })
 
     try {
@@ -695,12 +823,12 @@ Page({
 
         this.navigateToResult(fullResultUrl, res.cost)
       } else {
-        throw new Error(res.error || '处理失败')
+        throw new Error(res.error || getApp().t('common.processFail'))
       }
     } catch (e) {
       console.error('提取发型失败:', e)
       wx.showToast({
-        title: e.error || '处理失败',
+        title: e.error || getApp().t('common.processFail'),
         icon: 'none'
       })
     } finally {
@@ -721,7 +849,7 @@ Page({
 
     this.setData({
       processing: true,
-      processingText: enableSketch ? '综合处理中...' : '迁移发型中...'
+      processingText: enableSketch ? t('index.processing') : t('index.transferring')
     })
 
     try {
@@ -789,7 +917,7 @@ Page({
 
           // 分步模式：显示原图和扣费信息，不跳转到结果页
           wx.showToast({
-            title: `发型生成成功，已扣费${res.cost}发丝`,
+            title: t('index.transferSuccess').replace('{cost}', res.cost),
             icon: 'success',
             duration: 2000
           })
@@ -819,12 +947,12 @@ Page({
           }
         }
       } else {
-        throw new Error(res.error || '处理失败')
+        throw new Error(res.error || getApp().t('common.processFail'))
       }
     } catch (e) {
       console.error('发型迁移失败:', e)
       wx.showToast({
-        title: e.error || '处理失败',
+        title: e.error || getApp().t('common.processFail'),
         icon: 'none'
       })
     } finally {
@@ -848,10 +976,10 @@ Page({
    */
   showGuestRegisterModal() {
     wx.showModal({
-      title: '提示',
-      content: '完成新用户注册，领取 1000 根头发丝福利',
-      confirmText: '去注册',
-      cancelText: '稍后再说',
+      title: t('common.tip'),
+      content: t('index.guestBonus'),
+      confirmText: t('common.goToRegister'),
+      cancelText: t('common.later'),
       success: (res) => {
         if (res.confirm) {
           wx.navigateTo({
@@ -920,13 +1048,13 @@ Page({
           // 30 次重试后仍然超时（9 秒），直接显示兜底
           console.warn('账号 ID 获取超时')
           this.setData({
-            accountId: '获取超时'
+            accountId: getApp().t('index.fetchTimeout')
           })
         }
       } catch (e) {
         console.error('获取账号信息失败:', e)
         this.setData({
-          accountId: '获取失败'
+          accountId: getApp().t('index.fetchFail')
         })
       }
     }
@@ -942,7 +1070,8 @@ Page({
         hash = hash & hash
       }
       const deviceId = `device_${Math.abs(hash).toString(16).padStart(8, '0')}`
-      const deviceName = `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`
+      const unknown = getApp().t('common.unknown')
+      const deviceName = `${systemInfo.brand || unknown} ${systemInfo.model || unknown}`
 
       this.setData({
         deviceName: deviceName,
@@ -951,7 +1080,7 @@ Page({
     } catch (e) {
       console.error('获取设备信息失败:', e)
       this.setData({
-        deviceName: '未知设备',
+        deviceName: getApp().t('index.unknownDevice'),
         deviceId: 'device_unknown'
       })
     }
@@ -971,7 +1100,7 @@ Page({
    */
   imageError(e) {
     wx.showToast({
-      title: '图片加载失败',
+      title: t('index.imageLoadFail'),
       icon: 'none'
     })
   }

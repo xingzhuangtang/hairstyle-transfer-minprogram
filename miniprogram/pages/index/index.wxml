@@ -4,48 +4,48 @@
   <view class="balance-section" wx:if="{{isLoggedIn}}">
     <view class="balance-item">
       <text class="balance-value">{{combHairs}}</text>
-      <text class="balance-label">梳子</text>
+      <text class="balance-label">{{tIndexComb}}</text>
     </view>
     <view class="balance-divider"></view>
     <view class="balance-item">
       <text class="balance-value">{{scissorHairs}}</text>
-      <text class="balance-label">剪刀</text>
+      <text class="balance-label">{{tIndexScissor}}</text>
     </view>
     <view class="balance-divider"></view>
     <view class="balance-item total">
       <text class="balance-value">{{totalHairs}}</text>
-      <text class="balance-label">总计</text>
+      <text class="balance-label">{{tIndexTotal}}</text>
     </view>
     <view class="vip-badge" wx:if="{{isPremium}}">
-      <text>会员 50% 优惠</text>
+      <text>{{tIndexVipDiscount}}</text>
     </view>
   </view>
 
   <!-- 访客提示 -->
   <view class="guest-tip" wx:if="{{!isLoggedIn}}">
     <text class="guest-tip-icon">👤</text>
-    <text class="guest-tip-text">游客体验中</text>
-    <text class="guest-tip-link" bindtap="goToLogin">登录查看更多</text>
+    <text class="guest-tip-text">{{tIndexGuestTip}}</text>
+    <text class="guest-tip-link" bindtap="goToLogin">{{tIndexLoginMore}}</text>
   </view>
 
   <!-- 游客账号信息卡片 -->
   <view class="device-card" wx:if="{{!isLoggedIn}}">
     <view class="device-card-header">
       <image class="device-card-icon" src="/images/icons/device.png"></image>
-      <text class="device-card-title">我的账号</text>
+      <text class="device-card-title">{{tIndexMyAccount}}</text>
     </view>
     <view class="device-card-body">
       <view class="device-info-row">
-        <text class="device-info-label">设备名称：</text>
+        <text class="device-info-label">{{tIndexDeviceName}}</text>
         <text class="device-info-value">{{deviceName}}</text>
       </view>
       <view class="device-info-row">
-        <text class="device-info-label">账号 ID：</text>
-        <text class="device-info-value device-id">{{accountId || '登录后显示'}}</text>
+        <text class="device-info-label">{{tIndexAccountId}}</text>
+        <text class="device-info-value device-id">{{accountId || tIndexShowAfterLogin}}</text>
       </view>
     </view>
     <view class="device-card-tip">
-      <text>账号 ID 固定不变，换设备登录数据不丢失</text>
+      <text>{{tIndexAccountIdTip}}</text>
     </view>
   </view>
 
@@ -53,12 +53,12 @@
   <view class="upload-section">
     <!-- 发型参考图 -->
     <view class="upload-item">
-      <text class="upload-label">发型参考图</text>
+      <text class="upload-label">{{tIndexHairstyleRef}}</text>
       <view class="upload-box" bindtap="chooseHairstyleImage">
         <image wx:if="{{hairstyleUrl}}" class="preview-image" src="{{hairstyleUrl}}" mode="widthFix" show-menu-by-longpress lazy-load binderror="imageError" bindload="imageLoad"></image>
         <view wx:else class="upload-placeholder">
           <image class="upload-icon" src="/images/icons/upload.png"></image>
-          <text class="upload-text">点击上传图片</text>
+          <text class="upload-text">{{tIndexClickUpload}}</text>
         </view>
         <image wx:if="{{hairstyleUrl}}" class="delete-icon" src="/images/icons/close.png" catchtap="deleteHairstyleImage"></image>
       </view>
@@ -66,12 +66,12 @@
 
     <!-- 客户照片 -->
     <view class="upload-item">
-      <text class="upload-label">客户照片</text>
+      <text class="upload-label">{{tIndexCustomerPhoto}}</text>
       <view class="upload-box" bindtap="chooseCustomerImage">
         <image wx:if="{{customerUrl}}" class="preview-image" src="{{customerUrl}}" mode="widthFix" show-menu-by-longpress lazy-load binderror="imageError" bindload="imageLoad"></image>
         <view wx:else class="upload-placeholder">
           <image class="upload-icon" src="/images/icons/upload.png"></image>
-          <text class="upload-text">点击上传图片</text>
+          <text class="upload-text">{{tIndexClickUpload}}</text>
         </view>
         <image wx:if="{{customerUrl}}" class="delete-icon" src="/images/icons/close.png" catchtap="deleteCustomerImage"></image>
       </view>
@@ -82,11 +82,11 @@
   <view class="params-section">
     <!-- 处理模式切换 -->
     <view class="param-item">
-      <text class="param-label">处理模式</text>
+      <text class="param-label">{{tIndexProcessingMode}}</text>
       <view class="param-value">
-        <picker mode="selector" range="{{['综合模式', '分步模式']}}" value="{{modeIndex}}" bindchange="onModeChange">
+        <picker mode="selector" range="{{modePickerRange}}" value="{{modeIndex}}" bindchange="onModeChange">
           <view class="picker">
-            {{modeIndex === 0 ? '综合模式' : '分步模式'}}
+            {{modePickerDisplay}}
             <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
           </view>
         </picker>
@@ -94,11 +94,11 @@
     </view>
     <!-- 模型版本 -->
     <view class="param-item">
-      <text class="param-label">模型版本</text>
+      <text class="param-label">{{tIndexModelVersion}}</text>
       <view class="param-value">
-        <picker mode="selector" range="{{modelVersions}}" value="{{modelVersionIndex}}" bindchange="onModelVersionChange">
+        <picker mode="selector" range="{{modelVersionPickerRange}}" value="{{modelVersionIndex}}" bindchange="onModelVersionChange">
           <view class="picker">
-            {{modelVersions[modelVersionIndex]}}
+            {{modelVersionPickerDisplay}}
             <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
           </view>
         </picker>
@@ -107,7 +107,7 @@
 
     <!-- 脸型融合度 -->
     <view class="param-item">
-      <text class="param-label">脸型融合度</text>
+      <text class="param-label">{{tIndexFaceFusion}}</text>
       <view class="slider-container">
         <slider
           class="slider"
@@ -124,7 +124,7 @@
 
     <!-- 素描效果（分步模式下禁用） -->
     <view class="param-item">
-      <text class="param-label">素描效果</text>
+      <text class="param-label">{{tIndexSketchEffect}}</text>
       <switch
         class="switch"
         checked="{{enableSketch}}"
@@ -135,7 +135,7 @@
 
     <!-- 素描风格（素描开启时显示） -->
     <view class="param-item" wx:if="{{enableSketch}}">
-      <text class="param-label">素描风格</text>
+      <text class="param-label">{{tIndexSketchStyle}}</text>
       <view class="param-value">
         <picker mode="selector" range="{{sketchStyles}}" range-key="label" value="{{sketchStyleIndex}}" bindchange="onSketchStyleChange">
           <view class="picker">
@@ -151,47 +151,47 @@
   <view class="action-section">
     <!-- 分步模式：结果预览 -->
     <view class="step-result" wx:if="{{modeIndex === 1}}">
-      <text class="step-label" wx:if="{{!hasResult}}">准备：请先生成发型</text>
-      <text class="step-label" wx:if="{{hasResult}}">第一步：发型迁移完成</text>
+      <text class="step-label" wx:if="{{!hasResult}}">{{tIndexPrepareFirst}}</text>
+      <text class="step-label" wx:if="{{hasResult}}">{{tIndexStep1Done}}</text>
       <image wx:if="{{hasResult}}" class="step-image" src="{{resultUrl}}" mode="widthFix" show-menu-by-longpress bindtap="enlargeImage" data-src="{{resultUrl}}"></image>
     </view>
 
     <view class="cost-info">
       <text wx:if="{{currentCost > 0}}" class="cost-text">
-        预计消耗：{{currentCost}}发丝
-        <text wx:if="{{isPremium}}" class="discount-text">(会员优惠)</text>
+        {{tIndexEstimatedCostPrefix}}：{{currentCost}}{{tIndexHairs}}
+        <text wx:if="{{isPremium}}" class="discount-text">({{tIndexMemberDiscount}})</text>
       </text>
     </view>
 
     <!-- 综合模式按钮 -->
     <view class="action-buttons" wx:if="{{modeIndex === 0}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
-        仅提取发型
-        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
+        {{tIndexExtractOnly}}
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
-        仅迁移发型
-        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
+        {{tIndexTransferOnly}}
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn primary" bindtap="processAll" disabled="{{processing}}">
-        素描优化
-        <text class="cost">{{allCost}}发丝</text>
+        {{tIndexSketchOptimize}}
+        <text class="cost">{{allCost}}{{tIndexHairs}}</text>
       </button>
     </view>
 
     <!-- 分步模式按钮 -->
     <view class="action-buttons" wx:if="{{modeIndex === 1}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
-        仅提取发型
-        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
+        {{tIndexExtractOnly}}
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
-        生成发型
-        <text class="cost">{{isPremium ? 2 : 4}} 发丝</text>
+        {{tIndexGenerateHair}}
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn primary" bindtap="addSketchOnly" disabled="{{processing || !hasResult}}">
-        素描优化
-        <text class="cost">{{isPremium ? 44 : 88}}发丝</text>
+        {{tIndexSketchOptimize}}
+        <text class="cost">{{isPremium ? 44 : 88}}{{tIndexHairs}}</text>
       </button>
     </view>
   </view>
@@ -199,8 +199,8 @@
   <!-- 会员提示 -->
   <view class="vip-tip" wx:if="{{!isPremium}}">
     <text class="tip-icon">👑</text>
-    <text class="tip-text">升级会员享受 50% 折扣特权</text>
-    <text class="tip-link" bindtap="goToMember">立即升级</text>
+    <text class="tip-text">{{tIndexMemberTip}}</text>
+    <text class="tip-link" bindtap="goToMember">{{tIndexUpgradeNow}}</text>
   </view>
 </view>
 

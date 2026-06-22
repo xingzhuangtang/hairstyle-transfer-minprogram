@@ -2,8 +2,8 @@
 <view class="legal-container">
   <view class="legal-header">
     <text class="legal-title">{{title}}</text>
-    <text class="legal-version">版本：{{version}}</text>
-    <text class="legal-date">更新日期：{{updateDate}}</text>
+    <text class="legal-version">{{tLegalVersionLabel}}{{version}}</text>
+    <text class="legal-date">{{tLegalUpdateDateLabel}}{{updateDate}}</text>
   </view>
 
   <scroll-view class="legal-content" scroll-y>

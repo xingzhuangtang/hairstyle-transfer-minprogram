@@ -1,15 +1,29 @@
 // app.js
 import { API_BASE_URL } from './utils/constants.js'
 import { getUserMode } from './utils/auth.js'
+import { initLocale, onLocaleChange, getLocale } from './utils/i18n.js'
 
 App({
   globalData: {
     userInfo: null,
     token: null,
-    isPremium: false
+    isPremium: false,
+    locale: 'zh-CN'
   },
 
   onLaunch(options) {
+    // 初始化语言偏好
+    this.globalData.locale = initLocale()
+
+    // 监听语言变更
+    onLocaleChange((locale) => {
+      this.globalData.locale = locale
+      this.setTabBarLabels()
+    })
+
+    // 初始化 tabBar 标签
+    this.setTabBarLabels()
+
     console.log('小程序启动')
 
     // 检查本地是否已有登录信息
@@ -38,10 +52,51 @@ App({
   },
 
   onShow() {
+    // 确保 globalData.locale 与 i18n 模块同步
+    this.globalData.locale = getLocale()
+
     console.log('小程序显示')
 
     // 移除自动刷新用户信息，改为按需加载
     // 用户进入需要登录的页面时再引导登录
+  },
+
+  /**
+   * 全局翻译函数
+   */
+  t(key, params) {
+    const { t: translate } = require('./utils/i18n.js')
+    return translate(key, params)
+  },
+
+  /**
+   * 设置当前页面导航栏标题（基于当前语言）
+   */
+  setNavTitle(page, titleKey) {
+    const title = this.t(titleKey)
+    try {
+      wx.setNavigationBarTitle({ title: title })
+    } catch (e) {
+      console.error('setNavTitle error:', e)
+    }
+  },
+
+  /**
+   * 动态设置 tabBar 文本（基于当前语言）
+   */
+  setTabBarLabels() {
+    try {
+      wx.setTabBarItem({
+        index: 0,
+        text: this.t('tabBar.home')
+      })
+      wx.setTabBarItem({
+        index: 1,
+        text: this.t('tabBar.profile')
+      })
+    } catch (e) {
+      console.error('setTabBarLabels error:', e)
+    }
   },
 
   /**
@@ -68,8 +123,8 @@ App({
         if (res.payment_status === 'success') {
           // 显示支付成功通知
           wx.showModal({
-            title: '支付成功',
-            content: '您的订单已支付完成',
+            title: this.t('app.paymentSuccess'),
+            content: this.t('app.paymentSuccessContent'),
             showCancel: false,
             success: () => {
               // 刷新用户信息
@@ -150,21 +205,21 @@ App({
 
             // 检查是否允许访客访问（不强制跳转登录页）
             if (options.allowGuest) {
-              reject({ error: '请先登录', code: 401 })
+              reject({ error: this.t('common.pleaseLogin'), code: 401 })
               return
             }
 
             wx.reLaunch({
               url: '/pages/login/login'
             })
-            reject({ error: '登录已过期，请重新登录' })
+            reject({ error: this.t('common.sessionExpired') })
           } else {
-            reject(res.data || { error: '请求失败' })
+            reject(res.data || { error: this.t('common.requestFail') })
           }
         },
         fail: (err) => {
           console.error('网络请求失败:', err)
-          reject({ error: '网络请求失败，请检查网络连接' })
+          reject({ error: this.t('common.networkRequestFail') })
         }
       })
     })
@@ -234,8 +289,8 @@ App({
 
       if (res.success && res.hairs) {
         wx.showModal({
-          title: '游客额度续期',
-          content: `您的游客免费额度已续期，${res.hairs}根发丝已到账`,
+          title: this.t('app.guestBonusTitle'),
+          content: this.t('app.guestBonusContent', { hairs: res.hairs }),
           showCancel: false,
           success: () => {
             // 刷新用户信息

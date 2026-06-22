@@ -1,6 +1,7 @@
 // pages/settings/settings.js
 import { refreshUserInfo, sendVerificationCode } from '../../utils/auth.js'
 import { put, uploadFile, post } from '../../utils/request.js'
+import { getLocale, setLocale, getSupportedLocales, getLocaleDisplayName, onLocaleChange } from '../../utils/i18n.js'
 
 Page({
   data: {
@@ -18,16 +19,177 @@ Page({
     changeCounting: false,
     changeCountDown: 60,
     changeTimer: null,
-    changeLoading: false
+    changeLoading: false,
+    // i18n
+    localeOptions: [],
+    localeIndex: 0,
+    currentLocaleName: '',
+    tSettingsLanguage: '',
+    tCommonSave: '',
+    tCommonCancel: '',
+    tCommonConfirm: '',
+    tSettingsChangePhone: '',
+    tSettingsChangePhoneDesc: '',
+    tSettingsPhonePlaceholder: '',
+    tSettingsCodePlaceholder: '',
+    tSettingsGetCode: '',
+    tSettingsLoadFail: '',
+    tSettingsSelectFail: '',
+    tSettingsUploadSuccess: '',
+    tSettingsUploadFail: '',
+    tSettingsNoChange: '',
+    tSettingsNicknameEmpty: '',
+    tSettingsSaveSuccess: '',
+    tSettingsSaveFail: '',
+    tSettingsPhoneInput: '',
+    tSettingsPhoneFormat: '',
+    tSettingsCodeSent: '',
+    tSettingsSendFail: '',
+    tSettingsModifySuccess: '',
+    tSettingsPhoneSame: '',
+    tSettingsMergeTitle: '',
+    tSettingsMergeContent: '',
+    tSettingsMergeBtn: '',
+    tSettingsMergeSuccess: '',
+    tSettingsMergeFail: '',
+    tSettingsOpFail: '',
+    tLocaleChangedZh: '',
+    tLocaleChangedEn: '',
+    tSettingsAvatar: '',
+    tSettingsClickChange: '',
+    tSettingsNickname: '',
+    tSettingsPhone: '',
+    tSettingsUserId: '',
+    tSettingsUnknown: '',
+    tSettingsNotBound: '',
+    tSettingsChange: '',
+    tSettingsProfileTip: ''
   },
 
   onLoad() {
+    this.initLocale()
+    app.setNavTitle(this, 'settings.title')
     this.loadUserInfo()
+  },
+
+  onShow() {
+    this.refreshLocaleDisplay()
+    app.setNavTitle(this, 'settings.title')
   },
 
   onUnload() {
     if (this.data.changeTimer) {
       clearInterval(this.data.changeTimer)
+    }
+  },
+
+  /**
+   * 初始化语言设置
+   */
+  initLocale() {
+    const locales = getSupportedLocales()
+    const options = locales.map(l => ({
+      value: l,
+      label: getLocaleDisplayName(l)
+    }))
+    const current = getLocale()
+    const index = locales.indexOf(current)
+
+    this.setData({
+      localeOptions: options,
+      localeIndex: index >= 0 ? index : 0,
+      currentLocaleName: getLocaleDisplayName(current)
+    })
+
+    this.loadTranslations()
+  },
+
+  /**
+   * 加载当前语言的翻译
+   */
+  loadTranslations() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+    this.setData({
+      tSettingsLanguage: t('settings.language'),
+      tCommonSave: t('common.save'),
+      tCommonCancel: t('common.cancel'),
+      tCommonConfirm: t('common.confirm'),
+      tSettingsNickname: t('settings.nickname'),
+      tSettingsPhone: t('settings.phone'),
+      tSettingsChangePhone: t('settings.changePhone'),
+      tSettingsChangePhoneDesc: t('settings.changePhoneDesc'),
+      tSettingsPhonePlaceholder: t('settings.phonePlaceholder'),
+      tSettingsCodePlaceholder: t('settings.codePlaceholder'),
+      tSettingsGetCode: t('common.getVerifyCode'),
+      tSettingsLoadFail: t('common.loadFail'),
+      tSettingsSelectFail: t('common.selectFail'),
+      tSettingsUploadSuccess: t('common.uploadSuccess'),
+      tSettingsUploadFail: t('common.uploadFail'),
+      tSettingsNoChange: t('settings.noEdit'),
+      tSettingsNicknameEmpty: t('settings.nicknameEmpty'),
+      tSettingsSaveSuccess: t('common.saveSuccess'),
+      tSettingsSaveFail: t('common.saveFail'),
+      tSettingsPhoneInput: t('login.pleaseInputPhone'),
+      tSettingsPhoneFormat: t('login.phoneFormatError'),
+      tSettingsCodeSent: t('common.verifyCodeSent'),
+      tSettingsSendFail: t('common.sendFail'),
+      tSettingsModifySuccess: t('common.saveSuccess'),
+      tSettingsPhoneSame: t('settings.phoneSame'),
+      tSettingsMergeTitle: t('login.mergeTip'),
+      tSettingsMergeContent: t('login.mergeContent'),
+      tSettingsMergeBtn: t('common.merge'),
+      tSettingsMergeSuccess: t('login.mergeSuccess'),
+      tSettingsMergeFail: t('login.mergeFail'),
+      tSettingsOpFail: t('common.fail'),
+      tLocaleChangedZh: '语言已切换为中文',
+      tLocaleChangedEn: 'Language switched to English',
+      tSettingsAvatar: t('settings.avatar'),
+      tSettingsClickChange: t('settings.clickChange'),
+      tSettingsUserId: t('settings.userId'),
+      tSettingsUnknown: t('common.unknown'),
+      tSettingsNotBound: t('settings.notBound'),
+      tSettingsChange: t('settings.change'),
+      tSettingsProfileTip: t('settings.profileTip')
+    })
+  },
+
+  /**
+   * 刷新语言显示
+   */
+  refreshLocaleDisplay() {
+    const current = getLocale()
+    const locales = getSupportedLocales()
+    const index = locales.indexOf(current)
+
+    this.setData({
+      localeIndex: index >= 0 ? index : 0,
+      currentLocaleName: getLocaleDisplayName(current)
+    })
+
+    this.loadTranslations()
+  },
+
+  /**
+   * 语言切换
+   */
+  onLocaleChange(e) {
+    const index = parseInt(e.detail.value)
+    const locales = getSupportedLocales()
+    const newLocale = locales[index]
+
+    if (newLocale && newLocale !== getLocale()) {
+      setLocale(newLocale)
+      this.refreshLocaleDisplay()
+
+      const app = getApp()
+      app.setTabBarLabels()
+      app.setNavTitle(this, 'settings.title')
+
+      wx.showToast({
+        title: newLocale === 'zh-CN' ? this.data.tLocaleChangedZh : this.data.tLocaleChangedEn,
+        icon: 'success'
+      })
     }
   },
 
@@ -51,7 +213,7 @@ Page({
     } catch (e) {
       console.error('加载用户信息失败:', e)
       wx.showToast({
-        title: '加载失败',
+        title: this.data.tSettingsLoadFail,
         icon: 'none'
       })
     }
@@ -69,20 +231,18 @@ Page({
         const tempFilePath = res.tempFilePaths[0]
         console.log('选择图片成功:', tempFilePath)
 
-        // 先显示预览
         this.setData({
           avatarUrl: tempFilePath,
           hasChanged: true
         })
 
-        // 上传到服务器
         this.uploadAvatar(tempFilePath)
       },
       fail: (err) => {
         console.error('选择图片失败:', err)
         if (err.errMsg && !err.errMsg.includes('cancel')) {
           wx.showToast({
-            title: '选择失败',
+            title: this.data.tSettingsSelectFail,
             icon: 'none'
           })
         }
@@ -95,7 +255,6 @@ Page({
    */
   async uploadAvatar(filePath) {
     try {
-      // 使用封装的 uploadFile 函数
       const data = await uploadFile(filePath)
 
       if (data.success && data.url) {
@@ -104,15 +263,14 @@ Page({
           hasChanged: true
         })
         wx.showToast({
-          title: '上传成功',
+          title: this.data.tSettingsUploadSuccess,
           icon: 'success'
         })
       } else {
         wx.showToast({
-          title: data.error || '上传失败',
+          title: data.error || this.data.tSettingsUploadFail,
           icon: 'none'
         })
-        // 恢复原头像
         this.setData({
           avatarUrl: this.data.originalAvatarUrl
         })
@@ -120,7 +278,7 @@ Page({
     } catch (e) {
       console.error('上传失败:', e)
       wx.showToast({
-        title: '上传失败',
+        title: this.data.tSettingsUploadFail,
         icon: 'none'
       })
       this.setData({
@@ -143,19 +301,17 @@ Page({
    * 保存设置
    */
   async saveSettings() {
-    // 检查是否有改动
     if (!this.data.hasChanged) {
       wx.showToast({
-        title: '暂无修改',
+        title: this.data.tSettingsNoChange,
         icon: 'none'
       })
       return
     }
 
-    // 验证昵称
     if (this.data.nickname && this.data.nickname.trim().length === 0) {
       wx.showToast({
-        title: '昵称不能为空',
+        title: this.data.tSettingsNicknameEmpty,
         icon: 'none'
       })
       return
@@ -164,7 +320,6 @@ Page({
     this.setData({ saving: true })
 
     try {
-      // 构建更新数据
       const updateData = {}
       if (this.data.nickname !== this.data.originalNickname) {
         updateData.nickname = this.data.nickname.trim()
@@ -173,46 +328,42 @@ Page({
         updateData.avatar_url = this.data.avatarUrl
       }
 
-      // 如果没有需要更新的内容
       if (Object.keys(updateData).length === 0) {
         wx.showToast({
-          title: '暂无修改',
+          title: this.data.tSettingsNoChange,
           icon: 'none'
         })
         this.setData({ saving: false })
         return
       }
 
-      // 调用更新接口
       const res = await put('/api/user/update', updateData)
 
       if (res.success) {
         wx.showToast({
-          title: '保存成功',
+          title: this.data.tSettingsSaveSuccess,
           icon: 'success'
         })
 
-        // 更新原始值
         this.setData({
           originalNickname: this.data.nickname,
           originalAvatarUrl: this.data.avatarUrl,
           hasChanged: false
         })
 
-        // 延迟返回上一页
         setTimeout(() => {
           wx.navigateBack()
         }, 1500)
       } else {
         wx.showToast({
-          title: res.error || '保存失败',
+          title: res.error || this.data.tSettingsSaveFail,
           icon: 'none'
         })
       }
     } catch (e) {
       console.error('保存失败:', e)
       wx.showToast({
-        title: '保存失败',
+        title: this.data.tSettingsSaveFail,
         icon: 'none'
       })
     } finally {
@@ -270,12 +421,12 @@ Page({
   validateChangePhone() {
     const phone = this.data.changePhone
     if (!phone) {
-      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      wx.showToast({ title: this.data.tSettingsPhoneInput, icon: 'none' })
       return false
     }
     const phoneReg = /^1[3-9]\d{9}$/
     if (!phoneReg.test(phone)) {
-      wx.showToast({ title: '手机号格式不正确', icon: 'none' })
+      wx.showToast({ title: this.data.tSettingsPhoneFormat, icon: 'none' })
       return false
     }
     return true
@@ -290,14 +441,14 @@ Page({
     try {
       const res = await sendVerificationCode(this.data.changePhone)
       if (res.success) {
-        wx.showToast({ title: '验证码已发送', icon: 'success' })
+        wx.showToast({ title: this.data.tSettingsCodeSent, icon: 'success' })
         this.startChangeCountDown()
       } else {
-        const errMsg = (typeof res.error === 'object') ? (res.error.error || res.error.message || '发送失败') : res.error
-        wx.showToast({ title: errMsg || '发送失败', icon: 'none' })
+        const errMsg = (typeof res.error === 'object') ? (res.error.error || res.error.message || this.data.tSettingsSendFail) : res.error
+        wx.showToast({ title: errMsg || this.data.tSettingsSendFail, icon: 'none' })
       }
     } catch (e) {
-      const errMsg = (typeof e === 'object') ? (e.error || e.message || '发送失败') : e
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || this.data.tSettingsSendFail) : e
       wx.showToast({ title: errMsg, icon: 'none' })
     }
   },
@@ -310,17 +461,16 @@ Page({
     const code = this.data.changeCode
 
     if (!phone) {
-      wx.showToast({ title: '请输入手机号', icon: 'none' })
+      wx.showToast({ title: this.data.tSettingsPhoneInput, icon: 'none' })
       return
     }
     if (!code) {
-      wx.showToast({ title: '请输入验证码', icon: 'none' })
+      wx.showToast({ title: this.data.tSettingsCodePlaceholder, icon: 'none' })
       return
     }
 
-    // 检查是否与当前手机号相同
     if (phone === this.data.phone) {
-      wx.showToast({ title: '与当前手机号相同，无需修改', icon: 'none' })
+      wx.showToast({ title: this.data.tSettingsPhoneSame, icon: 'none' })
       return
     }
 
@@ -333,17 +483,16 @@ Page({
       })
 
       if (res.success) {
-        wx.showToast({ title: '修改成功', icon: 'success' })
+        wx.showToast({ title: this.data.tSettingsModifySuccess, icon: 'success' })
         await this.loadUserInfo()
         this.onCloseChangePhoneModal()
       } else {
-        // 如果手机号已被其他用户绑定，走合并流程
         if (res.error && res.error.includes('已被绑定')) {
           wx.showModal({
-            title: '账号合并提示',
-            content: '该手机号已绑定其他账号，是否合并到该账号？',
-            confirmText: '合并',
-            cancelText: '取消',
+            title: this.data.tSettingsMergeTitle,
+            content: this.data.tSettingsMergeContent,
+            confirmText: this.data.tSettingsMergeBtn,
+            cancelText: this.data.tCommonCancel,
             success: async (modalRes) => {
               if (modalRes.confirm) {
                 const mergeRes = await post('/api/auth/merge-account', {
@@ -351,23 +500,23 @@ Page({
                   code: code
                 })
                 if (mergeRes.success) {
-                  wx.showToast({ title: '合并成功', icon: 'success' })
+                  wx.showToast({ title: this.data.tSettingsMergeSuccess, icon: 'success' })
                   await this.loadUserInfo()
                   this.onCloseChangePhoneModal()
                 } else {
-                  const errMsg = (typeof mergeRes.error === 'object') ? (mergeRes.error.error || mergeRes.error.message || '合并失败') : mergeRes.error
-                  wx.showToast({ title: errMsg || '合并失败', icon: 'none' })
+                  const errMsg = (typeof mergeRes.error === 'object') ? (mergeRes.error.error || mergeRes.error.message || this.data.tSettingsMergeFail) : mergeRes.error
+                  wx.showToast({ title: errMsg || this.data.tSettingsMergeFail, icon: 'none' })
                 }
               }
             }
           })
         } else {
-          const errMsg = (typeof res.error === 'object') ? (res.error.error || res.error.message || '操作失败') : res.error
-          wx.showToast({ title: errMsg || '操作失败', icon: 'none' })
+          const errMsg = (typeof res.error === 'object') ? (res.error.error || res.error.message || this.data.tSettingsOpFail) : res.error
+          wx.showToast({ title: errMsg || this.data.tSettingsOpFail, icon: 'none' })
         }
       }
     } catch (e) {
-      const errMsg = (typeof e === 'object') ? (e.error || e.message || '操作失败') : e
+      const errMsg = (typeof e === 'object') ? (e.error || e.message || this.data.tSettingsOpFail) : e
       wx.showToast({ title: errMsg, icon: 'none' })
     } finally {
       this.setData({ changeLoading: false })

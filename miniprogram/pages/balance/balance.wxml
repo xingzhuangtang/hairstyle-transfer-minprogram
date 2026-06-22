@@ -4,43 +4,38 @@
   <view class="balance-card">
     <view class="balance-item">
       <text class="balance-value">{{scissorHairs}}</text>
-      <text class="balance-label">剪刀发丝</text>
+      <text class="balance-label">{{tBalanceScissorHairs}}</text>
     </view>
     <view class="divider"></view>
     <view class="balance-item">
       <text class="balance-value">{{combHairs}}</text>
-      <text class="balance-label">梳子发丝</text>
+      <text class="balance-label">{{tBalanceCombHairs}}</text>
     </view>
     <view class="divider"></view>
     <view class="balance-item">
       <text class="balance-value total">{{totalHairs}}</text>
-      <text class="balance-label">总计</text>
+      <text class="balance-label">{{tBalanceTotal}}</text>
     </view>
   </view>
 
   <!-- 充值规则 -->
   <view class="recharge-section">
-    <text class="section-title">选择充值金额</text>
+    <text class="section-title">{{tBalanceSelectAmount}}</text>
 
     <!-- 支付方式选择 -->
     <view class="payment-method-section">
-      <text class="section-title">选择支付方式</text>
+      <text class="section-title">{{tBalanceSelectPayment}}</text>
       <view class="payment-method-list">
-        <view
-          class="payment-method-item {{paymentMethod === 'wechat' ? 'active' : ''}}"
-          bindtap="selectPaymentMethod"
-          data-method="wechat">
+        <view class="payment-method-item {{paymentMethod === 'wechat' ? 'active' : ''}}" bindtap="selectPaymentMethod" data-method="wechat">
           <view class="payment-icon wechat">💚</view>
-          <text class="payment-name">微信支付</text>
+          <text class="payment-name">{{tBalanceWechatPay}}</text>
           <view class="payment-check {{paymentMethod === 'wechat' ? 'active' : ''}}">✓</view>
         </view>
 
-        <view
-          class="payment-method-item disabled"
-          catchtap="handleAlipayNotAvailable">
+        <view class="payment-method-item disabled" catchtap="handleAlipayNotAvailable">
           <view class="payment-icon alipay">💙</view>
-          <text class="payment-name">支付宝</text>
-          <text class="coming-soon">功能开发中</text>
+          <text class="payment-name">{{tBalanceAlipay}}</text>
+          <text class="coming-soon">{{tCommonComingSoon}}</text>
         </view>
       </view>
     </view>
@@ -48,87 +43,63 @@
     <view class="recharge-list">
       <!-- 普通用户充值规则 -->
       <block wx:if="{{!isVip}}">
-        <view
-          class="recharge-item {{selectedAmount === 10 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="10">
+        <view class="recharge-item {{selectedAmount === 10 ? 'active' : ''}}" bindtap="selectAmount" data-amount="10">
           <text class="amount">¥10</text>
-          <text class="hairs">1000发丝+赠送0梳子槽</text>
+          <text class="hairs">{{tBalanceHairsNormal10}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 20 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="20">
-          <view class="recommended">推荐</view>
+        <view class="recharge-item {{selectedAmount === 20 ? 'active' : ''}}" bindtap="selectAmount" data-amount="20">
+          <view class="recommended">{{tBalanceRecommended}}</view>
           <text class="amount">¥20</text>
-          <text class="hairs">2000发丝+赠送88梳子槽</text>
+          <text class="hairs">{{tBalanceHairsNormal20}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 50 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="50">
+        <view class="recharge-item {{selectedAmount === 50 ? 'active' : ''}}" bindtap="selectAmount" data-amount="50">
           <text class="amount">¥50</text>
-          <text class="hairs">5000发丝+赠送588梳子槽</text>
+          <text class="hairs">{{tBalanceHairsNormal50}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 100 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="100">
+        <view class="recharge-item {{selectedAmount === 100 ? 'active' : ''}}" bindtap="selectAmount" data-amount="100">
           <text class="amount">¥100</text>
-          <text class="hairs">10000发丝+赠送1688梳子槽</text>
+          <text class="hairs">{{tBalanceHairsNormal100}}</text>
         </view>
       </block>
 
       <!-- VIP会员充值规则 -->
       <block wx:else>
-        <view
-          class="recharge-item {{selectedAmount === 10 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="10">
+        <view class="recharge-item {{selectedAmount === 10 ? 'active' : ''}}" bindtap="selectAmount" data-amount="10">
           <text class="amount">¥10</text>
-          <text class="hairs">1000发丝+赠送8梳子槽</text>
+          <text class="hairs">{{tBalanceHairsVip10}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 20 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="20">
-          <view class="recommended">推荐</view>
+        <view class="recharge-item {{selectedAmount === 20 ? 'active' : ''}}" bindtap="selectAmount" data-amount="20">
+          <view class="recommended">{{tBalanceRecommended}}</view>
           <text class="amount">¥20</text>
-          <text class="hairs">2000发丝+赠送48梳子槽</text>
+          <text class="hairs">{{tBalanceHairsVip20}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 50 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="50">
+        <view class="recharge-item {{selectedAmount === 50 ? 'active' : ''}}" bindtap="selectAmount" data-amount="50">
           <text class="amount">¥50</text>
-          <text class="hairs">5000发丝+赠送299梳子槽</text>
+          <text class="hairs">{{tBalanceHairsVip50}}</text>
         </view>
 
-        <view
-          class="recharge-item {{selectedAmount === 100 ? 'active' : ''}}"
-          bindtap="selectAmount"
-          data-amount="100">
+        <view class="recharge-item {{selectedAmount === 100 ? 'active' : ''}}" bindtap="selectAmount" data-amount="100">
           <text class="amount">¥100</text>
-          <text class="hairs">10000发丝+赠送888梳子槽</text>
+          <text class="hairs">{{tBalanceHairsVip100}}</text>
         </view>
       </block>
     </view>
 
     <button class="pay-btn" bindtap="createOrder" disabled="{{!selectedAmount || !paymentMethod}}">
-      立即支付 {{selectedAmount ? '¥' + selectedAmount : ''}}
+      {{tBalancePayNow}} {{selectedAmount ? '¥' + selectedAmount : ''}}
     </button>
   </view>
 
   <!-- 充值说明 -->
   <view class="tips">
-    <text class="tip-title">充值说明：</text>
-    <text class="tip-text">• 充值后发丝立即到账</text>
-    <text class="tip-text">• 剪刀槽发丝优先消费</text>
-    <text class="tip-text">• 如有疑问请联系客服</text>
+    <text class="tip-title">{{tBalanceRechargeDesc}}</text>
+    <text class="tip-text">{{tBalanceRechargeTip1}}</text>
+    <text class="tip-text">{{tBalanceRechargeTip2}}</text>
+    <text class="tip-text">{{tBalanceRechargeTip3}}</text>
   </view>
 </view>

@@ -38,9 +38,10 @@ export function generateDeviceId() {
 export function getDeviceInfo() {
   const systemInfo = wx.getSystemInfoSync()
   const deviceId = getDeviceId()
+  const unknown = getApp().t('common.unknown')
   return {
     device_id: deviceId,
-    device_name: `${systemInfo.brand || '未知'} ${systemInfo.model || '未知'}`,
+    device_name: `${systemInfo.brand || unknown} ${systemInfo.model || unknown}`,
     device_type: 'mobile'
   }
 }

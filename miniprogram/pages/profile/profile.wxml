@@ -4,10 +4,10 @@
   <view wx:if="{{!userInfo.id}}" class="not-logged-in-tip">
     <view class="tip-content">
       <text class="tip-icon">👤</text>
-      <text class="tip-text">您当前是游客模式</text>
+      <text class="tip-text">{{tProfileGuestMode}}</text>
     </view>
-    <button class="login-btn" bindtap="goToLogin">立即登录</button>
-    <text class="tip-desc">登录后可同步数据、享受会员折扣和更多功能</text>
+    <button class="login-btn" bindtap="goToLogin">{{tProfileLoginNow}}</button>
+    <text class="tip-desc">{{tProfileLoginSync}}</text>
   </view>
 
   <!-- 已登录用户显示完整信息 -->
@@ -18,14 +18,14 @@
         <image class="avatar" src="{{userInfo.avatar_url || '/images/icons/default-avatar.png'}}" mode="aspectFill"></image>
         <view class="info">
           <view class="name-row">
-            <text class="nickname">{{userInfo.nickname || '未设置昵称'}}</text>
+            <text class="nickname">{{userInfo.nickname || tProfileNoNickname}}</text>
             <image wx:if="{{isPremium}}" class="vip-badge" src="/images/icons/vip.png"></image>
           </view>
           <view class="detail-row">
-            <text class="user-id">ID: {{userInfo.device_id || '未知'}}</text>
+            <text class="user-id">ID: {{userInfo.device_id || tCommonUnknown}}</text>
           </view>
           <view class="detail-row">
-            <text class="phone">{{userInfo.phone || '未绑定手机'}}</text>
+            <text class="phone">{{userInfo.phone || tProfileNoPhone}}</text>
           </view>
         </view>
       </view>
@@ -36,7 +36,7 @@
           <text class="level-text">{{memberLevelName}}</text>
         </view>
         <text wx:if="{{isPremium && daysRemaining > 0}}" class="expire-text">
-          还剩{{daysRemaining}}天
+          {{tProfileRemainingDays}}
         </text>
       </view>
     </view>
@@ -45,17 +45,17 @@
     <view class="balance-card">
       <view class="balance-item">
         <text class="balance-value">{{userInfo.scissor_hairs || 0}}</text>
-        <text class="balance-label">剪刀发丝</text>
+        <text class="balance-label">{{tProfileScissorHairs}}</text>
       </view>
       <view class="divider"></view>
       <view class="balance-item">
         <text class="balance-value">{{userInfo.comb_hairs || 0}}</text>
-        <text class="balance-label">梳子发丝</text>
+        <text class="balance-label">{{tProfileCombHairs}}</text>
       </view>
       <view class="divider"></view>
       <view class="balance-item">
         <text class="balance-value total">{{totalHairs}}</text>
-        <text class="balance-label">总计</text>
+        <text class="balance-label">{{tIndexTotal}}</text>
       </view>
     </view>
 
@@ -65,7 +65,7 @@
       <view class="menu-item" bindtap="goToHistory">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/history.png"></image>
-          <text class="menu-text">历史记录</text>
+          <text class="menu-text">{{tProfileHistory}}</text>
           <text wx:if="{{!isPremium}}" class="vip-tag">VIP</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
@@ -75,7 +75,7 @@
       <view class="menu-item" bindtap="goToConsumption">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/consumption.png"></image>
-          <text class="menu-text">消费记录</text>
+          <text class="menu-text">{{tProfileConsumption}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -84,7 +84,7 @@
       <view class="menu-item" bindtap="goToBalance">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/recharge.png"></image>
-          <text class="menu-text">充值中心</text>
+          <text class="menu-text">{{tProfileRecharge}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -93,7 +93,7 @@
       <view class="menu-item" bindtap="goToMember">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/member.png"></image>
-          <text class="menu-text">会员中心</text>
+          <text class="menu-text">{{tProfileMemberCenter}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -102,7 +102,7 @@
       <view class="menu-item" bindtap="goToChat">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/chat.png"></image>
-          <text class="menu-text">在线客服</text>
+          <text class="menu-text">{{tProfileOnlineService}}</text>
           <text wx:if="{{chatUnreadCount > 0}}" class="unread-badge">{{chatUnreadCount > 99 ? '99+' : chatUnreadCount}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
@@ -112,7 +112,7 @@
       <view class="menu-item" bindtap="goToMessage">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/message.png"></image>
-          <text class="menu-text">客户留言</text>
+          <text class="menu-text">{{tProfileMessage}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -121,7 +121,7 @@
       <view class="menu-item" bindtap="goToReferral">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/referral.png"></image>
-          <text class="menu-text">我的惊喜</text>
+          <text class="menu-text">{{tProfileMySurprise}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -130,7 +130,7 @@
       <view class="menu-item" bindtap="goToRefund" wx:if="{{refundEnabled}}">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/refund.png"></image>
-          <text class="menu-text">退款申请</text>
+          <text class="menu-text">{{tProfileRefundApply}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -142,7 +142,7 @@
       <view class="menu-item" bindtap="goToDevice">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/device.png"></image>
-          <text class="menu-text">设备管理</text>
+          <text class="menu-text">{{tProfileDeviceManage}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -151,7 +151,7 @@
       <view class="menu-item" bindtap="goToAbout">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/about.png"></image>
-          <text class="menu-text">关于我们</text>
+          <text class="menu-text">{{tProfileAboutUs}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -160,7 +160,7 @@
       <view class="menu-item" bindtap="goToSettings">
         <view class="menu-left">
           <image class="menu-icon" src="/images/icons/settings.png"></image>
-          <text class="menu-text">设置</text>
+          <text class="menu-text">{{tCommonSettings}}</text>
         </view>
         <image class="arrow" src="/images/icons/arrow-right.png"></image>
       </view>
@@ -173,43 +173,43 @@
         <view class="menu-item" bindtap="goToMessageAdmin">
           <view class="menu-left">
             <image class="menu-icon" src="/images/icons/admin.png"></image>
-            <text class="menu-text">留言管理</text>
+            <text class="menu-text">{{tMessageAdminTitle}}</text>
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>
       </view>
 
       <view class="developer-section">
-        <view class="developer-title">开发者模式</view>
+        <view class="developer-title">{{tProfileDeveloperMode}}</view>
         <view class="developer-card">
           <view class="developer-row">
-            <text class="developer-label">当前状态：</text>
-            <text class="developer-value {{isDeveloper ? 'on' : 'off'}}">已开启</text>
+            <text class="developer-label">{{tProfileDevStatus}}</text>
+            <text class="developer-value {{isDeveloper ? 'on' : 'off'}}">{{tProfileDevOn}}</text>
           </view>
           <view class="developer-row">
-            <text class="developer-label">激活方式：</text>
-            <text class="developer-instructions">联系管理员配置</text>
+            <text class="developer-label">{{tProfileDevMethod}}</text>
+            <text class="developer-instructions">{{tProfileDevInstructions}}</text>
           </view>
           <button class="toggle-dev-mode-btn" bindtap="onViewDeveloperMode">
-            查看开发者模式说明
+            {{tProfileViewDevMode}}
           </button>
         </view>
       </view>
 
       <!-- 测试工具（清除数据，模拟新客户） -->
       <view class="test-section">
-        <view class="test-title">测试工具</view>
+        <view class="test-title">{{tProfileTestTools}}</view>
         <view class="test-card">
           <view class="test-row">
-            <text class="test-label">当前账号：</text>
-            <text class="test-value">{{userInfo.id ? 'QRQM' + userInfo.id + 'FXQY' : '未登录'}}</text>
+            <text class="test-label">{{tProfileCurrentAccount}}</text>
+            <text class="test-value">{{userInfo.id ? 'QRQM' + userInfo.id + 'FXQY' : tCommonNotLoggedIn}}</text>
           </view>
           <view class="test-row">
-            <text class="test-label">用户类型：</text>
-            <text class="test-value">{{userInfo.user_type === 'guest' ? '游客' : userInfo.user_type === 'registered' ? '普通用户' : userInfo.member_level === 'vip' ? '会员' : '未知'}}</text>
+            <text class="test-label">{{tProfileUserType}}</text>
+            <text class="test-value">{{userInfo.user_type === 'guest' ? tCommonGuest : userInfo.user_type === 'registered' ? tProfileRegistered : userInfo.member_level === 'vip' ? tProfileVipMember : tCommonUnknown}}</text>
           </view>
           <button class="reset-test-btn" bindtap="onResetForTest" loading="{{resetLoading}}">
-            清除数据，重新测试（模拟新客户）
+            {{tProfileClearData}}
           </button>
         </view>
       </view>
@@ -217,25 +217,25 @@
 
     <!-- 开发者工具（仅开发者模式开启时显示） -->
     <view wx:if="{{isDeveloper}}" class="developer-section">
-      <view class="developer-title">开发者工具</view>
+      <view class="developer-title">{{tProfileDeveloperTools}}</view>
       <view class="developer-card">
         <view class="developer-row">
-          <text class="developer-label">当前会员状态：</text>
-          <text class="developer-value">{{userInfo.member_level === 'vip' ? 'VIP 会员' : '普通用户'}}</text>
+          <text class="developer-label">{{tProfileCurrentVipStatus}}</text>
+          <text class="developer-value">{{userInfo.member_level === 'vip' ? tProfileVipMember : tProfileNormalUser}}</text>
         </view>
         <view class="developer-row">
-          <text class="developer-label">到期时间：</text>
-          <text class="developer-value">{{userInfo.member_expire_at || '永久'}}</text>
+          <text class="developer-label">{{tProfileExpireTime}}</text>
+          <text class="developer-value">{{userInfo.member_expire_at || tProfilePermanent}}</text>
         </view>
         <button class="toggle-vip-btn" bindtap="onToggleVip" loading="{{toggleLoading}}">
-          {{userInfo.member_level === 'vip' ? '切换为普通用户' : '切换为 VIP 会员'}}
+          {{userInfo.member_level === 'vip' ? tProfileSwitchToNormal : tProfileSwitchToVip}}
         </button>
       </view>
     </view>
 
     <!-- 退出登录按钮 -->
     <view class="logout-btn" bindtap="handleLogout">
-      <text>退出登录</text>
+      <text>{{tCommonLogout}}</text>
     </view>
   </block>
 </view>

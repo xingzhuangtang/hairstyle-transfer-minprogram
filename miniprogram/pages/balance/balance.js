@@ -3,6 +3,7 @@ import { getUserInfo } from '../../api/user.js'
 import { createRechargeOrder as createRechargeApi, pay, getOrderStatus } from '../../api/payment.js'
 import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
 import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
 Page({
   data: {
@@ -10,16 +11,107 @@ Page({
     combHairs: 0,
     totalHairs: 0,
     selectedAmount: null,
-    paymentMethod: 'wechat', // 默认微信支付
-    currentOrderNo: null, // 当前订单号
-    isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false, // 是否在开发者工具
-    isVip: false // 是否VIP会员
+    paymentMethod: 'wechat',
+    currentOrderNo: null,
+    isVirtualPay: false,
+    isDevTools: false,
+    isVip: false,
+    // i18n
+    tBalanceScissorHairs: '剪刀发丝',
+    tBalanceCombHairs: '梳子发丝',
+    tBalanceTotal: '总计',
+    tBalanceSelectAmount: '选择充值金额',
+    tBalanceSelectPayment: '选择支付方式',
+    tBalanceWechatPay: '微信支付',
+    tBalanceAlipay: '支付宝',
+    tBalanceRecommended: '推荐',
+    tBalancePayNow: '立即支付',
+    tBalanceRechargeDesc: '充值说明：',
+    tBalanceRechargeTip1: '充值后发丝立即到账',
+    tBalanceRechargeTip2: '剪刀槽发丝优先消费',
+    tBalanceRechargeTip3: '如有疑问请联系客服',
+    tBalancePleaseSelectAmount: '请选择充值金额',
+    tBalancePleaseSelectPayment: '请选择支付方式',
+    tBalanceCreatingOrder: '创建订单中...',
+    tBalanceDevModePaySuccess: '开发者模式：充值 {amount} 元成功，头发丝已到账',
+    tBalanceVirtualPayTip: '正在调起微信虚拟支付 ¥{amount}',
+    tBalancePaySuccess: '支付成功',
+    tBalancePayFail: '支付失败',
+    tBalancePayCancel: '取消支付',
+    tBalancePayTimeout: '支付处理超时',
+    tBalanceQueryFail: '查询订单失败',
+    tBalanceProcessing: '处理中...',
+    tBalanceComingSoon: '功能开发中',
+    tBalanceHairsNormal10: '',
+    tBalanceHairsNormal20: '',
+    tBalanceHairsNormal50: '',
+    tBalanceHairsNormal100: '',
+    tBalanceHairsVip10: '',
+    tBalanceHairsVip20: '',
+    tBalanceHairsVip50: '',
+    tBalanceHairsVip100: ''
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'balance.title')
     this.loadUserInfo()
     this.checkPlatform()
+  },
+
+  onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'balance.title')
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'balance.title')
+    })
+  },
+
+  _loadI18n() {
+    const app = getApp()
+    const t = (key) => app.t(key)
+    const amount = this.data.selectedAmount || 0
+
+    this.setData({
+      tBalanceScissorHairs: t('profile.scissorHairs'),
+      tBalanceCombHairs: t('profile.combHairs'),
+      tBalanceTotal: t('index.total'),
+      tBalanceSelectAmount: t('balance.selectAmount'),
+      tBalanceSelectPayment: t('balance.selectPayment'),
+      tBalanceWechatPay: t('balance.wechatPay'),
+      tBalanceAlipay: t('balance.alipay'),
+      tBalanceRecommended: t('balance.recommended'),
+      tBalancePayNow: t('balance.payNow'),
+      tBalanceRechargeDesc: t('balance.rechargeDesc'),
+      tBalanceRechargeTip1: t('balance.rechargeTip1'),
+      tBalanceRechargeTip2: t('balance.rechargeTip2'),
+      tBalanceRechargeTip3: t('balance.rechargeTip3'),
+      tBalancePleaseSelectAmount: t('balance.pleaseSelectAmount'),
+      tBalancePleaseSelectPayment: t('balance.pleaseSelectPayment'),
+      tBalanceCreatingOrder: t('balance.creatingOrder'),
+      tBalanceDevModePaySuccess: t('balance.devModePaySuccess').replace('{amount}', String(amount)),
+      tBalanceVirtualPayTip: t('balance.virtualPayTip').replace('{amount}', String(amount)),
+      tBalancePaySuccess: t('balance.paySuccess'),
+      tBalancePayFail: t('balance.payFail'),
+      tBalancePayCancel: t('balance.payCancel'),
+      tBalancePayTimeout: t('balance.payTimeout'),
+      tBalanceQueryFail: t('balance.queryFail'),
+      tBalanceProcessing: t('balance.processing'),
+      tBalanceComingSoon: t('common.comingSoon'),
+      tBalanceHairsNormal10: t('balance.hairsNormal10'),
+      tBalanceHairsNormal20: t('balance.hairsNormal20'),
+      tBalanceHairsNormal50: t('balance.hairsNormal50'),
+      tBalanceHairsNormal100: t('balance.hairsNormal100'),
+      tBalanceHairsVip10: t('balance.hairsVip10'),
+      tBalanceHairsVip20: t('balance.hairsVip20'),
+      tBalanceHairsVip50: t('balance.hairsVip50'),
+      tBalanceHairsVip100: t('balance.hairsVip100')
+    })
   },
 
   /**
@@ -90,7 +182,7 @@ Page({
    */
   handleAlipayNotAvailable() {
     wx.showToast({
-      title: '功能开发中',
+      title: this.data.tBalanceComingSoon,
       icon: 'none'
     })
   },
@@ -104,7 +196,7 @@ Page({
 
     if (!amount) {
       wx.showToast({
-        title: '请选择充值金额',
+        title: this.data.tBalancePleaseSelectAmount,
         icon: 'none'
       })
       return
@@ -112,14 +204,14 @@ Page({
 
     if (!paymentMethod) {
       wx.showToast({
-        title: '请选择支付方式',
+        title: this.data.tBalancePleaseSelectPayment,
         icon: 'none'
       })
       return
     }
 
     try {
-      wx.showLoading({ title: '创建订单中...' })
+      wx.showLoading({ title: this.data.tBalanceCreatingOrder })
 
       // iOS端使用虚拟支付
       if (this.data.isVirtualPay || this.data.isDevTools) {
@@ -133,7 +225,7 @@ Page({
       console.error('创建订单失败:', e)
       wx.hideLoading()
       wx.showToast({
-        title: e.error || e.message || '创建订单失败',
+        title: e.error || e.message || getApp().t('balance.createOrderFail'),
         icon: 'none'
       })
     }
@@ -147,7 +239,7 @@ Page({
     const orderRes = await createRechargeApi(amount, paymentMethod)
 
     if (!orderRes.success) {
-      throw new Error(orderRes.error || '创建订单失败')
+      throw new Error(orderRes.error || getApp().t('balance.createOrderFail'))
     }
 
     const orderNo = orderRes.order_no
@@ -167,7 +259,7 @@ Page({
     const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey)
 
     if (!orderRes.success) {
-      throw new Error(orderRes.error || '创建虚拟支付订单失败')
+      throw new Error(orderRes.error || getApp().t('balance.createVirtualOrderFail'))
     }
 
     const orderNo = orderRes.order_no
@@ -177,8 +269,8 @@ Page({
     if (orderRes.is_developer_mode) {
       wx.hideLoading()
       wx.showModal({
-        title: '模拟支付',
-        content: `开发者模式：充值 ${amount} 元成功，头发丝已到账`,
+        title: getApp().t('balance.simulatedPay'),
+        content: getApp().t('balance.devModePaySuccess', { amount: amount }),
         showCancel: false,
         success: () => {
           this.loadUserInfo()  // 刷新用户信息
@@ -190,8 +282,8 @@ Page({
     // 3. 正常模式：调起虚拟支付并轮询
     wx.hideLoading()
     wx.showModal({
-      title: '虚拟支付',
-      content: `正在调起微信虚拟支付 ¥${amount}`,
+      title: getApp().t('balance.virtualPay'),
+      content: getApp().t('balance.virtualPayContent', { amount: amount }),
       showCancel: false,
       success: () => {
         this.checkVirtualPayOrderStatus(orderNo)
@@ -208,7 +300,7 @@ Page({
       const payRes = await pay(orderNo, 'wechat')
 
       if (!payRes.success) {
-        throw new Error(payRes.error || '获取支付参数失败')
+        throw new Error(payRes.error || getApp().t('balance.getPayParamsFail'))
       }
 
       wx.hideLoading()
@@ -224,12 +316,12 @@ Page({
         fail: (err) => {
           if (err.errMsg.includes('cancel')) {
             wx.showToast({
-              title: '取消支付',
+              title: this.data.tBalancePayCancel,
               icon: 'none'
             })
           } else {
             wx.showToast({
-              title: '支付失败',
+              title: this.data.tBalancePayFail,
               icon: 'none'
             })
           }
@@ -244,7 +336,7 @@ Page({
    * 查询虚拟支付订单状态（iOS端）
    */
   async checkVirtualPayOrderStatus(orderNo) {
-    wx.showLoading({ title: '处理中...' })
+    wx.showLoading({ title: this.data.tBalanceProcessing })
 
     // 轮询查询（最多 30 秒）
     let count = 0
@@ -263,7 +355,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: '支付成功',
+              title: this.data.tBalancePaySuccess,
               icon: 'success'
             })
 
@@ -276,7 +368,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
+              title: paymentStatus === 'failed' ? this.data.tBalancePayFail : this.data.tBalancePayCancel,
               icon: 'none'
             })
 
@@ -285,7 +377,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: '支付处理超时',
+              title: this.data.tBalancePayTimeout,
               icon: 'none'
             })
           }
@@ -296,7 +388,7 @@ Page({
         wx.hideLoading()
         console.error('查询虚拟支付订单状态失败:', e)
         wx.showToast({
-          title: '查询订单失败',
+          title: this.data.tBalanceQueryFail,
           icon: 'none'
         })
       }
@@ -313,7 +405,7 @@ Page({
    * 查询订单状态
    */
   async checkOrderStatus(orderNo) {
-    wx.showLoading({ title: '处理中...' })
+    wx.showLoading({ title: this.data.tBalanceProcessing })
 
     // 轮询查询（最多 30 秒）
     let count = 0
@@ -334,7 +426,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: '支付成功',
+              title: this.data.tBalancePaySuccess,
               icon: 'success'
             })
 
@@ -348,7 +440,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
+              title: paymentStatus === 'failed' ? this.data.tBalancePayFail : this.data.tBalancePayCancel,
               icon: 'none'
             })
 
@@ -358,7 +450,7 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: '支付处理超时',
+              title: this.data.tBalancePayTimeout,
               icon: 'none'
             })
           }
@@ -370,7 +462,7 @@ Page({
         wx.hideLoading()
         console.error('查询订单状态失败:', e)
         wx.showToast({
-          title: '查询订单失败',
+          title: this.data.tBalanceQueryFail,
           icon: 'none'
         })
       }
