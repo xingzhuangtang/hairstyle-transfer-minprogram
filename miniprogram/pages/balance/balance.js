@@ -5,6 +5,8 @@ import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payme
 import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
+const app = getApp()
+
 Page({
   data: {
     scissorHairs: 0,
