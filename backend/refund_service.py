@@ -10,6 +10,7 @@ import hashlib
 import base64
 import time
 import uuid
+import logging
 from datetime import datetime
 
 from app import db
@@ -193,17 +194,101 @@ class RefundService:
         db.session.add(application)
         db.session.commit()
 
-        # 发送企业微信通知
+        # 发送企业微信通知（附带核算清单）
         try:
             approval_token = self.generate_approval_token(application.id)
             from refund_notifier import RefundNotifier
             notifier = RefundNotifier()
-            notifier.send_refund_application_notification(application, approval_token)
+            
+            # 计算核算清单
+            calculation = self._calculate_refund_detail(user, refund_type, refund_amount)
+            
+            # 发送带核算清单的审批通知
+            notifier.send_approval_notification_with_calculation(application, approval_token, calculation)
         except Exception as e:
             print(f"⚠️  发送企业微信通知失败: {e}")
             # 通知失败不影响申请创建
 
         return {'success': True, 'application_id': application.id}
+
+    def _calculate_refund_detail(self, user, refund_type, refund_amount):
+        """
+        计算退款核算详情（内部方法）
+        
+        Args:
+            user: User 对象
+            refund_type: 退款类型
+            refund_amount: 退款金额
+            
+        Returns:
+            dict: 核算清单数据
+        """
+        from models import RechargeRecord
+        
+        total_hairs = (user.scissor_hairs or 0) + (user.comb_hairs or 0)
+        calculation = {
+            'refund_type': refund_type,
+            'total_hairs': total_hairs,
+            'scissor_hairs': user.scissor_hairs or 0,
+            'comb_hairs': user.comb_hairs or 0
+        }
+        
+        if refund_type == 'recharge':
+            order = RechargeRecord.query.filter_by(
+                user_id=user.id, payment_status='success'
+            ).order_by(RechargeRecord.created_at.desc()).first()
+
+            if order:
+                # 梳子卡槽发丝是赠送的，退款时只扣回剪刀卡槽发丝
+                refund_ratio = float(refund_amount) / float(order.amount)
+                need_scissor = int(order.scissor_hairs * refund_ratio)
+                hairs_to_deduct = need_scissor
+
+                scissor_hairs = user.scissor_hairs or 0
+                cash_deduction = 0.0
+                actual_refund = float(refund_amount)
+
+                if scissor_hairs < hairs_to_deduct:
+                    missing_hairs = hairs_to_deduct - scissor_hairs
+                    cash_deduction = round(missing_hairs * 0.01, 2)
+                    actual_refund = max(0, float(refund_amount) - cash_deduction)
+
+                calculation.update({
+                    'charge_amount': float(order.amount),
+                    'charge_hairs': order.scissor_hairs + order.comb_hairs,
+                    'refund_amount_requested': float(refund_amount),
+                    'hairs_to_deduct': hairs_to_deduct,
+                    'hairs_sufficient': scissor_hairs >= hairs_to_deduct,
+                    'missing_hairs': max(0, hairs_to_deduct - scissor_hairs),
+                    'cash_deduction': cash_deduction,
+                    'actual_refund': actual_refund
+                })
+                
+        elif refund_type == 'membership':
+            remaining_days = (user.member_expire_at - datetime.now()).days
+            calculated_refund = int(99 * remaining_days / 365 * 100) / 100
+            hairs_to_deduct = 1000
+            
+            cash_deduction = 0.0
+            actual_refund = calculated_refund
+            
+            if total_hairs < hairs_to_deduct:
+                missing_hairs = hairs_to_deduct - total_hairs
+                cash_deduction = round(missing_hairs * 0.01, 2)
+                actual_refund = max(0, calculated_refund - cash_deduction)
+            
+            calculation.update({
+                'member_price': 99,
+                'remaining_days': remaining_days,
+                'refund_amount_requested': calculated_refund,
+                'hairs_to_deduct': hairs_to_deduct,
+                'hairs_sufficient': total_hairs >= hairs_to_deduct,
+                'missing_hairs': max(0, hairs_to_deduct - total_hairs),
+                'cash_deduction': cash_deduction,
+                'actual_refund': actual_refund
+            })
+        
+        return calculation
 
     def approve_application(self, application_id, admin_user_id=0, rejection_reason=None):
         """
@@ -253,7 +338,6 @@ class RefundService:
         """处理充值退款（带重试机制）"""
         from models import RechargeRecord
         from payment_service import WeChatPayService
-        import logging
 
         refund_logger = logging.getLogger('refund')
 
@@ -264,6 +348,41 @@ class RefundService:
 
         if not order:
             return {'success': False, 'error': '找不到可退款的充值订单'}
+
+        # 检查是否是手动修复的订单（没有真实微信支付）
+        is_manual_order = order.transaction_id and order.transaction_id.startswith('MANUAL_FIX')
+
+        if is_manual_order:
+            # 手动订单：跳过微信退款，直接在系统内标记
+            refund_logger.info(
+                f"[REFUND] 手动订单跳过微信退款: order_no={order.order_no}, "
+                f"transaction_id={order.transaction_id}"
+            )
+
+            # 更新订单状态
+            order.payment_status = 'refunded'
+            order.refund_amount = float(application.refund_amount)
+            order.refunded_at = datetime.now()
+
+            # 更新申请状态
+            application.status = 'approved'
+            application.approved_at = datetime.now()
+            db.session.commit()
+
+            # 扣回发丝
+            self._deduct_hairs_on_refund(user, application)
+
+            refund_logger.info(
+                f"[REFUND] 手动订单退款完成: application_id={application.id}, "
+                f"user_id={user.id}, amount={application.refund_amount}"
+            )
+
+            return {
+                'success': True,
+                'status': 'approved',
+                'refund_no': 'MANUAL',
+                'wechat_refund_id': None
+            }
 
         # 发起微信退款（带重试，最多3次）
         refund_no = f"RF{int(time.time())}{uuid.uuid4().hex[:8]}"
@@ -302,7 +421,6 @@ class RefundService:
 
             # 其他错误，等待后重试
             if attempt < max_retries:
-                import time
                 wait_seconds = 2 * attempt  # 2s, 4s, 8s
                 refund_logger.info(f"[REFUND] {wait_seconds}s 后重试...")
                 time.sleep(wait_seconds)
@@ -310,12 +428,18 @@ class RefundService:
         if not refund_result.get('success'):
             return {'success': False, 'error': f'微信退款发起失败: {last_error}'}
 
+        # 更新订单状态
+        order.payment_status = 'refunded'
+        order.refund_amount = float(application.refund_amount)
+        order.refunded_at = datetime.now()
+
         # 更新申请状态
         application.status = 'approved'
         application.approved_at = datetime.now()
         db.session.commit()
 
-        # 注意：实际扣回发丝在微信退款回调中处理（process_refund_success）
+        # 立即扣回发丝（不依赖回调）
+        self._deduct_hairs_on_refund(user, application)
 
         refund_logger.info(
             f"[REFUND] 充值退款成功: application_id={application.id}, "
@@ -334,7 +458,6 @@ class RefundService:
         """处理会员退款（带重试机制）"""
         from models import MemberOrder
         from payment_service import WeChatPayService
-        import logging
 
         refund_logger = logging.getLogger('refund')
 
@@ -392,7 +515,6 @@ class RefundService:
 
             # 其他错误，等待后重试
             if attempt < max_retries:
-                import time
                 wait_seconds = 2 * attempt
                 refund_logger.info(f"[REFUND] {wait_seconds}s 后重试...")
                 time.sleep(wait_seconds)
@@ -413,16 +535,81 @@ class RefundService:
         user.member_level = 'normal'
         user.member_expire_at = None
 
-        # 记录财务流水
+        # 扣回会员赠送的 1000 发丝
+        total_hairs = (user.scissor_hairs or 0) + (user.comb_hairs or 0)
+        hairs_to_deduct = 1000
+        cash_deduction = 0.0
+
+        if total_hairs >= hairs_to_deduct:
+            # 发丝充足，直接扣回 1000 发丝
+            deduct_ratio = hairs_to_deduct / total_hairs if total_hairs > 0 else 0
+            deduct_scissor = int((user.scissor_hairs or 0) * deduct_ratio)
+            deduct_comb = int((user.comb_hairs or 0) * deduct_ratio)
+            
+            user.scissor_hairs = (user.scissor_hairs or 0) - deduct_scissor
+            user.comb_hairs = (user.comb_hairs or 0) - deduct_comb
+            
+            refund_logger.info(
+                f"[REFUND] 发丝充足，扣回 1000 发丝：scissor={deduct_scissor}, comb={deduct_comb}"
+            )
+        else:
+            # 发丝不足，扣回全部剩余发丝，差额用现金抵扣
+            deduct_scissor = user.scissor_hairs or 0
+            deduct_comb = user.comb_hairs or 0
+            remaining_hairs = total_hairs
+            
+            user.scissor_hairs = 0
+            user.comb_hairs = 0
+            
+            # 计算差额：10 元 = 1000 发丝，即 0.01 元/发丝
+            missing_hairs = hairs_to_deduct - remaining_hairs
+            cash_deduction = round(missing_hairs * 0.01, 2)
+            
+            refund_logger.info(
+                f"[REFUND] 发丝不足，扣回 {remaining_hairs} 发丝，现金抵扣 ¥{cash_deduction} "
+                f"(缺 {missing_hairs} 发丝 × 0.01 元)"
+            )
+
+        # 记录财务流水（退款金额减去现金抵扣）
+        actual_refund = calculated_refund - cash_deduction
+        
         from financial_service import FinancialService
         FinancialService.record_refund(
             user_id=user.id,
-            refund_amount=calculated_refund,
+            refund_amount=actual_refund,
             refund_type='membership',
             related_id=order.id
         )
 
-        # 注意：会员赠送的 1000 发丝不扣回（已确认策略）
+        # 如果有现金抵扣，记录发丝扣回流水
+        if deduct_scissor > 0 or deduct_comb > 0:
+            from models import ConsumptionRecord
+            consumption = ConsumptionRecord(
+                user_id=user.id,
+                task_id=f'membership_refund_{application.id}',
+                service_type='combined',
+                hairs_consumed=deduct_scissor + deduct_comb,
+                scissor_deducted=deduct_scissor,
+                comb_deducted=deduct_comb,
+                status='success'
+            )
+            db.session.add(consumption)
+
+        # 如果有现金抵扣，记录现金扣回流水
+        if cash_deduction > 0:
+            from models import FinancialRecord
+            cash_record = FinancialRecord(
+                user_id=user.id,
+                record_type='cash_consumption',
+                amount=-cash_deduction,
+                description=f'会员退款发丝不足抵扣 (缺{hairs_to_deduct - total_hairs}发丝)',
+                payment_method='balance',
+                related_id=application.id,
+                related_type='refund_application',
+                hairs_changed=hairs_to_deduct - total_hairs,
+                status='success'
+            )
+            db.session.add(cash_record)
 
         db.session.commit()
 
@@ -440,3 +627,109 @@ class RefundService:
             'remaining_days': remaining_days,
             'wechat_refund_id': refund_result.get('refund_id')
         }
+
+    def _deduct_hairs_on_refund(self, user, application):
+        """
+        退款时扣回用户发丝（充值退款通用规则）
+
+        规则：梳子卡槽发丝是赠送的，退款时只扣回剪刀卡槽发丝。
+        剪刀发丝充足则全额扣回；不足则扣回全部剩余剪刀发丝，
+        差额按 10元=1000发丝（0.01元/发丝）从退款金额中抵扣。
+
+        Args:
+            user: User 对象
+            application: RefundApplication 对象
+        """
+        from models import RechargeRecord, ConsumptionRecord, FinancialRecord
+        import logging
+
+        refund_logger = logging.getLogger('refund')
+
+        # 找到原订单
+        order = RechargeRecord.query.filter_by(
+            user_id=user.id, payment_status='refunded'
+        ).order_by(RechargeRecord.refunded_at.desc()).first()
+
+        if not order:
+            refund_logger.warning(f"[REFUND] 找不到已退款订单，无法扣回发丝: user_id={user.id}")
+            return
+
+        # 按退款比例计算应扣回的发丝（只扣剪刀卡槽，梳子是赠送的不扣）
+        refund_ratio = float(application.refund_amount) / float(order.amount)
+        need_scissor = int(order.scissor_hairs * refund_ratio)
+        hairs_to_deduct = need_scissor
+
+        scissor_hairs = user.scissor_hairs or 0
+        cash_deduction = 0.0
+        deduct_scissor = 0
+
+        if scissor_hairs >= hairs_to_deduct:
+            # 剪刀发丝充足，扣回应扣数量
+            deduct_scissor = need_scissor
+            user.scissor_hairs = scissor_hairs - deduct_scissor
+
+            refund_logger.info(
+                f"[REFUND] 剪刀发丝充足，扣回 {deduct_scissor} 发丝"
+            )
+        else:
+            # 剪刀发丝不足，扣回全部剩余剪刀发丝，差额用现金抵扣
+            deduct_scissor = scissor_hairs
+            user.scissor_hairs = 0
+
+            missing_hairs = hairs_to_deduct - scissor_hairs
+            cash_deduction = round(missing_hairs * 0.01, 2)
+
+            refund_logger.info(
+                f"[REFUND] 剪刀发丝不足，扣回 {deduct_scissor} 发丝，现金抵扣 ¥{cash_deduction} "
+                f"(缺 {missing_hairs} 发丝 × 0.01 元)"
+            )
+
+        # 记录消费流水
+        if deduct_scissor > 0:
+            consumption = ConsumptionRecord(
+                user_id=user.id,
+                task_id=f'refund_{application.id}',
+                service_type='combined',
+                hairs_consumed=deduct_scissor,
+                scissor_deducted=deduct_scissor,
+                comb_deducted=0,
+                status='success'
+            )
+            db.session.add(consumption)
+
+        # 记录退款财务流水（退款金额减去现金抵扣）
+        actual_refund = float(application.refund_amount) - cash_deduction
+        financial = FinancialRecord(
+            user_id=user.id,
+            record_type='refund',
+            amount=-actual_refund,
+            description=f'退款扣回 (申请#{application.id})',
+            payment_method='wechat',
+            related_id=application.id,
+            related_type='refund_application',
+            hairs_changed=deduct_scissor,
+            status='success'
+        )
+        db.session.add(financial)
+
+        # 如果有现金抵扣，记录现金扣回流水
+        if cash_deduction > 0:
+            cash_record = FinancialRecord(
+                user_id=user.id,
+                record_type='cash_consumption',
+                amount=-cash_deduction,
+                description=f'退款发丝不足抵扣 (缺{hairs_to_deduct - scissor_hairs}发丝)',
+                payment_method='balance',
+                related_id=application.id,
+                related_type='refund_application',
+                hairs_changed=hairs_to_deduct - scissor_hairs,
+                status='success'
+            )
+            db.session.add(cash_record)
+
+        db.session.commit()
+
+        refund_logger.info(
+            f"[REFUND] 发丝扣回完成: user_id={user.id}, "
+            f"scissor={deduct_scissor}, cash_deduction=¥{cash_deduction}"
+        )

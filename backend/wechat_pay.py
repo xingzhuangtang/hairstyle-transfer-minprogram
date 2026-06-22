@@ -299,6 +299,73 @@ class WeChatPayClient:
                 'error': str(e)
             }
 
+    def query_order(self, order_no):
+        """
+        查询微信支付订单状态 (API v3)
+
+        Args:
+            order_no: 商户订单号 (out_trade_no)
+
+        Returns:
+            dict: {
+                'success': bool,
+                'trade_state': str,  # SUCCESS/NOTPAY/CLOSED/REFUND/PAYERROR/USERPAYING
+                'transaction_id': str,  # 微信支付订单号
+                'error': str
+            }
+        """
+        try:
+            print(f"\n🔍 查询微信支付订单状态...")
+            print(f"   订单号: {order_no}")
+
+            # 调用查询订单API
+            response = self.client.query(out_trade_no=order_no)
+
+            # 处理返回值
+            if isinstance(response, tuple):
+                status_code, result = response
+            else:
+                result = response
+                status_code = 200
+
+            # 处理返回值可能是 JSON 字符串
+            if isinstance(result, str):
+                try:
+                    import json
+                    result = json.loads(result)
+                except:
+                    pass
+
+            print(f"   SDK返回: status={status_code}")
+            print(f"   响应内容: {result}")
+
+            if isinstance(result, dict) and result.get('trade_state'):
+                trade_state = result['trade_state']
+                print(f"   交易状态: {trade_state}")
+
+                return {
+                    'success': True,
+                    'trade_state': trade_state,
+                    'transaction_id': result.get('transaction_id', ''),
+                    'trade_state_desc': result.get('trade_state_desc', '')
+                }
+            else:
+                error_msg = '查询订单失败：' + str(result) if result else '查询订单失败'
+                print(f"❌ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+
+        except Exception as e:
+            print(f"❌ 查询微信支付订单异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def refund_order(self, order_no, refund_no, amount, reason='用户申请退款'):
         """
         发起退款请求 (API v3)

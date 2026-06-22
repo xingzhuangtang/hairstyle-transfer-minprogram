@@ -1,0 +1,17 @@
+[Unit]
+Description=Hairstyle Transfer Backend Service
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hairstyle-transfer-v5.3-release/backend
+ExecStart=/usr/bin/python3 /opt/hairstyle-transfer-v5.3-release/backend/app.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/hairstyle-transfer.log
+StandardError=append:/var/log/hairstyle-transfer-error.log
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
