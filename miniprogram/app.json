@@ -16,7 +16,10 @@
     "pages/about/about",
     "pages/consumption/consumption",
     "pages/referral/referral",
-    "pages/refund/refund"
+    "pages/refund/refund",
+    "pages/refund-admin/refund-admin",
+    "pages/customer-admin/customer-admin",
+    "pages/monitor/monitor"
   ],
   "window": {
     "backgroundTextStyle": "light",

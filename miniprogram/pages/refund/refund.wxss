@@ -111,3 +111,144 @@
 .submit-btn.disabled {
   background: #ccc;
 }
+
+.calculate-btn {
+  background: #1890ff;
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 8rpx;
+  padding: 16rpx 0;
+}
+
+.calculate-btn.disabled {
+  background: #aaa;
+}
+
+.calculation-panel {
+  background: #fff;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+  border: 2rpx solid #1890ff;
+}
+
+.calculation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: #1890ff;
+}
+
+.calculation-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.close-btn {
+  font-size: 40rpx;
+  color: #fff;
+  line-height: 1;
+  padding: 0 8rpx;
+}
+
+.calculation-content {
+  padding: 24rpx;
+}
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+}
+
+.calc-row.warning {
+  color: #fa8c16;
+}
+
+.calc-row.result {
+  padding: 16rpx 0;
+  font-weight: bold;
+}
+
+.calc-row.result.success {
+  color: #52c41a;
+}
+
+.calc-row.result.warning {
+  color: #fa8c16;
+}
+
+.calc-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.calc-value {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.calc-value.amount {
+  font-size: 36rpx;
+}
+
+.calc-divider {
+  height: 1rpx;
+  background: #eee;
+  margin: 12rpx 0;
+}
+
+.calc-tip {
+  font-size: 24rpx;
+  color: #52c41a;
+  margin-top: 16rpx;
+  padding: 12rpx;
+  background: #f6ffed;
+  border-radius: 8rpx;
+  text-align: center;
+}
+
+.calc-tip.warning {
+  color: #fa8c16;
+  background: #fff7e6;
+}
+
+.picker-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  min-height: 48rpx;
+}
+
+.picker-wrapper.loading,
+.picker-wrapper.empty {
+  justify-content: center;
+  color: #999;
+}
+
+.picker-wrapper.selected {
+  background: #f0f9ff;
+  border: 1rpx solid #1890ff;
+}
+
+.picker-value {
+  font-size: 32rpx;
+  color: #07c160;
+  font-weight: bold;
+}
+
+.picker-placeholder {
+  color: #999;
+}
+
+.picker-arrow {
+  color: #999;
+  font-size: 24rpx;
+}

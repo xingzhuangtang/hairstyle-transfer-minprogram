@@ -1,11 +1,8 @@
 // pages/member/member.js
-import { getMemberInfo, buyMember, getMemberOrders, payMemberOrder } from '../../api/member.js'
+import { getMemberInfo, getMemberOrders } from '../../api/member.js'
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus } from '../../api/payment.js'
-import { needsVirtualPay, getVirtualGoodsKey } from '../../utils/platform.js'
-import { onLocaleChange } from '../../utils/i18n.js'
-
-const app = getApp()
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
+import { getVirtualGoodsKey } from '../../utils/platform.js'
 
 Page({
   data: {
@@ -13,138 +10,15 @@ Page({
     isVip: false,
     remainingDays: 0,
     expireAt: '',
-    orders: [],
-    isVirtualPay: false, // 是否使用虚拟支付（iOS端）
-    isDevTools: false,
-    currentOrderNo: '',
-    // i18n
-    tMemberUser: '',
-    tMemberWechatUser: '',
-    tMemberCompanionVip: '',
-    tMemberNormalUser: '',
-    tMemberRemainingDays: '',
-    tMemberExpireTime: '',
-    tMemberDays: '',
-    tMemberPrivileges: '',
-    tMemberPrivilege1Title: '',
-    tMemberPrivilege1Desc: '',
-    tMemberPrivilege2Title: '',
-    tMemberPrivilege2Desc: '',
-    tMemberPrivilege3Title: '',
-    tMemberPrivilege3Desc: '',
-    tMemberPrivilege4Title: '',
-    tMemberPrivilege4Desc: '',
-    tMemberOpenMember: '',
-    tMemberPricePeriod: '',
-    tMemberOpenNow: '',
-    tMemberOrders: '',
-    tMemberNoOrders: '',
-    tMemberOrderNo: '',
-    tMemberBonusHairs: '',
-    tMemberRenewTip: '',
-    tMemberRenewNow: '',
-    tMemberConfirmOpen: '',
-    tMemberConfirmOpenContent: '',
-    tMemberCreatingOrder: '',
-    tMemberVirtualPay: '',
-    tMemberVirtualPayTip: '',
-    tMemberPaySuccess: '',
-    tMemberPayFail: '',
-    tMemberPayCancel: '',
-    tMemberPayTimeout: '',
-    tMemberQueryFail: '',
-    tMemberOrderPaid: '',
-    tMemberOrderPending: '',
-    tMemberOrderFailed: '',
-    tMemberProcessing: '',
-    tMemberLoadFail: ''
+    orders: []
   },
 
   onLoad() {
-    this._loadI18n()
-    this._setupLocaleListener()
-    app.setNavTitle(this, 'member.title')
     this.loadMemberInfo()
-    this.checkPlatform()
   },
 
   onShow() {
-    this._loadI18n()
-    app.setNavTitle(this, 'member.title')
     this.loadMemberInfo()
-  },
-
-  _loadI18n() {
-    const t = (key) => app.t(key)
-    this.setData({
-      tMemberUser: t('member.user'),
-      tMemberWechatUser: t('member.wechatUser'),
-      tMemberCompanionVip: t('member.companionVip'),
-      tMemberNormalUser: t('member.normalUser'),
-      tMemberRemainingDays: t('member.remainingDays'),
-      tMemberExpireTime: t('member.expireTime'),
-      tMemberDays: t('member.days'),
-      tMemberPrivileges: t('member.privileges'),
-      tMemberPrivilege1Title: t('member.privilege1Title'),
-      tMemberPrivilege1Desc: t('member.privilege1Desc'),
-      tMemberPrivilege2Title: t('member.privilege2Title'),
-      tMemberPrivilege2Desc: t('member.privilege2Desc'),
-      tMemberPrivilege3Title: t('member.privilege3Title'),
-      tMemberPrivilege3Desc: t('member.privilege3Desc'),
-      tMemberPrivilege4Title: t('member.privilege4Title'),
-      tMemberPrivilege4Desc: t('member.privilege4Desc'),
-      tMemberOpenMember: t('member.openMember'),
-      tMemberPricePeriod: t('member.price'),
-      tMemberOpenNow: t('member.openNow'),
-      tMemberOrders: t('member.memberOrders'),
-      tMemberNoOrders: t('member.noOrders'),
-      tMemberOrderNo: t('member.orderNo'),
-      tMemberBonusHairs: t('member.bonusHairs'),
-      tMemberRenewTip: t('member.renewTip'),
-      tMemberRenewNow: t('member.renewNow'),
-      tMemberConfirmOpen: t('member.confirmOpen'),
-      tMemberConfirmOpenContent: t('member.confirmOpenContent'),
-      tMemberCreatingOrder: t('balance.creatingOrder'),
-      tMemberVirtualPay: t('balance.virtualPay'),
-      tMemberVirtualPayTip: t('balance.virtualPayTip'),
-      tMemberPaySuccess: t('balance.paySuccess'),
-      tMemberPayFail: t('balance.payFail'),
-      tMemberPayCancel: t('balance.payCancel'),
-      tMemberPayTimeout: t('balance.payTimeout'),
-      tMemberQueryFail: t('balance.queryFail'),
-      tMemberOrderPaid: t('member.orderPaid'),
-      tMemberOrderPending: t('member.orderPending'),
-      tMemberOrderFailed: t('member.orderFailed'),
-      tMemberProcessing: t('balance.processing'),
-      tMemberLoadFail: t('common.loadFail')
-    })
-  },
-
-  _setupLocaleListener() {
-    onLocaleChange(() => {
-      this._loadI18n()
-      app.setNavTitle(this, 'member.title')
-    })
-  },
-
-  /**
-   * 检测当前平台
-   */
-  async checkPlatform() {
-    const isVirtual = needsVirtualPay()
-    const systemInfo = wx.getSystemInfoSync()
-    const isDev = systemInfo.platform === 'devtools'
-
-    this.setData({
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
-
-    console.log('会员页平台检测:', {
-      platform: systemInfo.platform,
-      isVirtualPay: isVirtual,
-      isDevTools: isDev
-    })
   },
 
   async loadMemberInfo() {
@@ -164,6 +38,7 @@ Page({
 
         if (isVip) {
           this.loadMemberOrders()
+          this.updateCountdown()
         }
       }
     } catch (e) {
@@ -178,8 +53,7 @@ Page({
         const orders = res.orders.map(order => ({
           ...order,
           payment_status_text: this.getPaymentStatusText(order.payment_status),
-          created_at: this.formatDate(order.created_at),
-          bonus_hairs_text: this.data.tMemberBonusHairs.replace('{hairs}', String(order.bonus_hairs || 0))
+          created_at: this.formatDate(order.created_at)
         }))
         this.setData({ orders })
       }
@@ -190,23 +64,16 @@ Page({
 
   async buyMember() {
     wx.showModal({
-      title: this.data.tMemberConfirmOpen,
-      content: this.data.tMemberConfirmOpenContent,
+      title: '确认开通',
+      content: '开通陪跑会员 ¥99/年，购买即赠 1000 发丝，确认继续？',
       success: async (modalRes) => {
         if (modalRes.confirm) {
           try {
-            wx.showLoading({ title: this.data.tMemberCreatingOrder })
-
-            // iOS端使用虚拟支付
-            if (this.data.isVirtualPay || this.data.isDevTools) {
-              await this.handleVirtualPay()
-            } else {
-              // Android端使用普通微信支付
-              await this.handleNormalPay()
-            }
+            wx.showLoading({ title: '创建订单中...' })
+            await this.handleVirtualPay()
           } catch (e) {
             wx.hideLoading()
-            wx.showToast({ title: e.message || this.data.tMemberPayFail, icon: 'none' })
+            wx.showToast({ title: e.message || '创建订单失败', icon: 'none' })
           }
         }
       }
@@ -214,70 +81,55 @@ Page({
   },
 
   /**
-   * 处理普通微信支付（Android端）
-   */
-  async handleNormalPay() {
-    const orderRes = await buyMember('wechat')
-    if (!orderRes.success) throw new Error(orderRes.error)
-
-    const orderNo = orderRes.order_no
-    this.setData({ currentOrderNo: orderNo })
-    wx.hideLoading()
-    await this.handleWechatPay(orderNo)
-  },
-
-  /**
-   * 处理微信虚拟支付（iOS端）
+   * 处理微信虚拟支付（全平台统一使用）
    */
   async handleVirtualPay() {
     const goodsKey = getVirtualGoodsKey('member', 99)
-    const orderRes = await createVirtualPayOrder('member', 99, goodsKey)
+    
+    // 先获取 session_key（用于虚拟支付签名）
+    const sessionKey = await getSessionKey()
+    
+    const orderRes = await createVirtualPayOrder('member', 99, goodsKey, sessionKey)
     if (!orderRes.success) throw new Error(orderRes.error)
 
     const orderNo = orderRes.order_no
     this.setData({ currentOrderNo: orderNo })
-    wx.hideLoading()
 
-    wx.showModal({
-      title: this.data.tMemberVirtualPay,
-      content: this.data.tMemberVirtualPayTip + ' ¥99',
-      showCancel: false,
-      success: () => {
-        this.checkVirtualPayOrderStatus(orderNo)
-      }
-    })
-  },
-
-  async handleWechatPay(orderNo) {
-    try {
-      const payRes = await payMemberOrder(orderNo, 'wechat')
-      if (!payRes.success) throw new Error(payRes.error)
-
-      // 调起微信支付
-      wx.requestPayment({
-        ...payRes.wxpay_params,
-        total_fee: payRes.wxpay_params.total_fee || 0,
+    if (orderRes.is_developer_mode) {
+      wx.hideLoading()
+      wx.showModal({
+        title: '模拟支付',
+        content: '开发者模式：开通会员成功，已赠送 1000 发丝',
+        showCancel: false,
         success: () => {
-          wx.showToast({ title: this.data.tMemberPaySuccess, icon: 'success' })
-          setTimeout(() => this.loadMemberInfo(), 1500)
-        },
-        fail: (err) => {
-          wx.showToast({
-            title: err.errMsg.includes('cancel') ? this.data.tMemberPayCancel : this.data.tMemberPayFail,
-            icon: 'none'
-          })
+          this.loadMemberInfo()
         }
       })
-    } catch (e) {
-      wx.showToast({ title: e.message || this.data.tMemberPayFail, icon: 'none' })
+      return
+    }
+
+    wx.hideLoading()
+
+    const payParams = orderRes.virtual_pay_params
+    if (!payParams) throw new Error('获取虚拟支付参数失败')
+
+    try {
+      await requestVirtualPay(payParams)
+      this.checkVirtualPayOrderStatus(orderNo)
+    } catch (err) {
+      console.error('调起虚拟支付失败:', err)
+      wx.showToast({
+        title: '调起支付失败',
+        icon: 'none'
+      })
     }
   },
 
   /**
-   * 查询虚拟支付订单状态（iOS端）
+   * 查询虚拟支付订单状态
    */
   async checkVirtualPayOrderStatus(orderNo) {
-    wx.showLoading({ title: this.data.tMemberProcessing })
+    wx.showLoading({ title: '处理中...' })
 
     let count = 0
     const maxCount = 15
@@ -294,7 +146,7 @@ Page({
             clearInterval(timer)
             wx.hideLoading()
 
-            wx.showToast({ title: this.data.tMemberOrderPaid, icon: 'success' })
+            wx.showToast({ title: '支付成功，会员已开通', icon: 'success' })
             setTimeout(() => this.loadMemberInfo(), 1500)
 
           } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
@@ -302,14 +154,14 @@ Page({
             wx.hideLoading()
 
             wx.showToast({
-              title: paymentStatus === 'failed' ? this.data.tMemberOrderFailed : this.data.tMemberPayCancel,
+              title: paymentStatus === 'failed' ? '支付失败' : '已取消支付',
               icon: 'none'
             })
 
           } else if (count >= maxCount) {
             clearInterval(timer)
             wx.hideLoading()
-            wx.showToast({ title: this.data.tMemberPayTimeout, icon: 'none' })
+            wx.showToast({ title: '支付处理超时', icon: 'none' })
           }
         }
 
@@ -317,7 +169,7 @@ Page({
         clearInterval(timer)
         wx.hideLoading()
         console.error('查询虚拟支付订单状态失败:', e)
-        wx.showToast({ title: this.data.tMemberQueryFail, icon: 'none' })
+        wx.showToast({ title: '查询订单失败', icon: 'none' })
       }
     }, 2000)
 
@@ -332,11 +184,7 @@ Page({
   },
 
   getPaymentStatusText(status) {
-    const map = {
-      'success': this.data.tMemberOrderPaid,
-      'pending': this.data.tMemberOrderPending,
-      'failed': this.data.tMemberOrderFailed
-    }
+    const map = { 'success': '已支付', 'pending': '待支付', 'failed': '支付失败' }
     return map[status] || status
   },
 
@@ -344,5 +192,45 @@ Page({
     if (!dateStr) return ''
     const d = new Date(dateStr)
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  },
+
+  updateCountdown() {
+    if (!this.data.expireAt) return
+
+    const expireDate = new Date(this.data.expireAt)
+    const now = new Date()
+    const diffMs = expireDate - now
+
+    let countdownText = ''
+
+    if (diffMs <= 0) {
+      countdownText = '已过期'
+    } else {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffHours / 24)
+
+      if (diffDays >= 1) {
+        countdownText = `剩余${diffDays}天`
+      } else {
+        countdownText = `剩余${diffHours}小时`
+      }
+    }
+
+    this.setData({ expireCountdownText: countdownText })
+  },
+
+  startCountdownTimer() {
+    this.stopCountdownTimer()
+    this.updateCountdown()
+    this.data.countdownTimer = setInterval(() => {
+      this.updateCountdown()
+    }, 60 * 60 * 1000) // 每小时更新一次
+  },
+
+  stopCountdownTimer() {
+    if (this.data.countdownTimer) {
+      clearInterval(this.data.countdownTimer)
+      this.setData({ countdownTimer: null })
+    }
   }
 })
