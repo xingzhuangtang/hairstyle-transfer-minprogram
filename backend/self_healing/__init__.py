@@ -127,7 +127,7 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     from .api import monitor_bp, _init_api
 
     def _default_is_developer():
-        return True
+        return False
 
     _init_api(
         app, _alert_manager, _collector, db,
