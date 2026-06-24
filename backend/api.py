@@ -3375,7 +3375,6 @@ def chat_reply():
 def get_financial_records():
     """获取用户财务流水记录"""
     try:
-        from financial_service import FinancialService
 
         user = g.current_user
         page = request.args.get('page', 1, type=int)

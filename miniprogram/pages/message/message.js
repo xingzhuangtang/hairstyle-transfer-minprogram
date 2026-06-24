@@ -1,12 +1,78 @@
 // pages/message/message.js
 import { API_BASE_URL } from '../../utils/constants.js'
+import { onLocaleChange } from '../../utils/i18n.js'
+
+const app = getApp()
 
 Page({
   data: {
     name: '',
     phone: '',
     content: '',
-    submitting: false
+    submitting: false,
+    // i18n
+    tMsgTitle: '',
+    tMsgSubtitle: '',
+    tMsgName: '',
+    tMsgPhone: '',
+    tMsgContent: '',
+    tMsgNamePlaceholder: '',
+    tMsgPhonePlaceholder: '',
+    tMsgContentPlaceholder: '',
+    tMsgSubmit: '',
+    tMsgSubmitSuccess: '',
+    tMsgSubmitFail: '',
+    tMsgRequired: '',
+    tMsgNameRequired: '',
+    tMsgNameTooLong: '',
+    tMsgPhoneRequired: '',
+    tMsgContentRequired: '',
+    tMsgContentTooLong: '',
+    tMsgNetworkFail: ''
+  },
+
+  onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+  },
+
+  onShow() {
+    this._loadI18n()
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tMsgTitle: t('message.title'),
+      tMsgSubtitle: t('message.subtitle'),
+      tMsgName: t('message.name'),
+      tMsgPhone: t('message.phone'),
+      tMsgContent: t('message.content'),
+      tMsgNamePlaceholder: t('message.namePlaceholder'),
+      tMsgPhonePlaceholder: t('message.phonePlaceholder'),
+      tMsgContentPlaceholder: t('message.contentPlaceholder'),
+      tMsgSubmit: t('message.submit'),
+      tMsgSubmitSuccess: t('message.submitSuccess'),
+      tMsgSubmitFail: t('message.submitFail'),
+      tMsgRequired: t('message.required'),
+      tMsgNameRequired: t('message.nameRequired'),
+      tMsgNameTooLong: t('message.nameTooLong'),
+      tMsgPhoneRequired: t('message.phoneRequired'),
+      tMsgContentRequired: t('message.contentRequired'),
+      tMsgContentTooLong: t('message.contentTooLong'),
+      tMsgNetworkFail: t('message.networkFail')
+    })
+    this._updateNavTitle()
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+    })
+  },
+
+  _updateNavTitle() {
+    app.setNavTitle(this, 'message.title')
   },
 
   /**
@@ -68,18 +134,18 @@ Page({
             if (res.statusCode === 200) {
               resolve(res.data)
             } else {
-              reject(new Error(res.data.error || '提交失败'))
+              reject(new Error(res.data.error || this.data.tMsgSubmitFail))
             }
           },
           fail: (err) => {
-            reject(new Error('网络请求失败'))
+            reject(new Error(this.data.tMsgNetworkFail))
           }
         })
       })
 
       // 提交成功
       wx.showToast({
-        title: '留言提交成功',
+        title: this.data.tMsgSubmitSuccess,
         icon: 'success',
         duration: 2000
       })
@@ -99,7 +165,7 @@ Page({
     } catch (e) {
       console.error('提交留言失败:', e)
       wx.showToast({
-        title: e.message || '提交失败，请重试',
+        title: e.message || this.data.tMsgSubmitFail,
         icon: 'none',
         duration: 2000
       })
@@ -116,7 +182,7 @@ Page({
 
     if (!name || !name.trim()) {
       wx.showToast({
-        title: '请输入姓名',
+        title: this.data.tMsgNameRequired,
         icon: 'none'
       })
       return false
@@ -124,7 +190,7 @@ Page({
 
     if (name.length > 20) {
       wx.showToast({
-        title: '姓名最多20个字符',
+        title: this.data.tMsgNameTooLong,
         icon: 'none'
       })
       return false
@@ -132,7 +198,7 @@ Page({
 
     if (!phone || phone.length !== 11) {
       wx.showToast({
-        title: '请输入11位手机号码',
+        title: this.data.tMsgPhoneRequired,
         icon: 'none'
       })
       return false
@@ -140,7 +206,7 @@ Page({
 
     if (!content || !content.trim()) {
       wx.showToast({
-        title: '请输入留言内容',
+        title: this.data.tMsgContentRequired,
         icon: 'none'
       })
       return false
@@ -148,7 +214,7 @@ Page({
 
     if (content.length > 500) {
       wx.showToast({
-        title: '留言内容最多500个字符',
+        title: this.data.tMsgContentTooLong,
         icon: 'none'
       })
       return false

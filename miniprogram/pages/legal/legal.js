@@ -1,15 +1,30 @@
 // pages/legal/legal.js
+const { onLocaleChange } = require('../../utils/i18n.js')
+
+const app = getApp()
+
 Page({
   data: {
     title: '',
     version: '',
     updateDate: '',
-    content: ''
+    content: '',
+    // i18n
+    tLegalLoading: '',
+    tLegalLoadFail: '',
+    tLegalNetworkError: '',
+    tDefaultTitle: '',
+    tLegalVersionLabel: '',
+    tLegalUpdateDateLabel: ''
   },
 
   onLoad(options) {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'legal.title')
+
     const type = options.type || 'agreement'
-    const title = options.title || '协议内容'
+    const title = options.title || this.data.tDefaultTitle
 
     this.setData({ title })
 
@@ -26,7 +41,7 @@ Page({
 
     // 如果没有缓存，重新请求 API
     if (!html) {
-      wx.showLoading({ title: '加载中...' })
+      wx.showLoading({ title: this.data.tLegalLoading })
       const url = type === 'agreement'
         ? 'https://xn--gmq63iba0780e.com/api/legal/user-agreement'
         : 'https://xn--gmq63iba0780e.com/api/legal/privacy-policy'
@@ -43,13 +58,13 @@ Page({
               updateDate: res.data.update_date || ''
             })
           } else {
-            wx.showToast({ title: '加载失败', icon: 'none' })
+            wx.showToast({ title: this.data.tLegalLoadFail, icon: 'none' })
           }
         },
         fail: (err) => {
           wx.hideLoading()
           console.error('加载失败:', err)
-          wx.showToast({ title: '网络错误', icon: 'none' })
+          wx.showToast({ title: this.data.tLegalNetworkError, icon: 'none' })
         }
       })
     } else {
@@ -59,5 +74,27 @@ Page({
         updateDate: updateDate
       })
     }
+  },
+
+  onShow() {
+    this._loadI18n()
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tLegalLoading: t('legal.loading'),
+      tLegalLoadFail: t('legal.loadFail'),
+      tLegalNetworkError: t('legal.networkError'),
+      tDefaultTitle: t('legal.defaultTitle'),
+      tLegalVersionLabel: t('legal.versionLabel'),
+      tLegalUpdateDateLabel: t('legal.updateDateLabel')
+    })
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+    })
   }
 })

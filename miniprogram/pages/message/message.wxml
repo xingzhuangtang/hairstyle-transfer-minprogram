@@ -1,18 +1,18 @@
 <!--pages/message/message.wxml-->
 <view class="message-container">
   <view class="header">
-    <text class="title">客户留言</text>
-    <text class="subtitle">感谢您的反馈，我们会尽快与您联系</text>
+    <text class="title">{{tMsgTitle}}</text>
+    <text class="subtitle">{{tMsgSubtitle}}</text>
   </view>
 
   <view class="form-section">
     <!-- 姓名输入 -->
     <view class="form-item">
-      <text class="label">姓名 <text class="required">*</text></text>
+      <text class="label">{{tMsgName}} <text class="required">{{tMsgRequired}}</text></text>
       <input
         class="input"
         type="text"
-        placeholder="请输入您的姓名"
+        placeholder="{{tMsgNamePlaceholder}}"
         maxlength="20"
         value="{{name}}"
         bindinput="onNameInput"
@@ -22,11 +22,11 @@
 
     <!-- 电话输入 -->
     <view class="form-item">
-      <text class="label">联系电话 <text class="required">*</text></text>
+      <text class="label">{{tMsgPhone}} <text class="required">{{tMsgRequired}}</text></text>
       <input
         class="input"
         type="number"
-        placeholder="请输入11位手机号码"
+        placeholder="{{tMsgPhonePlaceholder}}"
         maxlength="11"
         value="{{phone}}"
         bindinput="onPhoneInput"
@@ -36,10 +36,10 @@
 
     <!-- 留言内容 -->
     <view class="form-item">
-      <text class="label">留言内容 <text class="required">*</text></text>
+      <text class="label">{{tMsgContent}} <text class="required">{{tMsgRequired}}</text></text>
       <textarea
         class="textarea"
-        placeholder="请输入您的留言内容（最多500字）"
+        placeholder="{{tMsgContentPlaceholder}}"
         maxlength="500"
         value="{{content}}"
         bindinput="onContentInput"
@@ -56,7 +56,7 @@
       loading="{{submitting}}"
       disabled="{{!name || !phone || !content || phone.length !== 11 || submitting}}"
     >
-      提交留言
+      {{tMsgSubmit}}
     </button>
   </view>
 </view>

@@ -1,54 +1,147 @@
 // pages/consumption/consumption.js
 import { API_BASE_URL } from '../../utils/constants.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
-// 发丝消费服务类型配置
+const app = getApp()
+
+// 发丝消费服务类型配置（key only, labels from i18n）
 const SERVICE_TYPE_CONFIG = {
-  hair_segment: { name: '发型提取', icon: '✂️' },
-  face_merge: { name: '发型融合', icon: '🔄' },
-  sketch: { name: '素描转换', icon: '🖊️' },
-  combined: { name: '一键生成', icon: '⚡' },
-  fm_step: { name: '发型融合-步骤', icon: '🔄' },
-  sk_step: { name: '素描转换-步骤', icon: '📝' }
+  hair_segment: { icon: '✂️' },
+  face_merge: { icon: '🔄' },
+  sketch: { icon: '🖊️' },
+  combined: { icon: '⚡' },
+  fm_step: { icon: '🔄' },
+  sk_step: { icon: '📝' }
 }
 
 // 财务记录类型配置
 const FINANCIAL_TYPE_CONFIG = {
-  recharge: { name: '充值', icon: '💰', color: '#07c160' },
-  member_purchase: { name: '会员购买', icon: '👑', color: '#ff9900' },
-  refund: { name: '退款', icon: '💸', color: '#e64340' },
-  commission: { name: '推广佣金', icon: '🎯', color: '#576b95' },
-  withdrawal: { name: '提现', icon: '🏦', color: '#fa5151' },
-  cash_consumption: { name: '存钱罐消费', icon: '🛒', color: '#ff6b35' }
-}
-
-// 状态配置
-const STATUS_CONFIG = {
-  success: '成功',
-  pending: '处理中',
-  failed: '失败'
+  recharge: { icon: '💰', color: '#07c160' },
+  member_purchase: { icon: '👑', color: '#ff9900' },
+  refund: { icon: '💸', color: '#e64340' },
+  commission: { icon: '🎯', color: '#576b95' },
+  withdrawal: { icon: '🏦', color: '#fa5151' },
+  cash_consumption: { icon: '🛒', color: '#ff6b35' }
 }
 
 Page({
   data: {
-    activeTab: 'hair', // 'hair' = 发丝消费, 'money' = 银两消费
-    // 发丝消费相关
+    activeTab: 'hair',
     hairRecords: [],
     totalHairConsumed: 0,
     hairFilter: 'all',
     hairPage: 1,
     hairNoMore: false,
-    // 银两消费相关
     moneyRecords: [],
     moneyPage: 1,
     moneyNoMore: false,
     moneyFilter: 'all',
-    // 通用
     loading: false,
-    pageSize: 20
+    pageSize: 20,
+    // i18n
+    tConsHairTab: '',
+    tConsMoneyTab: '',
+    tConsTotalConsumed: '',
+    tConsumptionCount: '',
+    tConsFilterAll: '',
+    tConsFilterCombined: '',
+    tConsFilterSketch: '',
+    tConsFilterFaceMerge: '',
+    tConsFilterRecharge: '',
+    tConsFilterMember: '',
+    tConsFilterRefund: '',
+    tConsFilterCommission: '',
+    tConsEmptyHair: '',
+    tConsEmptyHairTip: '',
+    tConsEmptyMoney: '',
+    tConsEmptyMoneyTip: '',
+    tConsLoadingText: '',
+    tConsNoMore: '',
+    tConsStatusSuccess: '',
+    tConsStatusPending: '',
+    tConsStatusFailed: '',
+    tConsLoadFail: '',
+    tConsNetworkFail: ''
   },
 
+  _serviceTypeNames: {},
+  _financialTypeNames: {},
+  _statusNames: {},
+
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'consumption.title')
     this.loadRecords()
+  },
+
+  onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'consumption.title')
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tConsHairTab: t('consumption.hairTab'),
+      tConsMoneyTab: t('consumption.moneyTab'),
+      tConsTotalConsumed: t('consumption.totalConsumed'),
+      tConsumptionCount: t('consumption.consumptionCount'),
+      tConsFilterAll: t('consumption.filterAll'),
+      tConsFilterCombined: t('consumption.filterCombined'),
+      tConsFilterSketch: t('consumption.filterSketch'),
+      tConsFilterFaceMerge: t('consumption.filterFaceMerge'),
+      tConsFilterRecharge: t('consumption.filterRecharge'),
+      tConsFilterMember: t('consumption.filterMember'),
+      tConsFilterRefund: t('consumption.filterRefund'),
+      tConsFilterCommission: t('consumption.filterCommission'),
+      tConsEmptyHair: t('consumption.emptyHair'),
+      tConsEmptyHairTip: t('consumption.emptyHairTip'),
+      tConsEmptyMoney: t('consumption.emptyMoney'),
+      tConsEmptyMoneyTip: t('consumption.emptyMoneyTip'),
+      tConsLoadingText: t('consumption.loadingText'),
+      tConsNoMore: t('consumption.noMore'),
+      tConsStatusSuccess: t('consumption.statusSuccess'),
+      tConsStatusPending: t('consumption.statusPending'),
+      tConsStatusFailed: t('consumption.statusFailed'),
+      tConsLoadFail: t('consumption.loadFail'),
+      tConsNetworkFail: t('message.networkFail'),
+      tConsJustNow: t('consumption.justNow'),
+      tConsMinutesAgo: t('consumption.minutesAgo'),
+      tConsHoursAgo: t('consumption.hoursAgo'),
+      tConsDaysAgo: t('consumption.daysAgo')
+    })
+    // 更新服务类型名称
+    this._serviceTypeNames = {
+      hair_segment: t('consumption.serviceHairSegment'),
+      face_merge: t('consumption.serviceFaceMerge'),
+      sketch: t('consumption.serviceSketch'),
+      combined: t('consumption.serviceCombined'),
+      fm_step: t('consumption.serviceFmStep'),
+      sk_step: t('consumption.serviceSkStep')
+    }
+    // 更新财务类型名称
+    this._financialTypeNames = {
+      recharge: t('consumption.typeRecharge'),
+      member_purchase: t('consumption.typeMemberPurchase'),
+      refund: t('consumption.typeRefund'),
+      commission: t('consumption.typeCommission'),
+      withdrawal: t('consumption.typeWithdrawal'),
+      cash_consumption: t('consumption.typeCashConsumption')
+    }
+    // 更新状态名称
+    this._statusNames = {
+      success: t('consumption.statusSuccess'),
+      pending: t('consumption.statusPending'),
+      failed: t('consumption.statusFailed')
+    }
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'consumption.title')
+    })
   },
 
   /**
@@ -69,7 +162,6 @@ Page({
     this.setData({ loading: true })
 
     try {
-      const app = getApp()
       const token = app.globalData.token || wx.getStorageSync('token')
 
       if (this.data.activeTab === 'hair') {
@@ -79,7 +171,7 @@ Page({
       }
     } catch (e) {
       console.error('加载记录失败:', e)
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      wx.showToast({ title: this.data.tConsLoadFail, icon: 'none' })
     } finally {
       this.setData({ loading: false })
     }
@@ -105,7 +197,6 @@ Page({
       hairPage: page
     })
 
-    // 重新计算统计数据
     this.calculateHairStats()
   },
 
@@ -146,10 +237,10 @@ Page({
           if (res.statusCode === 200) {
             resolve(res.data)
           } else {
-            reject(new Error(res.data.error || '加载失败'))
+            reject(new Error(res.data.error || this.data.tConsLoadFail))
           }
         },
-        fail: (err) => reject(new Error('网络请求失败'))
+        fail: (err) => reject(new Error(this.data.tConsNetworkFail))
       })
     })
   },
@@ -158,12 +249,12 @@ Page({
    * 格式化发丝消费记录
    */
   formatHairRecord(record) {
-    const config = SERVICE_TYPE_CONFIG[record.service_type] || { name: '未知服务', icon: '❓' }
+    const config = SERVICE_TYPE_CONFIG[record.service_type] || { icon: '❓' }
     return {
       ...record,
-      service_name: config.name,
+      service_name: this._serviceTypeNames[record.service_type] || this._serviceTypeNames['combined'] || '',
       icon: config.icon,
-      status_text: STATUS_CONFIG[record.status] || '未知',
+      status_text: this._statusNames[record.status] || '',
       created_at: this.formatTime(record.created_at)
     }
   },
@@ -172,16 +263,49 @@ Page({
    * 格式化银两消费记录
    */
   formatMoneyRecord(record) {
-    const config = FINANCIAL_TYPE_CONFIG[record.record_type] || { name: '未知类型', icon: '❓', color: '#999' }
+    const config = FINANCIAL_TYPE_CONFIG[record.record_type] || { icon: '❓', color: '#999' }
     const amountText = record.amount >= 0 ? `+¥${record.amount}` : `-¥${Math.abs(record.amount)}`
+    const t = (key) => app.t(key)
+
+    // 构建翻译后的描述
+    let description = ''
+    const amount = Math.abs(record.amount || 0)
+    const hairs = record.hairs_changed || 0
+    switch (record.record_type) {
+      case 'recharge':
+        description = t('consumption.descRecharge')
+          .replace('{amount}', String(amount))
+          .replace('{hairs}', String(hairs))
+        break
+      case 'member_purchase':
+        description = t('consumption.descMemberPurchase')
+          .replace('{amount}', String(amount))
+          .replace('{hairs}', String(hairs))
+        break
+      case 'refund':
+        description = t('consumption.descRefund').replace('{amount}', String(amount))
+        break
+      case 'commission':
+        description = t('consumption.descCommission').replace('{amount}', String(amount))
+        break
+      case 'withdrawal':
+        description = t('consumption.descWithdrawal').replace('{amount}', String(amount))
+        break
+      case 'cash_consumption':
+        description = t('consumption.descCashConsumption').replace('{amount}', String(amount))
+        break
+      default:
+        description = record.description || ''
+    }
 
     return {
       ...record,
-      type_name: config.name,
+      type_name: this._financialTypeNames[record.record_type] || '',
       icon: config.icon,
       color: config.color,
       amount_text: amountText,
-      status_text: STATUS_CONFIG[record.status] || '未知',
+      description: description,
+      status_text: this._statusNames[record.status] || '',
       created_at: this.formatTime(record.created_at)
     }
   },
@@ -208,10 +332,10 @@ Page({
     const now = new Date()
     const diff = now - date
 
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+    if (diff < 60000) return this.data.tConsJustNow
+    if (diff < 3600000) return this.data.tConsMinutesAgo.replace('{m}', String(Math.floor(diff / 60000)))
+    if (diff < 86400000) return this.data.tConsHoursAgo.replace('{h}', String(Math.floor(diff / 3600000)))
+    if (diff < 604800000) return this.data.tConsDaysAgo.replace('{d}', String(Math.floor(diff / 86400000)))
 
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')

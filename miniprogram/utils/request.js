@@ -52,10 +52,12 @@ function request(options) {
           // 清除认证信息
           clearAuthInfo()
 
+          const t = (key) => getApp().t(key)
+
           // 检查是否允许访客访问（不强制跳转登录页）
           if (options.allowGuest) {
             reject({
-              error: '请先登录',
+              error: t('common.pleaseLogin'),
               code: 401,
               needLogin: true
             })
@@ -78,35 +80,37 @@ function request(options) {
           })
 
           reject({
-            error: '登录已过期，请重新登录',
+            error: t('common.sessionExpired'),
             code: 401
           })
         }
         // 403 禁止访问
         else if (res.statusCode === 403) {
+          const t = (key) => getApp().t(key)
           reject({
-            error: res.data.error || '无权限访问',
+            error: res.data.error || t('common.noPermission'),
             code: 403
           })
         }
         // 404 未找到
         else if (res.statusCode === 404) {
           reject({
-            error: '请求的资源不存在',
+            error: getApp().t('common.resourceNotFound'),
             code: 404
           })
         }
         // 500 服务器错误
         else if (res.statusCode >= 500) {
           reject({
-            error: '服务器错误，请稍后重试',
+            error: getApp().t('common.serverError'),
             code: res.statusCode
           })
         }
         // 其他错误
         else {
+          const t = (key) => getApp().t(key)
           reject({
-            error: res.data.error || res.data.message || '请求失败',
+            error: res.data.error || res.data.message || t('common.requestFail'),
             code: res.statusCode,
             data: res.data
           })
@@ -116,13 +120,15 @@ function request(options) {
         console.error('[wx.request fail] 错误:', err)
         console.error('网络请求失败:', err)
 
+        const t = (key) => getApp().t(key)
+
         // 判断错误类型
-        let errorMsg = '网络请求失败'
+        let errorMsg = t('common.networkRequestFail')
 
         if (err.errMsg.includes('timeout')) {
-          errorMsg = '请求超时，请检查网络连接'
+          errorMsg = t('common.requestTimeout')
         } else if (err.errMsg.includes('fail')) {
-          errorMsg = '网络连接失败，请检查网络'
+          errorMsg = t('common.networkDisconnected')
         }
 
         reject({
@@ -210,13 +216,14 @@ export function uploadFile(filePath, formData = {}) {
       timeout: 60000,
       success: (res) => {
         console.log('[wx.request success] 响应 statusCode:', res.statusCode, 'data:', res.data)
+        const t = (key) => getApp().t(key)
         if (res.statusCode === 200) {
           try {
             const data = JSON.parse(res.data)
             resolve(data)
           } catch (e) {
             reject({
-              error: '解析响应数据失败'
+              error: t('common.parseResponseFail')
             })
           }
         } else if (res.statusCode === 401) {
@@ -224,7 +231,7 @@ export function uploadFile(filePath, formData = {}) {
           if (formData.allowGuest) {
             clearAuthInfo()
             reject({
-              error: '请先登录',
+              error: t('common.pleaseLogin'),
               code: 401,
               needLogin: true
             })
@@ -235,12 +242,12 @@ export function uploadFile(filePath, formData = {}) {
             url: '/pages/login/login'
           })
           reject({
-            error: '登录已过期',
+            error: t('common.sessionExpired'),
             code: 401
           })
         } else {
           reject({
-            error: '上传失败',
+            error: t('common.uploadFail'),
             code: res.statusCode
           })
         }
@@ -248,7 +255,7 @@ export function uploadFile(filePath, formData = {}) {
       fail: (err) => {
         console.error('上传文件失败:', err)
         reject({
-          error: '上传失败，请检查网络连接'
+          error: getApp().t('common.uploadFailNetwork')
         })
       }
     })
@@ -269,7 +276,7 @@ export function downloadFile(url) {
           resolve(res.tempFilePath)
         } else {
           reject({
-            error: '下载失败',
+            error: getApp().t('common.downloadFailNetwork'),
             code: res.statusCode
           })
         }
@@ -277,7 +284,7 @@ export function downloadFile(url) {
       fail: (err) => {
         console.error('下载文件失败:', err)
         reject({
-          error: '下载失败，请检查网络连接'
+          error: getApp().t('common.downloadFailNetwork')
         })
       }
     })
