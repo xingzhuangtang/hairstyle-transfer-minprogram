@@ -12,33 +12,6 @@ export function getRechargeRules() {
 }
 
 /**
- * 创建充值订单
- */
-export function createRechargeOrder(amount, payment_method = 'wechat') {
-  return post('/api/recharge/create-order', {
-    amount: amount,
-    payment_method: payment_method
-  })
-}
-
-/**
- * 发起支付
- */
-export function pay(order_no, payment_method = 'wechat') {
-  return post('/api/recharge/pay', {
-    order_no: order_no,
-    payment_method: payment_method
-  })
-}
-
-/**
- * 查询订单状态
- */
-export function getOrderStatus(order_no) {
-  return get('/api/recharge/order/status', { order_no })
-}
-
-/**
  * 获取充值订单列表
  */
 export function getRechargeOrders(page = 1, page_size = 20) {
@@ -97,24 +70,17 @@ export function getVirtualPayOrderStatus(orderNo) {
 }
 
 /**
- * 调起微信虚拟支付
+ * 调起微信虚拟支付（iOS 端）
  * @param {Object} payParams - 后端返回的虚拟支付参数
+ * 参数格式：{ signData, pay_sig, signature, mode }
  */
 function requestVirtualPay(payParams) {
   return new Promise((resolve, reject) => {
-    wx.openBusinessView({
-      businessType: 'weappVirtualPay',
-      extraData: {
-        mch_id: payParams.mch_id,
-        appid: payParams.appid,
-        package: payParams.package,
-        nonce_str: payParams.nonce_str,
-        time_stamp: payParams.time_stamp,
-        sign: payParams.sign,
-        out_trade_no: payParams.out_trade_no,
-        goods_id: payParams.goods_id,
-        total_fee: payParams.total_fee
-      },
+    wx.requestVirtualPayment({
+      signData: payParams.signData,
+      pay_sig: payParams.pay_sig,
+      signature: payParams.signature,
+      mode: payParams.mode || 'short_series_goods',
       success: (res) => {
         resolve({ success: true, data: res })
       },
@@ -127,9 +93,6 @@ function requestVirtualPay(payParams) {
 
 export default {
   getRechargeRules,
-  createRechargeOrder,
-  pay,
-  getOrderStatus,
   getRechargeOrders,
   getSessionKey,
   createVirtualPayOrder,
