@@ -218,7 +218,7 @@ class AutoFixer:
             return {'success': False, 'message': '内存清理失败', 'detail': str(e)}
 
     def _fix_disk_cleanup(self):
-        """磁盘清理"""
+        """磁盘清理（仅清理应用临时目录，不触碰系统日志）"""
         cleaned = []
         total_freed = 0
 
@@ -234,22 +234,9 @@ class AutoFixer:
                 except Exception:
                     pass
 
-        log_dir = '/var/log'
-        if os.path.exists(log_dir):
-            try:
-                for f in os.listdir(log_dir):
-                    if f.endswith('.log.gz') or f.endswith('.log.1'):
-                        fpath = os.path.join(log_dir, f)
-                        size = os.path.getsize(fpath)
-                        os.remove(fpath)
-                        cleaned.append(fpath)
-                        total_freed += size
-            except Exception:
-                pass
-
         return {
             'success': True,
-            'message': f'磁盘清理完成，清理 {len(cleaned)} 个文件',
+            'message': f'磁盘清理完成，清理 {len(cleaned)} 个临时目录',
             'detail': f'释放约 {round(total_freed / 1024 / 1024, 1)}MB',
         }
 

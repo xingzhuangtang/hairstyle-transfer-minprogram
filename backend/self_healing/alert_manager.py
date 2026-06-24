@@ -36,6 +36,7 @@ class AlertManager:
         # 内存降级缓存（Redis不可用时）
         self._memory_dedup = {}
         self._memory_notify_count = {}
+        self._dedup_call_count = 0
 
     def start(self):
         """启动后台Worker线程"""
@@ -212,10 +213,13 @@ class AlertManager:
                 return True
         self._memory_dedup[dedup_key] = now
 
-        # 清理过期
-        expired = [k for k, v in self._memory_dedup.items() if now - v > window]
-        for k in expired:
-            del self._memory_dedup[k]
+        # 每 100 次调用才执行一次过期清理，避免每次请求都做 O(n) 扫描
+        self._dedup_call_count += 1
+        if self._dedup_call_count >= 100:
+            self._dedup_call_count = 0
+            expired = [k for k, v in self._memory_dedup.items() if now - v > window]
+            for k in expired:
+                del self._memory_dedup[k]
 
         return False
 
@@ -226,9 +230,14 @@ class AlertManager:
         if self.redis:
             try:
                 key = f'sh:notify:{dedup_key}'
-                count = self.redis.incr(key)
-                if count == 1:
-                    self.redis.expire(key, cooldown)
+                lua_script = """
+                local count = redis.call('incr', KEYS[1])
+                if count == 1 then
+                    redis.call('expire', KEYS[1], ARGV[1])
+                end
+                return count
+                """
+                count = self.redis.eval(lua_script, 1, key, cooldown)
                 return count == 1
             except Exception:
                 pass

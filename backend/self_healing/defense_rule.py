@@ -241,8 +241,14 @@ class RuleEngine:
                 pass
             return None
 
+    # 允许通过 API 修改的字段白名单
+    UPDATABLE_FIELDS = {
+        'name', 'enabled', 'priority', 'pattern_type', 'pattern_value',
+        'action', 'action_config', 'cooldown_seconds'
+    }
+
     def update_rule(self, rule_id, **kwargs):
-        """更新规则"""
+        """更新规则（仅允许修改白名单字段）"""
         if not self.db:
             return None
 
@@ -253,7 +259,7 @@ class RuleEngine:
                 return None
 
             for key, value in kwargs.items():
-                if hasattr(rule, key) and value is not None:
+                if key in self.UPDATABLE_FIELDS and value is not None:
                     setattr(rule, key, value)
 
             self.db.session.commit()

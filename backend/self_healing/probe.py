@@ -41,7 +41,7 @@ def init_probe(app, alert_manager, collector=None):
         from werkzeug.exceptions import HTTPException
 
         if isinstance(e, HTTPException):
-            return e
+            raise e
 
         # 获取当前用户信息
         user_id = None

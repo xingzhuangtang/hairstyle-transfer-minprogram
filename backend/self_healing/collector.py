@@ -35,6 +35,7 @@ class MetricsCollector:
         self._error_count = 0
         self._total_response_time = 0
         self._today = datetime.now().strftime('%Y-%m-%d')
+        self._stats_lock = threading.Lock()
 
     def start(self):
         """启动后台采集线程"""
@@ -77,10 +78,11 @@ class MetricsCollector:
         # 日期变更时重置计数器
         today = datetime.now().strftime('%Y-%m-%d')
         if today != self._today:
-            self._today = today
-            self._request_count = 0
-            self._error_count = 0
-            self._total_response_time = 0
+            with self._stats_lock:
+                self._today = today
+                self._request_count = 0
+                self._error_count = 0
+                self._total_response_time = 0
 
     def get_metrics(self):
         """获取最新指标（带缓存）"""
@@ -90,10 +92,11 @@ class MetricsCollector:
 
     def record_request(self, response_time_ms, is_error=False):
         """记录一次请求（由 probe 调用）"""
-        self._request_count += 1
-        self._total_response_time += response_time_ms
-        if is_error:
-            self._error_count += 1
+        with self._stats_lock:
+            self._request_count += 1
+            self._total_response_time += response_time_ms
+            if is_error:
+                self._error_count += 1
 
     def _get_system_metrics(self):
         """系统资源指标"""
@@ -156,14 +159,17 @@ class MetricsCollector:
 
     def _get_app_metrics(self):
         """应用指标"""
-        avg_response = (
-            round(self._total_response_time / self._request_count, 1)
-            if self._request_count > 0 else 0
-        )
+        with self._stats_lock:
+            avg_response = (
+                round(self._total_response_time / self._request_count, 1)
+                if self._request_count > 0 else 0
+            )
+            today_requests = self._request_count
+            today_errors = self._error_count
         return {
             'uptime_seconds': round(time.time() - self._start_time, 0) if hasattr(self, '_start_time') else 0,
-            'today_requests': self._request_count,
-            'today_errors': self._error_count,
+            'today_requests': today_requests,
+            'today_errors': today_errors,
             'avg_response_ms': avg_response,
         }
 
