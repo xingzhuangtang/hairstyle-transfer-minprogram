@@ -1,68 +1,40 @@
 <!--pages/monitor/monitor.wxml-->
 <view class="monitor-container">
-  <!-- 顶部标题 -->
   <view class="header">
-    <text class="title">系统监控</text>
-    <text class="subtitle">自愈系统 - 感知 / 自愈 / 进化</text>
+    <text class="title">{{tMonTitle}}</text>
+    <text class="subtitle">{{tMonSubtitle}}</text>
   </view>
 
-  <!-- Tab 切换栏 -->
   <view class="tab-bar">
-    <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange">
-      <text>告警</text>
-    </view>
-    <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange">
-      <text>健康</text>
-    </view>
-    <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange">
-      <text>修复</text>
-    </view>
-    <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" data-tab="3" bindtap="onTabChange">
-      <text>进化</text>
-    </view>
+    <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" data-tab="0" bindtap="onTabChange"><text>{{tMonTabAlerts}}</text></view>
+    <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange"><text>{{tMonTabHealth}}</text></view>
+    <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange"><text>{{tMonTabFix}}</text></view>
+    <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" data-tab="3" bindtap="onTabChange"><text>{{tMonTabEvolution}}</text></view>
   </view>
 
-  <!-- ==================== Tab 0: 告警列表 ==================== -->
+  <!-- Tab 0: 告警列表 -->
   <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 0}}" bindscrolltolower="onAlertScrollToLower">
-    <!-- 告警统计卡片 -->
     <view class="stats-bar" wx:if="{{alertStats}}">
-      <view class="stat-chip">
-        <text class="stat-num">{{alertStats.total}}</text>
-        <text class="stat-label">总计</text>
-      </view>
-      <view class="stat-chip critical">
-        <text class="stat-num">{{alertStats.by_severity.critical || 0}}</text>
-        <text class="stat-label">严重</text>
-      </view>
-      <view class="stat-chip high">
-        <text class="stat-num">{{alertStats.by_severity.high || 0}}</text>
-        <text class="stat-label">高危</text>
-      </view>
-      <view class="stat-chip new">
-        <text class="stat-num">{{alertStats.by_status.new || 0}}</text>
-        <text class="stat-label">待处理</text>
-      </view>
-      <view class="stat-chip today">
-        <text class="stat-num">{{alertStats.today_new}}</text>
-        <text class="stat-label">今日</text>
-      </view>
+      <view class="stat-chip"><text class="stat-num">{{alertStats.total}}</text><text class="stat-label">{{tMonTotal}}</text></view>
+      <view class="stat-chip critical"><text class="stat-num">{{alertStats.by_severity.critical || 0}}</text><text class="stat-label">{{tMonSeverityCritical}}</text></view>
+      <view class="stat-chip high"><text class="stat-num">{{alertStats.by_severity.high || 0}}</text><text class="stat-label">{{tMonSeverityHigh}}</text></view>
+      <view class="stat-chip new"><text class="stat-num">{{alertStats.by_status.new || 0}}</text><text class="stat-label">{{tMonStatusNew}}</text></view>
+      <view class="stat-chip today"><text class="stat-num">{{alertStats.today_new}}</text><text class="stat-label">{{tMonToday}}</text></view>
     </view>
 
-    <!-- 筛选栏 -->
     <view class="filter-section">
       <view class="filter-row">
-        <text class="filter-label">状态：</text>
+        <text class="filter-label">{{tMonStatusLabel}}</text>
         <picker mode="selector" range="{{statusOptions}}" value="{{statusIndex}}" bindchange="onStatusFilterChange">
           <view class="picker-value">{{statusOptions[statusIndex]}} ▼</view>
         </picker>
-        <text class="filter-label" style="margin-left: 20rpx;">级别：</text>
+        <text class="filter-label" style="margin-left: 20rpx;">{{tMonSeverityLabel}}</text>
         <picker mode="selector" range="{{severityOptions}}" value="{{severityIndex}}" bindchange="onSeverityFilterChange">
           <view class="picker-value">{{severityOptions[severityIndex]}} ▼</view>
         </picker>
       </view>
     </view>
 
-    <!-- 告警列表 -->
     <view class="alert-list" wx:if="{{alerts.length > 0}}">
       <view class="alert-card" wx:for="{{alerts}}" wx:key="id" bindtap="onAlertTap" data-id="{{item.id}}">
         <view class="alert-header">
@@ -78,29 +50,21 @@
       </view>
     </view>
 
-    <!-- 加载更多 -->
     <view class="load-more" wx:if="{{!alertNoMore && alerts.length > 0}}">
-      <text class="load-more-text" wx:if="{{alertLoading}}">加载中...</text>
-      <text class="load-more-text" wx:else bindtap="loadMoreAlerts">点击加载更多</text>
+      <text class="load-more-text" wx:if="{{alertLoading}}">{{tMonLoading}}</text>
+      <text class="load-more-text" wx:else bindtap="loadMoreAlerts">{{tMonClickLoadMore}}</text>
     </view>
-
-    <!-- 空状态 -->
     <view class="empty-state" wx:if="{{alerts.length === 0 && !alertLoading}}">
-      <text class="empty-icon">🛡️</text>
-      <text class="empty-text">暂无告警记录</text>
+      <text class="empty-icon">🛡️</text><text class="empty-text">{{tMonNoAlerts}}</text>
     </view>
   </scroll-view>
 
-  <!-- ==================== Tab 1: 系统健康 ==================== -->
+  <!-- Tab 1: 系统健康 -->
   <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 1}}">
-    <view class="loading-state" wx:if="{{healthLoading && !healthData}}">
-      <text class="loading-text">加载中...</text>
-    </view>
-
+    <view class="loading-state" wx:if="{{healthLoading && !healthData}}"><text class="loading-text">{{tMonLoading}}</text></view>
     <block wx:if="{{healthData}}">
-      <!-- 系统资源 -->
       <view class="card" wx:if="{{healthData.system}}">
-        <view class="card-title">系统资源</view>
+        <view class="card-title">{{tMonSystemRes}}</view>
         <view class="metric-grid">
           <view class="metric-item">
             <view class="metric-ring {{healthData.system.cpu_percent < 70 ? 'green' : healthData.system.cpu_percent < 85 ? 'orange' : 'red'}}">
@@ -112,116 +76,92 @@
             <view class="metric-ring {{healthData.system.memory_percent < 70 ? 'green' : healthData.system.memory_percent < 85 ? 'orange' : 'red'}}">
               <text class="metric-value">{{healthData.system.memory_percent}}%</text>
             </view>
-            <text class="metric-label">内存</text>
+            <text class="metric-label">{{tMonMemory}}</text>
           </view>
           <view class="metric-item">
             <view class="metric-ring {{healthData.system.disk_percent < 70 ? 'green' : healthData.system.disk_percent < 85 ? 'orange' : 'red'}}">
               <text class="metric-value">{{healthData.system.disk_percent}}%</text>
             </view>
-            <text class="metric-label">磁盘</text>
+            <text class="metric-label">{{tMonDisk}}</text>
           </view>
           <view class="metric-item">
-            <view class="metric-ring green">
-              <text class="metric-value">{{healthData.system.process_memory_mb}}MB</text>
-            </view>
-            <text class="metric-label">进程内存</text>
+            <view class="metric-ring green"><text class="metric-value">{{healthData.system.process_memory_mb}}MB</text></view>
+            <text class="metric-label">{{tMonProcessMem}}</text>
           </view>
         </view>
       </view>
 
-      <!-- 数据库状态 -->
       <view class="card" wx:if="{{healthData.database}}">
-        <view class="card-title">数据库</view>
+        <view class="card-title">{{tMonDatabase}}</view>
         <view class="status-row">
-          <text class="status-label">连接状态</text>
-          <text class="status-value {{healthData.database.status === 'ok' ? 'ok' : 'error'}}">{{healthData.database.status === 'ok' ? '正常' : '异常'}}</text>
+          <text class="status-label">{{tMonConnStatus}}</text>
+          <text class="status-value {{healthData.database.status === 'ok' ? 'ok' : 'error'}}">{{healthData.database.status === 'ok' ? tMonNormal : tMonAbnormal}}</text>
         </view>
         <view class="status-row" wx:if="{{healthData.database.latency_ms}}">
-          <text class="status-label">响应延迟</text>
+          <text class="status-label">{{tMonRespLatency}}</text>
           <text class="status-value">{{healthData.database.latency_ms}}ms</text>
         </view>
       </view>
 
-      <!-- Redis 状态 -->
       <view class="card" wx:if="{{healthData.redis}}">
         <view class="card-title">Redis</view>
         <view class="status-row">
-          <text class="status-label">连接状态</text>
-          <text class="status-value {{healthData.redis.status === 'ok' ? 'ok' : 'error'}}">{{healthData.redis.status === 'ok' ? '正常' : '异常'}}</text>
+          <text class="status-label">{{tMonConnStatus}}</text>
+          <text class="status-value {{healthData.redis.status === 'ok' ? 'ok' : 'error'}}">{{healthData.redis.status === 'ok' ? tMonNormal : tMonAbnormal}}</text>
         </view>
         <view class="status-row" wx:if="{{healthData.redis.used_memory_mb}}">
-          <text class="status-label">内存使用</text>
+          <text class="status-label">{{tMonMemUsage}}</text>
           <text class="status-value">{{healthData.redis.used_memory_mb}}MB</text>
         </view>
         <view class="status-row" wx:if="{{healthData.redis.hit_rate}}">
-          <text class="status-label">命中率</text>
+          <text class="status-label">{{tMonHitRate}}</text>
           <text class="status-value">{{healthData.redis.hit_rate}}%</text>
         </view>
       </view>
 
-      <!-- 应用指标 -->
       <view class="card" wx:if="{{healthData.app}}">
-        <view class="card-title">应用指标</view>
-        <view class="status-row">
-          <text class="status-label">今日请求数</text>
-          <text class="status-value">{{healthData.app.today_requests}}</text>
-        </view>
-        <view class="status-row">
-          <text class="status-label">今日错误数</text>
-          <text class="status-value {{healthData.app.today_errors > 0 ? 'error' : 'ok'}}">{{healthData.app.today_errors}}</text>
-        </view>
-        <view class="status-row">
-          <text class="status-label">平均响应时间</text>
-          <text class="status-value">{{healthData.app.avg_response_ms}}ms</text>
-        </view>
+        <view class="card-title">{{tMonAppMetrics}}</view>
+        <view class="status-row"><text class="status-label">{{tMonTodayReq}}</text><text class="status-value">{{healthData.app.today_requests}}</text></view>
+        <view class="status-row"><text class="status-label">{{tMonTodayErr}}</text><text class="status-value {{healthData.app.today_errors > 0 ? 'error' : 'ok'}}">{{healthData.app.today_errors}}</text></view>
+        <view class="status-row"><text class="status-label">{{tMonAvgResp}}</text><text class="status-value">{{healthData.app.avg_response_ms}}ms</text></view>
       </view>
 
-      <!-- 刷新按钮 -->
       <view class="refresh-bar">
-        <text class="refresh-text" wx:if="{{healthData.collected_at}}">更新于 {{healthData.collected_at}}</text>
-        <button class="refresh-btn" bindtap="onRefreshHealth" loading="{{healthLoading}}">刷新</button>
+        <text class="refresh-text" wx:if="{{healthData.collected_at}}">{{tMonUpdatedAt}} {{healthData.collected_at}}</text>
+        <button class="refresh-btn" bindtap="onRefreshHealth" loading="{{healthLoading}}">{{tMonRefresh}}</button>
       </view>
     </block>
-
     <view class="empty-state" wx:if="{{!healthData && !healthLoading}}">
-      <text class="empty-icon">📊</text>
-      <text class="empty-text">暂无健康数据</text>
+      <text class="empty-icon">📊</text><text class="empty-text">{{tMonNoHealth}}</text>
     </view>
   </scroll-view>
 
-  <!-- ==================== Tab 2: 自动修复 ==================== -->
+  <!-- Tab 2: 自动修复 -->
   <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 2}}">
-    <!-- 子 Tab -->
     <view class="sub-tab-bar">
-      <view class="sub-tab {{fixSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onFixSubTabChange">修复器</view>
+      <view class="sub-tab {{fixSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onFixSubTabChange">{{tMonFixer}}</view>
       <view class="sub-tab {{fixSubTab === 1 ? 'active' : ''}}" data-sub="1" bindtap="onFixSubTabChange">
-        待审批
-        <text class="badge" wx:if="{{approvals.length > 0}}">{{approvals.length}}</text>
+        {{tMonPendingApproval}}<text class="badge" wx:if="{{approvals.length > 0}}">{{approvals.length}}</text>
       </view>
-      <view class="sub-tab {{fixSubTab === 2 ? 'active' : ''}}" data-sub="2" bindtap="onFixSubTabChange">执行历史</view>
+      <view class="sub-tab {{fixSubTab === 2 ? 'active' : ''}}" data-sub="2" bindtap="onFixSubTabChange">{{tMonExecHistory}}</view>
     </view>
 
-    <!-- 修复器列表 -->
     <view wx:if="{{fixSubTab === 0}}" class="fix-section">
       <view class="fix-card" wx:for="{{fixList}}" wx:key="id">
         <view class="fix-card-header">
           <text class="fix-name">{{item.name}}</text>
-          <text class="risk-tag {{item.risk}}">{{item.risk === 'low' ? '低风险' : item.risk === 'medium' ? '中风险' : '高风险'}}</text>
+          <text class="risk-tag {{item.risk}}">{{item.risk === 'low' ? tMonLowRisk : item.risk === 'medium' ? tMonMedRisk : tMonHighRisk}}</text>
         </view>
         <text class="fix-desc">{{item.description}}</text>
-        <button class="fix-exec-btn {{fixExecuting === item.id ? 'disabled' : ''}}"
-                data-id="{{item.id}}" bindtap="onExecuteFix"
-                disabled="{{fixExecuting === item.id}}">
-          {{fixExecuting === item.id ? '执行中...' : '执行修复'}}
+        <button class="fix-exec-btn {{fixExecuting === item.id ? 'disabled' : ''}}" data-id="{{item.id}}" bindtap="onExecuteFix" disabled="{{fixExecuting === item.id}}">
+          {{fixExecuting === item.id ? tMonExecuting : tMonExecFix}}
         </button>
       </view>
       <view class="empty-state" wx:if="{{fixList.length === 0 && !fixLoading}}">
-        <text class="empty-icon">🔧</text>
-        <text class="empty-text">暂无可用修复器</text>
+        <text class="empty-icon">🔧</text><text class="empty-text">{{tMonNoFixers}}</text>
       </view>
     </view>
 
-    <!-- 待审批 -->
     <view wx:if="{{fixSubTab === 1}}" class="fix-section">
       <view class="approval-card" wx:for="{{approvals}}" wx:key="id">
         <view class="approval-header">
@@ -234,17 +174,15 @@
         </view>
         <text class="fix-desc" wx:if="{{item.fix_description}}">{{item.fix_description}}</text>
         <view class="approval-actions" wx:if="{{item.status === 'pending'}}">
-          <button class="approve-btn" data-id="{{item.id}}" bindtap="onApproveFix">批准执行</button>
-          <button class="reject-btn" data-id="{{item.id}}" bindtap="onRejectFix">拒绝</button>
+          <button class="approve-btn" data-id="{{item.id}}" bindtap="onApproveFix">{{tMonApprove}}</button>
+          <button class="reject-btn" data-id="{{item.id}}" bindtap="onRejectFix">{{tMonReject}}</button>
         </view>
       </view>
       <view class="empty-state" wx:if="{{approvals.length === 0 && !fixLoading}}">
-        <text class="empty-icon">📋</text>
-        <text class="empty-text">暂无待审批项</text>
+        <text class="empty-icon">📋</text><text class="empty-text">{{tMonNoApprovals}}</text>
       </view>
     </view>
 
-    <!-- 执行历史 -->
     <view wx:if="{{fixSubTab === 2}}" class="fix-section">
       <view class="history-card" wx:for="{{fixHistory}}" wx:key="id">
         <view class="history-header">
@@ -254,172 +192,121 @@
         </view>
         <view class="approval-info">
           <text class="approval-status {{item.status}}">{{item.statusText}}</text>
-          <text class="fix-type-tag">{{item.fix_type === 'auto' ? '自动' : item.fix_type === 'approved' ? '审批' : '手动'}}</text>
+          <text class="fix-type-tag">{{item.fix_type === 'auto' ? tMonAuto : item.fix_type === 'approved' ? tMonApprovedType : tMonManual}}</text>
           <text class="alert-time" wx:if="{{item.duration_ms}}">{{item.duration_ms}}ms</text>
         </view>
       </view>
       <view class="empty-state" wx:if="{{fixHistory.length === 0 && !fixLoading}}">
-        <text class="empty-icon">📜</text>
-        <text class="empty-text">暂无执行记录</text>
+        <text class="empty-icon">📜</text><text class="empty-text">{{tMonNoExecHistory}}</text>
       </view>
     </view>
   </scroll-view>
 
-  <!-- ==================== Tab 3: 进化分析 ==================== -->
+  <!-- Tab 3: 进化分析 -->
   <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 3}}">
-    <!-- 子 Tab -->
     <view class="sub-tab-bar">
-      <view class="sub-tab {{evolutionSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onEvolutionSubTabChange">健康评分</view>
-      <view class="sub-tab {{evolutionSubTab === 1 ? 'active' : ''}}" data-sub="1" bindtap="onEvolutionSubTabChange">防御规则</view>
+      <view class="sub-tab {{evolutionSubTab === 0 ? 'active' : ''}}" data-sub="0" bindtap="onEvolutionSubTabChange">{{tMonHealthScore}}</view>
+      <view class="sub-tab {{evolutionSubTab === 1 ? 'active' : ''}}" data-sub="1" bindtap="onEvolutionSubTabChange">{{tMonDefenseRules}}</view>
     </view>
 
-    <!-- 健康评分 -->
     <view wx:if="{{evolutionSubTab === 0}}">
       <view class="card" wx:if="{{healthScore}}">
         <view class="score-display">
           <view class="score-circle {{healthScore.level}}">
             <text class="score-number">{{healthScore.score}}</text>
-            <text class="score-unit">分</text>
+            <text class="score-unit">{{tMonScoreUnit}}</text>
           </view>
           <text class="score-level">{{healthScore.levelLabel}}</text>
         </view>
-
         <view class="score-breakdown">
           <view class="breakdown-item">
-            <text class="breakdown-label">告警频率</text>
-            <view class="breakdown-bar">
-              <view class="bar-fill" style="width: {{healthScore.breakdown.alert_score}}%"></view>
-            </view>
+            <text class="breakdown-label">{{tMonAlertFreq}}</text>
+            <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.alert_score}}%"></view></view>
             <text class="breakdown-value">{{healthScore.breakdown.alert_score}}</text>
           </view>
           <view class="breakdown-item">
-            <text class="breakdown-label">修复成功率</text>
-            <view class="breakdown-bar">
-              <view class="bar-fill" style="width: {{healthScore.breakdown.fix_score}}%"></view>
-            </view>
+            <text class="breakdown-label">{{tMonFixRate}}</text>
+            <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.fix_score}}%"></view></view>
             <text class="breakdown-value">{{healthScore.breakdown.fix_score}}</text>
           </view>
           <view class="breakdown-item">
-            <text class="breakdown-label">系统指标</text>
-            <view class="breakdown-bar">
-              <view class="bar-fill" style="width: {{healthScore.breakdown.system_score}}%"></view>
-            </view>
+            <text class="breakdown-label">{{tMonSystemMetrics}}</text>
+            <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.system_score}}%"></view></view>
             <text class="breakdown-value">{{healthScore.breakdown.system_score}}</text>
           </view>
           <view class="breakdown-item">
-            <text class="breakdown-label">防御覆盖率</text>
-            <view class="breakdown-bar">
-              <view class="bar-fill" style="width: {{healthScore.breakdown.defense_score}}%"></view>
-            </view>
+            <text class="breakdown-label">{{tMonDefCoverage}}</text>
+            <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.defense_score}}%"></view></view>
             <text class="breakdown-value">{{healthScore.breakdown.defense_score}}</text>
           </view>
         </view>
-
         <view class="score-summary">
-          <text>今日告警: {{healthScore.summary.today_alerts}} | 本周告警: {{healthScore.summary.week_alerts}} | 本周修复: {{healthScore.summary.week_fixes}}</text>
+          <text>{{tMonTodaySummary}}: {{healthScore.summary.today_alerts}} | {{tMonWeekSummary}}: {{healthScore.summary.week_alerts}} | {{tMonWeekFixes}}: {{healthScore.summary.week_fixes}}</text>
         </view>
       </view>
-
       <view class="action-bar">
-        <button class="analyze-btn" bindtap="onRunAnalysis" loading="{{evolutionLoading}}">运行进化分析</button>
+        <button class="analyze-btn" bindtap="onRunAnalysis" loading="{{evolutionLoading}}">{{tMonRunAnalysis}}</button>
       </view>
-
-      <!-- 风险预测 -->
       <view class="card" wx:if="{{evolutionReport && evolutionReport.risks}}">
-        <view class="card-title">风险预测</view>
+        <view class="card-title">{{tMonRiskPred}}</view>
         <view class="risk-item" wx:for="{{evolutionReport.risks.risks}}" wx:key="message">
-          <text class="risk-level-tag {{item.level}}">{{item.level === 'high' ? '高' : item.level === 'medium' ? '中' : '低'}}</text>
+          <text class="risk-level-tag {{item.level}}">{{item.level === 'high' ? tMonHigh : item.level === 'medium' ? tMonMed : tMonLow}}</text>
           <text class="risk-message">{{item.message}}</text>
         </view>
       </view>
     </view>
 
-    <!-- 防御规则 -->
     <view wx:if="{{evolutionSubTab === 1}}">
       <view class="rule-card" wx:for="{{defenseRules}}" wx:key="id">
         <view class="rule-header">
           <view class="rule-toggle" data-id="{{item.id}}" data-enabled="{{item.enabled}}" bindtap="onToggleRule">
-            <view class="toggle-switch {{item.enabled ? 'on' : ''}}">
-              <view class="toggle-dot"></view>
-            </view>
+            <view class="toggle-switch {{item.enabled ? 'on' : ''}}"><view class="toggle-dot"></view></view>
           </view>
           <text class="fix-name" style="flex:1">{{item.name}}</text>
           <text class="action-tag" style="color: {{item.actionColor}}">{{item.actionLabel}}</text>
         </view>
         <view class="rule-info">
           <text class="rule-pattern">{{item.pattern_type}}: {{item.pattern_value}}</text>
-          <text class="rule-hits">命中 {{item.hit_count}} 次</text>
+          <text class="rule-hits">{{item.hitText}}</text>
         </view>
       </view>
       <view class="empty-state" wx:if="{{defenseRules.length === 0 && !evolutionLoading}}">
-        <text class="empty-icon">🛡️</text>
-        <text class="empty-text">暂无防御规则</text>
+        <text class="empty-icon">🛡️</text><text class="empty-text">{{tMonNoDefRules}}</text>
       </view>
     </view>
   </scroll-view>
 
-  <!-- ==================== 告警详情弹窗 ==================== -->
+  <!-- 告警详情弹窗 -->
   <view class="detail-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
     <view class="detail-panel" catchtap>
       <view class="detail-header">
-        <text class="detail-title">告警详情</text>
+        <text class="detail-title">{{tMonAlertDetail}}</text>
         <text class="detail-close" bindtap="closeDetail"></text>
       </view>
-
       <scroll-view scroll-y class="detail-body">
-        <view class="detail-loading" wx:if="{{detailLoading}}">
-          <text>加载中...</text>
-        </view>
-
+        <view class="detail-loading" wx:if="{{detailLoading}}"><text>{{tMonLoading}}</text></view>
         <block wx:if="{{currentAlert && !detailLoading}}">
-          <view class="detail-row">
-            <text class="detail-label">标题</text>
-            <text class="detail-value">{{currentAlert.title}}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">级别</text>
-            <text class="detail-value" style="color: {{currentAlert.severityColor}}">{{currentAlert.severityLabel}}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">状态</text>
-            <text class="detail-value">{{currentAlert.statusLabel}}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">来源模块</text>
-            <text class="detail-value">{{currentAlert.source_module || '未知'}}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">请求URL</text>
-            <text class="detail-value">{{currentAlert.request_url || '无'}}</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label">创建时间</text>
-            <text class="detail-value">{{currentAlert.created_at}}</text>
-          </view>
-
+          <view class="detail-row"><text class="detail-label">{{tMonAlertTitleL}}</text><text class="detail-value">{{currentAlert.title}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonAlertSevL}}</text><text class="detail-value" style="color: {{currentAlert.severityColor}}">{{currentAlert.severityLabel}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonAlertStatL}}</text><text class="detail-value">{{currentAlert.statusLabel}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonSourceMod}}</text><text class="detail-value">{{currentAlert.source_module || tMonUnknown}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonReqUrl}}</text><text class="detail-value">{{currentAlert.request_url || '-'}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonCreatedAtL}}</text><text class="detail-value">{{currentAlert.created_at}}</text></view>
           <view class="detail-section" wx:if="{{currentAlert.description}}">
-            <text class="section-title">描述</text>
+            <text class="section-title">{{tMonDesc}}</text>
             <text class="section-content">{{currentAlert.description}}</text>
           </view>
-
           <view class="detail-section" wx:if="{{currentAlert.stack_trace}}">
-            <text class="section-title">堆栈信息</text>
-            <scroll-view scroll-x class="stack-scroll">
-              <text class="stack-content">{{currentAlert.stack_trace}}</text>
-            </scroll-view>
+            <text class="section-title">{{tMonStack}}</text>
+            <scroll-view scroll-x class="stack-scroll"><text class="stack-content">{{currentAlert.stack_trace}}</text></scroll-view>
           </view>
-
           <view class="detail-section" wx:if="{{currentAlert.request_params}}">
-            <text class="section-title">请求参数</text>
-            <scroll-view scroll-x class="stack-scroll">
-              <text class="stack-content">{{currentAlert.request_params}}</text>
-            </scroll-view>
+            <text class="section-title">{{tMonReqParams}}</text>
+            <scroll-view scroll-x class="stack-scroll"><text class="stack-content">{{currentAlert.request_params}}</text></scroll-view>
           </view>
-
-          <!-- 操作按钮 -->
           <view class="detail-actions" wx:if="{{currentAlert.status === 'new'}}">
-            <button class="action-btn acknowledge" bindtap="onAcknowledge">确认</button>
-            <button class="action-btn resolve" bindtap="onResolve">解决</button>
+            <button class="action-btn acknowledge" bindtap="onAcknowledge">{{tMonAcknowledge}}</button>
+            <button class="action-btn resolve" bindtap="onResolve">{{tMonResolve}}</button>
           </view>
         </block>
       </scroll-view>

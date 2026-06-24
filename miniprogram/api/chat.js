@@ -19,7 +19,7 @@ export function sendChatMessage(content) {
         if (res.statusCode === 200 && res.data.success) {
           resolve(res.data)
         } else {
-          reject(new Error(res.data.error || '发送失败'))
+          reject(new Error(res.data.error || getApp().t('chat.sendFail')))
         }
       },
       fail: reject
@@ -47,7 +47,7 @@ export function getChatMessages(since = null, limit = 50) {
         if (res.statusCode === 200 && res.data.success) {
           resolve(res.data)
         } else {
-          reject(new Error(res.data.error || '获取消息失败'))
+          reject(new Error(res.data.error || getApp().t('chat.loadFail')))
         }
       },
       fail: reject
@@ -71,7 +71,7 @@ export function getUnreadCount() {
         if (res.statusCode === 200 && res.data.success) {
           resolve(res.data.unread_count)
         } else {
-          reject(new Error(res.data.error || '获取未读数失败'))
+          reject(new Error(res.data.error || getApp().t('chat.loadFail')))
         }
       },
       fail: reject

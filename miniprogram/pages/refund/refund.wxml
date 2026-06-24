@@ -1,233 +1,158 @@
 <view class="container">
-  <!-- 退款类型选择 -->
   <view class="form-section">
-    <view class="section-title">退款类型</view>
+    <view class="section-title">{{tRefundTypeLabel}}</view>
     <radio-group class="radio-group" bindchange="onRefundTypeChange">
       <label class="radio-item">
         <radio value="recharge" checked="{{refundType === 'recharge'}}"/>
-        <text>充值退款</text>
+        <text>{{tRefundRecharge}}</text>
       </label>
       <label class="radio-item">
         <radio value="membership" checked="{{refundType === 'membership'}}"/>
-        <text>会员退款</text>
+        <text>{{tRefundMembership}}</text>
       </label>
     </radio-group>
   </view>
 
-  <!-- 退款金额 -->
   <view class="form-section">
-    <view class="section-title">退款金额</view>
+    <view class="section-title">{{tRefundAmountLabel}}</view>
 
-    <!-- 充值退款：下拉选择充值记录 -->
     <block wx:if="{{refundType === 'recharge'}}">
       <view wx:if="{{loadingOptions}}" class="picker-wrapper loading">
-        <text>加载中...</text>
+        <text>{{tRefundLoadingOpts}}</text>
       </view>
       <block wx:else>
         <view wx:if="{{rechargeOptions.length === 0}}" class="picker-wrapper empty">
-          <text>暂无充值记录</text>
+          <text>{{tRefundNoRecords}}</text>
         </view>
         <block wx:else>
-          <picker
-            mode="selector"
-            range="{{rechargePickerRange}}"
-            bindchange="onRechargeSelect"
-            disabled="{{rechargeOptions.length === 0}}"
-          >
+          <picker mode="selector" range="{{rechargePickerRange}}" bindchange="onRechargeSelect" disabled="{{rechargeOptions.length === 0}}">
             <view class="picker-wrapper {{selectedOptionIndex >= 0 ? 'selected' : ''}}">
-              <text wx:if="{{selectedOptionIndex >= 0}}" class="picker-value">
-                ¥{{refundAmount}}
-              </text>
-              <text wx:else class="picker-placeholder">
-                请选择要退款的充值记录
-              </text>
+              <text wx:if="{{selectedOptionIndex >= 0}}" class="picker-value">¥{{refundAmount}}</text>
+              <text wx:else class="picker-placeholder">{{tRefundSelectRecord}}</text>
               <text class="picker-arrow">▼</text>
             </view>
           </picker>
-          <view class="hint" wx:if="{{selectedOptionIndex >= 0}}">
-            已选择 ¥{{rechargeOptions[selectedOptionIndex].amount}} 充值记录，可退 ¥{{rechargeOptions[selectedOptionIndex].refundable_amount}}
-          </view>
         </block>
       </block>
     </block>
 
-    <!-- 会员退款：自动计算 -->
     <block wx:if="{{refundType === 'membership'}}">
       <view class="input-wrapper">
         <text class="currency">¥</text>
-        <input
-          class="amount-input"
-          type="digit"
-          placeholder="会员退款自动计算"
-          value="{{refundAmount}}"
-          disabled="true"
-        />
+        <input class="amount-input" type="digit" placeholder="{{tRefundMembershipPlaceholder}}" value="{{refundAmount}}" disabled="true" />
       </view>
-      <view class="hint">
-        会员退款将按剩余天数自动计算可退金额
-      </view>
+      <view class="hint">{{tRefundMembershipAuto}}</view>
     </block>
   </view>
 
-  <!-- 退款原因 -->
   <view class="form-section">
-    <view class="section-title">退款原因 <text class="required">*</text></view>
-    <textarea 
-      class="textarea" 
-      placeholder="请详细说明退款原因" 
-      value="{{reason}}"
-      bindinput="onReasonInput"
-      maxlength="500"
-    />
+    <view class="section-title">{{tRefundReasonLabel}} <text class="required">*</text></view>
+    <textarea class="textarea" placeholder="{{tRefundReasonPlaceholder}}" value="{{reason}}" bindinput="onReasonInput" maxlength="500" />
     <view class="char-count">{{reason.length}}/500</view>
   </view>
 
-  <!-- 对本项目的建议 -->
   <view class="form-section">
-    <view class="section-title">对本项目的建议（选填）</view>
-    <textarea 
-      class="textarea" 
-      placeholder="您的建议对我们很重要" 
-      value="{{suggestions}}"
-      bindinput="onSuggestionsInput"
-      maxlength="500"
-    />
+    <view class="section-title">{{tRefundSuggestionsLabel}}</view>
+    <textarea class="textarea" placeholder="{{tRefundSuggestionsPlaceholder}}" value="{{suggestions}}" bindinput="onSuggestionsInput" maxlength="500" />
   </view>
 
-  <!-- 申请人信息 -->
   <view class="form-section">
-    <view class="section-title">申请人信息</view>
+    <view class="section-title">{{tRefundApplicantInfo}}</view>
     <view class="input-row">
-      <text class="label">姓名</text>
-      <input 
-        class="input" 
-        placeholder="请输入姓名" 
-        value="{{applicantName}}"
-        bindinput="onNameInput"
-      />
+      <text class="label">{{tRefundNameLabel}}</text>
+      <input class="input" placeholder="{{tRefundNamePlaceholder}}" value="{{applicantName}}" bindinput="onNameInput" />
     </view>
     <view class="input-row">
-      <text class="label">电话</text>
-      <input 
-        class="input" 
-        type="number" 
-        placeholder="请输入手机号" 
-        value="{{applicantPhone}}"
-        bindinput="onPhoneInput"
-        maxlength="11"
-      />
+      <text class="label">{{tRefundPhoneLabel}}</text>
+      <input class="input" type="number" placeholder="{{tRefundPhonePlaceholder}}" value="{{applicantPhone}}" bindinput="onPhoneInput" maxlength="11" />
     </view>
   </view>
 
-  <!-- 退款核算清单按钮 -->
   <view class="form-section">
-    <view class="section-title">退款核算</view>
-    <view class="hint" style="margin-bottom: 16rpx;">
-      选择充值记录后，可先查看核算清单了解最终退款金额
-    </view>
-    <button 
-      class="calculate-btn {{calculating ? 'disabled' : ''}}" 
-      bindtap="onCalculateTap"
-      disabled="{{calculating}}"
-    >
-      {{calculating ? '计算中...' : '📋 查看退款核算清单'}}
+    <view class="section-title">{{tRefundCalcSection}}</view>
+    <view class="hint" style="margin-bottom: 16rpx;">{{tRefundCalcHint}}</view>
+    <button class="calculate-btn {{calculating ? 'disabled' : ''}}" bindtap="onCalculateTap" disabled="{{calculating}}">
+      {{calculating ? tRefundCalculating : tRefundCalcBtn}}
     </button>
   </view>
 
-  <!-- 核算清单展示 -->
   <view class="calculation-panel" wx:if="{{showCalculation && calculation}}">
     <view class="calculation-header">
-      <text class="calculation-title">退款核算清单</text>
+      <text class="calculation-title">{{tRefundCalcTitle}}</text>
       <text class="close-btn" bindtap="onCloseCalculation">×</text>
     </view>
     
     <view class="calculation-content">
-      <!-- 充值退款 -->
       <block wx:if="{{calculation.refund_type === 'recharge'}}">
         <view class="calc-row">
-          <text class="calc-label">充值金额</text>
+          <text class="calc-label">{{tRefundChargeAmount}}</text>
           <text class="calc-value">¥{{calculation.charge_amount}}</text>
         </view>
         <view class="calc-row">
-          <text class="calc-label">获得发丝</text>
-          <text class="calc-value">{{calculation.charge_hairs}} 根</text>
+          <text class="calc-label">{{tRefundChargeHairs}}</text>
+          <text class="calc-value">{{calculation.charge_hairs}} {{tRefundHairsUnit}}</text>
         </view>
         <view class="calc-row">
-          <text class="calc-label">申请退款</text>
+          <text class="calc-label">{{tRefundApplyAmount}}</text>
           <text class="calc-value">¥{{calculation.refund_amount_requested}}</text>
         </view>
       </block>
       
-      <!-- 会员退款 -->
       <block wx:if="{{calculation.refund_type === 'membership'}}">
         <view class="calc-row">
-          <text class="calc-label">会员价格</text>
+          <text class="calc-label">{{tRefundMemberPrice}}</text>
           <text class="calc-value">¥{{calculation.member_price}}</text>
         </view>
         <view class="calc-row">
-          <text class="calc-label">剩余天数</text>
-          <text class="calc-value">{{calculation.remaining_days}} 天</text>
+          <text class="calc-label">{{tRefundRemainingDays}}</text>
+          <text class="calc-value">{{calculation.remaining_days}} {{tRefundDaysUnit}}</text>
         </view>
         <view class="calc-row">
-          <text class="calc-label">应退金额</text>
+          <text class="calc-label">{{tRefundAmountDue}}</text>
           <text class="calc-value">¥{{calculation.refund_amount_requested}}</text>
         </view>
       </block>
       
-      <!-- 分隔线 -->
       <view class="calc-divider"></view>
       
-      <!-- 发丝核算 -->
       <view class="calc-row">
-        <text class="calc-label">应扣回发丝（剪刀卡槽）</text>
-        <text class="calc-value">{{calculation.hairs_to_deduct}} 根</text>
+        <text class="calc-label">{{tRefundDeductHairs}}</text>
+        <text class="calc-value">{{calculation.hairs_to_deduct}} {{tRefundHairsUnit}}</text>
       </view>
       <view class="calc-row">
-        <text class="calc-label">当前剪刀卡槽</text>
-        <text class="calc-value">{{calculation.scissor_hairs}} 根</text>
+        <text class="calc-label">{{tRefundCurrentScissor}}</text>
+        <text class="calc-value">{{calculation.scissor_hairs}} {{tRefundHairsUnit}}</text>
       </view>
       <view class="calc-row">
-        <text class="calc-label">当前梳子卡槽（赠送）</text>
-        <text class="calc-value">{{calculation.comb_hairs}} 根</text>
+        <text class="calc-label">{{tRefundCurrentComb}}</text>
+        <text class="calc-value">{{calculation.comb_hairs}} {{tRefundHairsUnit}}</text>
       </view>
       
-      <!-- 发丝不足时的抵扣信息 -->
       <block wx:if="{{!calculation.hairs_sufficient}}">
         <view class="calc-row warning">
-          <text class="calc-label">发丝差额</text>
-          <text class="calc-value">-{{calculation.missing_hairs}} 根</text>
+          <text class="calc-label">{{tRefundHairShortage}}</text>
+          <text class="calc-value">-{{calculation.missing_hairs}} {{tRefundHairsUnit}}</text>
         </view>
         <view class="calc-row warning">
-          <text class="calc-label">现金抵扣</text>
+          <text class="calc-label">{{tRefundCashDeduction}}</text>
           <text class="calc-value">¥{{calculation.cash_deduction}}</text>
         </view>
       </block>
       
-      <!-- 最终结果 -->
       <view class="calc-divider"></view>
       <view class="calc-row result {{calculation.hairs_sufficient ? 'success' : 'warning'}}">
-        <text class="calc-label">最终退款金额</text>
+        <text class="calc-label">{{tRefundFinalRefund}}</text>
         <text class="calc-value amount">¥{{calculation.actual_refund}}</text>
       </view>
       
-      <!-- 提示信息 -->
-      <view class="calc-tip" wx:if="{{calculation.hairs_sufficient}}">
-        ✅ 剪刀发丝充足，全额退款
-      </view>
-      <view class="calc-tip warning" wx:if="{{!calculation.hairs_sufficient}}">
-        ⚠️ 剪刀发丝不足，差额按 0.01元/发丝 从退款中扣除
-      </view>
+      <view class="calc-tip" wx:if="{{calculation.hairs_sufficient}}">✅ {{tRefundSufficientTip}}</view>
+      <view class="calc-tip warning" wx:if="{{!calculation.hairs_sufficient}}">⚠️ {{tRefundInsufficientTip}}</view>
     </view>
   </view>
 
-  <!-- 提交按钮 -->
   <view class="submit-wrapper">
-    <button 
-      class="submit-btn {{submitting ? 'disabled' : ''}}" 
-      bindtap="onSubmit"
-      disabled="{{submitting}}"
-    >
-      {{submitting ? '提交中...' : '提交退款申请'}}
+    <button class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? tRefundSubmitting : tRefundSubmitBtn}}
     </button>
   </view>
 </view>

@@ -4,7 +4,7 @@
   <view class="message-list" scroll-y>
     <!-- 欢迎提示 -->
     <view class="welcome-tip" wx:if="{{messages.length === 0 && !loading}}">
-      <text>您好！有什么可以帮助您的？</text>
+      <text>{{tChatWelcome}}</text>
     </view>
 
     <!-- 消息气泡 -->
@@ -17,9 +17,9 @@
       <view class="bubble {{item.status || 'sent'}}">
         <text class="bubble-text">{{item.content}}</text>
         <view class="bubble-status" wx:if="{{item.sender_type === 'user'}}">
-          <text wx:if="{{item.status === 'sending'}}" class="status-icon">⏳</text>
-          <text wx:if="{{item.status === 'failed'}}" class="status-icon retry-btn" bindtap="onRetrySend" data-index="{{index}}">❌</text>
-          <text wx:if="{{item.status === 'sent'}}" class="status-icon">✓</text>
+          <text wx:if="{{item.status === 'sending'}}" class="status-icon">{{tChatSending}}</text>
+          <text wx:if="{{item.status === 'failed'}}" class="status-icon retry-btn" bindtap="onRetrySend" data-index="{{index}}">{{tChatFailed}}</text>
+          <text wx:if="{{item.status === 'sent'}}" class="status-icon">{{tChatSent}}</text>
         </view>
       </view>
       <view class="message-time">{{item.timeText}}</view>
@@ -27,7 +27,7 @@
 
     <!-- 加载更多提示 -->
     <view class="loading-more" wx:if="{{loading}}">
-      <text>加载中...</text>
+      <text>{{tChatLoading}}</text>
     </view>
   </view>
 
@@ -37,7 +37,7 @@
       class="message-input"
       value="{{inputValue}}"
       bindinput="onInputChange"
-      placeholder="输入消息..."
+      placeholder="{{tChatPlaceholder}}"
       maxlength="500"
       auto-height
       confirm-type="send"
@@ -47,7 +47,7 @@
       class="send-btn {{inputValue ? 'active' : ''}}"
       bindtap="onSendMessage"
     >
-      <text>发送</text>
+      <text>{{tChatSend}}</text>
     </view>
   </view>
 </view>

@@ -3,10 +3,10 @@
   <!-- Tab 切换 -->
   <view class="tab-bar">
     <view class="tab-item {{activeTab === 'hair' ? 'active' : ''}}" bindtap="onTabChange" data-tab="hair">
-      <text>发丝消费</text>
+      <text>{{tConsHairTab}}</text>
     </view>
     <view class="tab-item {{activeTab === 'money' ? 'active' : ''}}" bindtap="onTabChange" data-tab="money">
-      <text>银两消费</text>
+      <text>{{tConsMoneyTab}}</text>
     </view>
   </view>
 
@@ -16,28 +16,28 @@
     <view class="stats-card">
       <view class="stats-item">
         <text class="stats-value">{{totalHairConsumed}}</text>
-        <text class="stats-label">累计消耗发丝</text>
+        <text class="stats-label">{{tConsTotalConsumed}}</text>
       </view>
       <view class="stats-divider"></view>
       <view class="stats-item">
         <text class="stats-value">{{hairRecords.length}}</text>
-        <text class="stats-label">消费次数</text>
+        <text class="stats-label">{{tConsumptionCount}}</text>
       </view>
     </view>
 
     <!-- 筛选标签 -->
     <view class="filter-bar">
-      <view class="filter-tag {{hairFilter === 'all' ? 'active' : ''}}" bindtap="onFilterChange" data-type="all">全部</view>
-      <view class="filter-tag {{hairFilter === 'combined' ? 'active' : ''}}" bindtap="onFilterChange" data-type="combined">一键生成</view>
-      <view class="filter-tag {{hairFilter === 'sketch' ? 'active' : ''}}" bindtap="onFilterChange" data-type="sketch">素描转换</view>
-      <view class="filter-tag {{hairFilter === 'face_merge' ? 'active' : ''}}" bindtap="onFilterChange" data-type="face_merge">发型融合</view>
+      <view class="filter-tag {{hairFilter === 'all' ? 'active' : ''}}" bindtap="onFilterChange" data-type="all">{{tConsFilterAll}}</view>
+      <view class="filter-tag {{hairFilter === 'combined' ? 'active' : ''}}" bindtap="onFilterChange" data-type="combined">{{tConsFilterCombined}}</view>
+      <view class="filter-tag {{hairFilter === 'sketch' ? 'active' : ''}}" bindtap="onFilterChange" data-type="sketch">{{tConsFilterSketch}}</view>
+      <view class="filter-tag {{hairFilter === 'face_merge' ? 'active' : ''}}" bindtap="onFilterChange" data-type="face_merge">{{tConsFilterFaceMerge}}</view>
     </view>
 
     <!-- 记录列表 -->
     <scroll-view class="record-list" scroll-y bindscrolltolower="onScrollToLower">
       <view wx:if="{{hairRecords.length === 0 && !loading}}" class="empty-state">
-        <text class="empty-text">暂无发丝消费记录</text>
-        <text class="empty-desc">使用发型迁移服务后，消费记录将在这里显示</text>
+        <text class="empty-text">{{tConsEmptyHair}}</text>
+        <text class="empty-desc">{{tConsEmptyHairTip}}</text>
       </view>
 
       <view wx:for="{{hairRecords}}" wx:key="id" class="record-item">
@@ -56,8 +56,8 @@
         </view>
       </view>
 
-      <view wx:if="{{loading}}" class="loading-state"><text class="loading-text">加载中...</text></view>
-      <view wx:if="{{hairNoMore && hairRecords.length > 0}}" class="no-more-state"><text class="no-more-text">没有更多了</text></view>
+      <view wx:if="{{loading}}" class="loading-state"><text class="loading-text">{{tConsLoadingText}}</text></view>
+      <view wx:if="{{hairNoMore && hairRecords.length > 0}}" class="no-more-state"><text class="no-more-text">{{tConsNoMore}}</text></view>
     </scroll-view>
   </view>
 
@@ -65,18 +65,18 @@
   <view wx:if="{{activeTab === 'money'}}" class="tab-content">
     <!-- 筛选标签 -->
     <view class="filter-bar">
-      <view class="filter-tag {{moneyFilter === 'all' ? 'active' : ''}}" bindtap="onFilterChange" data-type="all">全部</view>
-      <view class="filter-tag {{moneyFilter === 'recharge' ? 'active' : ''}}" bindtap="onFilterChange" data-type="recharge">充值</view>
-      <view class="filter-tag {{moneyFilter === 'member_purchase' ? 'active' : ''}}" bindtap="onFilterChange" data-type="member_purchase">会员</view>
-      <view class="filter-tag {{moneyFilter === 'refund' ? 'active' : ''}}" bindtap="onFilterChange" data-type="refund">退款</view>
-      <view class="filter-tag {{moneyFilter === 'commission' ? 'active' : ''}}" bindtap="onFilterChange" data-type="commission">佣金</view>
+      <view class="filter-tag {{moneyFilter === 'all' ? 'active' : ''}}" bindtap="onFilterChange" data-type="all">{{tConsFilterAll}}</view>
+      <view class="filter-tag {{moneyFilter === 'recharge' ? 'active' : ''}}" bindtap="onFilterChange" data-type="recharge">{{tConsFilterRecharge}}</view>
+      <view class="filter-tag {{moneyFilter === 'member_purchase' ? 'active' : ''}}" bindtap="onFilterChange" data-type="member_purchase">{{tConsFilterMember}}</view>
+      <view class="filter-tag {{moneyFilter === 'refund' ? 'active' : ''}}" bindtap="onFilterChange" data-type="refund">{{tConsFilterRefund}}</view>
+      <view class="filter-tag {{moneyFilter === 'commission' ? 'active' : ''}}" bindtap="onFilterChange" data-type="commission">{{tConsFilterCommission}}</view>
     </view>
 
     <!-- 记录列表 -->
     <scroll-view class="record-list" scroll-y bindscrolltolower="onScrollToLower">
       <view wx:if="{{moneyRecords.length === 0 && !loading}}" class="empty-state">
-        <text class="empty-text">暂无银两消费记录</text>
-        <text class="empty-desc">充值、会员、退款、推广佣金等资金流水将在这里显示</text>
+        <text class="empty-text">{{tConsEmptyMoney}}</text>
+        <text class="empty-desc">{{tConsEmptyMoneyTip}}</text>
       </view>
 
       <view wx:for="{{moneyRecords}}" wx:key="id" class="record-item">
@@ -96,8 +96,8 @@
         </view>
       </view>
 
-      <view wx:if="{{loading}}" class="loading-state"><text class="loading-text">加载中...</text></view>
-      <view wx:if="{{moneyNoMore && moneyRecords.length > 0}}" class="no-more-state"><text class="no-more-text">没有更多了</text></view>
+      <view wx:if="{{loading}}" class="loading-state"><text class="loading-text">{{tConsLoadingText}}</text></view>
+      <view wx:if="{{moneyNoMore && moneyRecords.length > 0}}" class="no-more-state"><text class="no-more-text">{{tConsNoMore}}</text></view>
     </scroll-view>
   </view>
 </view>

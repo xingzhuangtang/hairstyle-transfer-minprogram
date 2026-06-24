@@ -1,6 +1,9 @@
 // pages/message-admin/message-admin.js
 import { API_BASE_URL } from '../../utils/constants.js'
 import { getToken } from '../../utils/storage.js'
+import { onLocaleChange } from '../../utils/i18n.js'
+
+const app = getApp()
 
 Page({
   data: {
@@ -9,11 +12,53 @@ Page({
     page: 1,
     pageSize: 20,
     hasMore: true,
-    loading: false
+    loading: false,
+    // i18n
+    tMsgAdminTitle: '',
+    tMsgAdminTotal: '',
+    tMsgAdminEmpty: '',
+    tMsgAdminLoadMore: '',
+    tMsgAdminLoading: '',
+    tMsgAdminLoadFail: '',
+    tMsgAdminNetworkFail: '',
+    tMsgAdminNoAccess: '',
+    tMsgAdminPhoneCopied: '',
+    tMsgAdminTotalTpl: ''
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'messageAdmin.title')
     this.loadMessages()
+  },
+
+  onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'messageAdmin.title')
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tMsgAdminTitle: t('messageAdmin.title'),
+      tMsgAdminTotal: '',
+      tMsgAdminEmpty: t('messageAdmin.empty'),
+      tMsgAdminLoadMore: t('history.loadMore'),
+      tMsgAdminLoading: t('messageAdmin.loading'),
+      tMsgAdminLoadFail: t('messageAdmin.loadFail'),
+      tMsgAdminNetworkFail: t('message.networkFail'),
+      tMsgAdminNoAccess: t('messageAdmin.noAccess'),
+      tMsgAdminPhoneCopied: t('messageAdmin.phoneCopied'),
+      tMsgAdminTotalTpl: t('messageAdmin.totalCount')
+    })
+  },
+
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'messageAdmin.title')
+    })
   },
 
   /**
@@ -44,19 +89,18 @@ Page({
             if (res.statusCode === 200) {
               resolve(res.data)
             } else if (res.statusCode === 403) {
-              reject(new Error('无权访问，仅开发者可查看'))
+              reject(new Error(this.data.tMsgAdminNoAccess))
             } else {
-              reject(new Error(res.data.error || '加载失败'))
+              reject(new Error(res.data.error || this.data.tMsgAdminLoadFail))
             }
           },
           fail: (err) => {
-            reject(new Error('网络请求失败'))
+            reject(new Error(this.data.tMsgAdminNetworkFail))
           }
         })
       }).then((data) => {
         const newMessages = data.messages || []
         const formattedMessages = newMessages.map(msg => {
-          // 格式化时间
           const date = new Date(msg.created_at)
           const formattedTime = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
           return {
@@ -70,18 +114,23 @@ Page({
           total: data.total || 0,
           hasMore: (page * pageSize) < (data.total || 0)
         })
+
+        // 更新总数显示
+        this.setData({
+          tMsgAdminTotal: this.data.tMsgAdminTotalTpl.replace('{n}', String(this.data.total))
+        })
       })
 
     } catch (e) {
       console.error('加载留言失败:', e)
       wx.showToast({
-        title: e.message || '加载失败',
+        title: e.message || this.data.tMsgAdminLoadFail,
         icon: 'none',
         duration: 2000
       })
 
       // 如果是权限错误，返回上一页
-      if (e.message.includes('无权访问')) {
+      if (e.message.includes(this.data.tMsgAdminNoAccess)) {
         setTimeout(() => {
           wx.navigateBack()
         }, 1500)
@@ -100,7 +149,7 @@ Page({
       data: phone,
       success: () => {
         wx.showToast({
-          title: '电话已复制',
+          title: this.data.tMsgAdminPhoneCopied,
           icon: 'success',
           duration: 1500
         })

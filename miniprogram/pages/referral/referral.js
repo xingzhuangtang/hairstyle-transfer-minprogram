@@ -1,55 +1,188 @@
 // pages/referral/referral.js
 const { post, get } = require('../../utils/request.js')
+const { onLocaleChange } = require('../../utils/i18n.js')
+
+const app = getApp()
 
 Page({
   data: {
-    // 二维码
     qrcodeUrl: '',
     qrcodeProxyUrl: '',
     qrcodeLocalPath: '',
     referralCode: '',
     shareText: '',
-    // 存钱罐
     balance: 0,
     totalEarnings: 0,
     referralCount: 0,
     progress: 0,
     localUnlocked: false,
     cashUnlocked: false,
-    // 佣金明细
     commissionHistory: [],
-    // 本地消费
     showConsumeModal: false,
     consumeAmount: '',
     consumeLoading: false,
-    // 提现
     showWithdrawModal: false,
     withdrawAmount: '',
-    withdrawLoading: false
+    withdrawLoading: false,
+    // i18n
+    // i18n - WXML UI
+    tReferralTitle: '我的惊喜',
+    tCommonCancel: '取消',
+    tReferralTipText: '甩出二维码，朋友注册账户成功，24小时以后，每使用两次素描效果功能，就能封顶99次迎娶人民币回家！',
+    tReferralQrcodeCardTitle: '营销二维码',
+    tReferralLoadQrcodeHint: '点击加载推广二维码',
+    tReferralSaveQrcode: '保存二维码',
+    tReferralShareToFriend: '分享给好友',
+    tReferralLongPressTip: '长按图片也可保存到相册',
+    tReferralPiggyBank: '存钱罐',
+    tReferralTotalEarnings: '累计收益：',
+    tReferralRefCount: '推广人数：',
+    tReferralPeople: '人',
+    tReferralLocalConsumption: '本地消费',
+    tReferralAvailable: '可用',
+    tReferralLocked: '未解锁',
+    tReferralUseBalanceDesc: '用余额购买发丝',
+    tReferralCashWithdraw: '提成现金',
+    tReferralWithdrawDesc: '提现到微信零钱',
+    tReferralCommissionDetail: '佣金明细',
+    tReferralEmptyCommission: '暂无佣金记录',
+    tReferralEmptyCommissionHint: '朋友使用素描效果后将在此显示佣金明细',
+    tReferralConsumeModalTitle: '购买发丝',
+    tReferralConsumeAmountLabel: '消费金额（元）',
+    tReferralConsumePlaceholder: '请输入金额',
+    tReferralExchangeRate: '兑换比例：1元 = 100发丝',
+    tReferralConfirmPurchase: '确认购买',
+    tReferralWithdrawModalTitle: '提现到微信零钱',
+    tReferralWithdrawAmountLabel: '提现金额（元）',
+    tReferralWithdrawPlaceholder: '请输入金额（最低1元）',
+    tReferralWithdrawInfo: '提现将到账您的微信零钱，预计即时到账',
+    tReferralConfirmWithdraw: '确认提现',
+    tReferralUnknownUser: '未知用户',
+    tReferralJustNow: '刚刚',
+    tReferralMinutesAgo: '{mins}分钟前',
+    tReferralHoursAgo: '{hours}小时前',
+    tReferralDaysAgo: '{days}天前',
+    tReferralDateFormat: '{month}月{day}日',
+    tReferralLoading: '加载中...',
+    tReferralLoadFail: '加载失败',
+    tReferralLoadQrcodeFirst: '请先加载二维码',
+    tReferralSaving: '保存中...',
+    tReferralNeedAlbumPermission: '需要相册权限',
+    tReferralAlbumPermissionContent: '请前往设置允许微信访问相册',
+    tReferralGoToSettings: '去设置',
+    tReferralSaveSuccess: '保存成功',
+    tReferralSavedToAlbum: '二维码已保存到相册',
+    tReferralSaveFail: '保存失败',
+    tReferralSaveFailContent: '请长按图片选择"保存图片"',
+    tReferralImageLoadFail: '图片加载失败',
+    tReferralBalanceNotEnough: '余额不足10元，无法使用',
+    tReferralEnterValidAmount: '请输入有效金额',
+    tReferralConsumeSuccess: '购买成功，获得{hairs}发丝',
+    tReferralConsumeFail: '消费失败',
+    tReferralCashNotEnough: '余额不足10元，无法提现',
+    tReferralMinWithdraw: '最低提现金额为1元',
+    tReferralWithdrawing: '提现中...',
+    tReferralWithdrawSuccess: '提现成功',
+    tReferralWithdrawFail: '提现失败',
+    tReferralShareTitle: '快来试试发型迁移AI，一键换发型！'
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'referral.title')
     this.loadPiggyBank()
   },
 
   onShow() {
+    this._loadI18n()
+    app.setNavTitle(this, 'referral.title')
     this.loadPiggyBank()
   },
 
-  /**
-   * 加载存钱罐数据
-   */
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'referral.title')
+    })
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      // i18n - WXML UI
+      tReferralTitle: t('referral.title'),
+      tCommonCancel: t('common.cancel'),
+      tReferralTipText: t('referral.tipText'),
+      tReferralQrcodeCardTitle: t('referral.qrcodeCardTitle'),
+      tReferralLoadQrcodeHint: t('referral.loadQrcodeHint'),
+      tReferralSaveQrcode: t('referral.saveQrcode'),
+      tReferralShareToFriend: t('referral.shareToFriend'),
+      tReferralLongPressTip: t('referral.longPressTip'),
+      tReferralPiggyBank: t('referral.piggyBank'),
+      tReferralTotalEarnings: t('referral.totalEarnings'),
+      tReferralRefCount: t('referral.refCount'),
+      tReferralPeople: t('referral.people'),
+      tReferralLocalConsumption: t('referral.localConsumption'),
+      tReferralAvailable: t('referral.available'),
+      tReferralLocked: t('referral.locked'),
+      tReferralUseBalanceDesc: t('referral.useBalanceDesc'),
+      tReferralCashWithdraw: t('referral.cashWithdraw'),
+      tReferralWithdrawDesc: t('referral.withdrawDesc'),
+      tReferralCommissionDetail: t('referral.commissionDetail'),
+      tReferralEmptyCommission: t('referral.emptyCommission'),
+      tReferralEmptyCommissionHint: t('referral.emptyCommissionHint'),
+      tReferralConsumeModalTitle: t('referral.consumeModalTitle'),
+      tReferralConsumeAmountLabel: t('referral.consumeAmountLabel'),
+      tReferralConsumePlaceholder: t('referral.consumePlaceholder'),
+      tReferralExchangeRate: t('referral.exchangeRate'),
+      tReferralConfirmPurchase: t('referral.confirmPurchase'),
+      tReferralWithdrawModalTitle: t('referral.withdrawModalTitle'),
+      tReferralWithdrawAmountLabel: t('referral.withdrawAmountLabel'),
+      tReferralWithdrawPlaceholder: t('referral.withdrawPlaceholder'),
+      tReferralWithdrawInfo: t('referral.withdrawInfo'),
+      tReferralConfirmWithdraw: t('referral.confirmWithdraw'),
+      tReferralUnknownUser: t('referral.unknownUser'),
+      tReferralJustNow: t('referral.justNow'),
+      tReferralMinutesAgo: t('referral.minutesAgo'),
+      tReferralHoursAgo: t('referral.hoursAgo'),
+      tReferralDaysAgo: t('referral.daysAgo'),
+      tReferralDateFormat: t('referral.dateFormat'),
+      tReferralLoading: t('referral.loading'),
+      tReferralLoadFail: t('referral.loadFail'),
+      tReferralLoadQrcodeFirst: t('referral.loadQrcodeFirst'),
+      tReferralSaving: t('referral.saving'),
+      tReferralNeedAlbumPermission: t('referral.needAlbumPermission'),
+      tReferralAlbumPermissionContent: t('referral.albumPermissionContent'),
+      tReferralGoToSettings: t('referral.goToSettings'),
+      tReferralSaveSuccess: t('referral.saveSuccess'),
+      tReferralSavedToAlbum: t('referral.savedToAlbum'),
+      tReferralSaveFail: t('referral.saveFail'),
+      tReferralSaveFailContent: t('referral.saveFailContent'),
+      tReferralImageLoadFail: t('referral.imageLoadFail'),
+      tReferralBalanceNotEnough: t('referral.balanceNotEnough'),
+      tReferralEnterValidAmount: t('referral.enterValidAmount'),
+      tReferralConsumeSuccess: t('referral.consumeSuccess'),
+      tReferralConsumeFail: t('referral.consumeFail'),
+      tReferralCashNotEnough: t('referral.cashNotEnough'),
+      tReferralMinWithdraw: t('referral.minWithdraw'),
+      tReferralWithdrawing: t('referral.withdrawing'),
+      tReferralWithdrawSuccess: t('referral.withdrawSuccess'),
+      tReferralWithdrawFail: t('referral.withdrawFail'),
+      tReferralShareTitle: t('referral.shareTitle')
+    })
+  },
+
   async loadPiggyBank() {
     try {
       const res = await get('/api/referral/piggy-bank')
       if (res.success) {
         const progress = Math.min((res.balance / 10) * 100, 100)
 
-        // 处理佣金明细，格式化时间
         const commissionHistory = (res.commission_history || []).map(item => ({
           ...item,
           formattedTime: this.formatTime(item.created_at),
-          refereeNickname: item.referee_nickname || '未知用户'
+          refereeNickname: item.referee_nickname || this.data.tReferralUnknownUser
         }))
 
         this.setData({
@@ -67,9 +200,6 @@ Page({
     }
   },
 
-  /**
-   * 格式化时间
-   */
   formatTime(timeStr) {
     if (!timeStr) return ''
     const date = new Date(timeStr)
@@ -79,22 +209,18 @@ Page({
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return '刚刚'
-    if (diffMins < 60) return `${diffMins}分钟前`
-    if (diffHours < 24) return `${diffHours}小时前`
-    if (diffDays < 7) return `${diffDays}天前`
+    if (diffMins < 1) return this.data.tReferralJustNow
+    if (diffMins < 60) return this.data.tReferralMinutesAgo.replace('{mins}', String(diffMins))
+    if (diffHours < 24) return this.data.tReferralHoursAgo.replace('{hours}', String(diffHours))
+    if (diffDays < 7) return this.data.tReferralDaysAgo.replace('{days}', String(diffDays))
 
-    // 超过7天显示具体日期
     const month = date.getMonth() + 1
     const day = date.getDate()
-    return `${month}月${day}日`
+    return this.data.tReferralDateFormat.replace('{month}', String(month)).replace('{day}', String(day))
   },
 
-  /**
-   * 加载二维码
-   */
   async loadQrcode() {
-    wx.showLoading({ title: '加载中...' })
+    wx.showLoading({ title: this.data.tReferralLoading })
     try {
       const res = await post('/api/referral/qrcode', {})
       if (res.success) {
@@ -107,18 +233,15 @@ Page({
         })
         this._downloadQrcodeToLocal()
       } else {
-        wx.showToast({ title: res.error || '加载失败', icon: 'none' })
+        wx.showToast({ title: res.error || this.data.tReferralLoadFail, icon: 'none' })
       }
     } catch (e) {
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralLoadFail, icon: 'none' })
     } finally {
       wx.hideLoading()
     }
   },
 
-  /**
-   * 下载二维码图片到本地临时文件（用于页面显示）
-   */
   _downloadQrcodeToLocal() {
     const token = wx.getStorageSync('token') || ''
     const imageUrl = this.data.qrcodeProxyUrl
@@ -128,10 +251,7 @@ Page({
       header: { 'Authorization': `Bearer ${token}` },
       success: (res) => {
         if (res.statusCode === 200 && res.tempFilePath) {
-          console.log('[loadQrcode] 图片已下载到本地:', res.tempFilePath)
           this.setData({ qrcodeLocalPath: res.tempFilePath })
-        } else {
-          console.error('[loadQrcode] 下载图片失败:', res.statusCode)
         }
       },
       fail: (err) => {
@@ -140,9 +260,6 @@ Page({
     })
   },
 
-  /**
-   * 预览二维码
-   */
   previewQrcode() {
     const url = this.data.qrcodeLocalPath || this.data.qrcodeProxyUrl || this.data.qrcodeUrl
     wx.previewImage({
@@ -151,16 +268,13 @@ Page({
     })
   },
 
-  /**
-   * 保存二维码到相册
-   */
   downloadQrcode() {
     if (!this.data.qrcodeUrl) {
-      wx.showToast({ title: '请先加载二维码', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralLoadQrcodeFirst, icon: 'none' })
       return
     }
 
-    wx.showLoading({ title: '保存中...' })
+    wx.showLoading({ title: this.data.tReferralSaving })
 
     wx.getSetting({
       success: (res) => {
@@ -168,9 +282,9 @@ Page({
         if (auth === false) {
           wx.hideLoading()
           wx.showModal({
-            title: '需要相册权限',
-            content: '请前往设置允许微信访问相册',
-            confirmText: '去设置',
+            title: this.data.tReferralNeedAlbumPermission,
+            content: this.data.tReferralAlbumPermissionContent,
+            confirmText: this.data.tReferralGoToSettings,
             success: (r) => { if (r.confirm) wx.openSetting() }
           })
           return
@@ -183,9 +297,6 @@ Page({
     })
   },
 
-  /**
-   * 保存到相册（复用已下载的本地文件，或重新下载）
-   */
   _saveToAlbum() {
     const saveFile = (filePath) => {
       wx.saveImageToPhotosAlbum({
@@ -193,8 +304,8 @@ Page({
         success: () => {
           wx.hideLoading()
           wx.showModal({
-            title: '保存成功',
-            content: '二维码已保存到相册',
+            title: this.data.tReferralSaveSuccess,
+            content: this.data.tReferralSavedToAlbum,
             showCancel: false
           })
         },
@@ -202,8 +313,8 @@ Page({
           console.error('保存到相册失败:', err)
           wx.hideLoading()
           wx.showModal({
-            title: '保存失败',
-            content: '请长按图片选择"保存图片"',
+            title: this.data.tReferralSaveFail,
+            content: this.data.tReferralSaveFailContent,
             showCancel: false
           })
         }
@@ -217,7 +328,7 @@ Page({
         if (err) {
           console.error('下载二维码图片失败:', err)
           wx.hideLoading()
-          wx.showToast({ title: '图片加载失败', icon: 'none' })
+          wx.showToast({ title: this.data.tReferralImageLoadFail, icon: 'none' })
           return
         }
         saveFile(tempFilePath)
@@ -225,20 +336,14 @@ Page({
     }
   },
 
-  /**
-   * 下载图片到本地临时文件（带认证头）
-   */
   downloadQrcodeImage(callback) {
     const token = wx.getStorageSync('token') || ''
     const imageUrl = this.data.qrcodeProxyUrl || this.data.qrcodeUrl
-
-    console.log('[downloadQrcodeImage] url:', imageUrl, 'hasToken:', !!token)
 
     wx.downloadFile({
       url: imageUrl,
       header: { 'Authorization': `Bearer ${token}` },
       success: (res) => {
-        console.log('[downloadQrcodeImage] statusCode:', res.statusCode, 'tempFilePath:', res.tempFilePath)
         if (res.statusCode === 200 && res.tempFilePath) {
           callback(null, res.tempFilePath)
         } else {
@@ -246,18 +351,14 @@ Page({
         }
       },
       fail: (err) => {
-        console.error('[downloadQrcodeImage] fail:', err)
         callback(err)
       }
     })
   },
 
-  /**
-   * 本地消费
-   */
   goConsumeCash() {
     if (!this.data.localUnlocked) {
-      wx.showToast({ title: '余额不足10元，无法使用', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralBalanceNotEnough, icon: 'none' })
       return
     }
     this.setData({ showConsumeModal: true, consumeAmount: '' })
@@ -274,7 +375,7 @@ Page({
   async confirmConsume() {
     const amount = parseFloat(this.data.consumeAmount)
     if (!amount || amount <= 0) {
-      wx.showToast({ title: '请输入有效金额', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralEnterValidAmount, icon: 'none' })
       return
     }
 
@@ -282,25 +383,25 @@ Page({
     try {
       const res = await post('/api/referral/consume-cash', { amount })
       if (res.success) {
-        wx.showToast({ title: `购买成功，获得${res.hairs_received}发丝`, icon: 'success' })
+        wx.showToast({
+          title: this.data.tReferralConsumeSuccess.replace('{hairs}', String(res.hairs_received)),
+          icon: 'success'
+        })
         this.setData({ showConsumeModal: false, consumeAmount: '' })
         this.loadPiggyBank()
       } else {
-        wx.showToast({ title: res.error || '消费失败', icon: 'none' })
+        wx.showToast({ title: res.error || this.data.tReferralConsumeFail, icon: 'none' })
       }
     } catch (e) {
-      wx.showToast({ title: '消费失败', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralConsumeFail, icon: 'none' })
     } finally {
       this.setData({ consumeLoading: false })
     }
   },
 
-  /**
-   * 提现
-   */
   goWithdraw() {
     if (!this.data.cashUnlocked) {
-      wx.showToast({ title: '余额不足10元，无法提现', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralCashNotEnough, icon: 'none' })
       return
     }
     this.setData({ showWithdrawModal: true, withdrawAmount: '' })
@@ -317,40 +418,35 @@ Page({
   async confirmWithdraw() {
     const amount = parseFloat(this.data.withdrawAmount)
     if (!amount || amount < 1) {
-      wx.showToast({ title: '最低提现金额为1元', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralMinWithdraw, icon: 'none' })
       return
     }
 
     this.setData({ withdrawLoading: true })
-    wx.showLoading({ title: '提现中...' })
+    wx.showLoading({ title: this.data.tReferralWithdrawing })
     try {
       const res = await post('/api/referral/withdraw', { amount })
       wx.hideLoading()
       if (res.success) {
-        wx.showToast({ title: '提现成功', icon: 'success' })
+        wx.showToast({ title: this.data.tReferralWithdrawSuccess, icon: 'success' })
         this.setData({ showWithdrawModal: false, withdrawAmount: '' })
         this.loadPiggyBank()
       } else {
-        wx.showToast({ title: res.error || '提现失败', icon: 'none' })
+        wx.showToast({ title: res.error || this.data.tReferralWithdrawFail, icon: 'none' })
       }
     } catch (e) {
       wx.hideLoading()
-      wx.showToast({ title: '提现失败', icon: 'none' })
+      wx.showToast({ title: this.data.tReferralWithdrawFail, icon: 'none' })
     } finally {
       this.setData({ withdrawLoading: false })
     }
   },
 
-  stopPropagation() {
-    // 阻止事件冒泡
-  },
+  stopPropagation() {},
 
-  /**
-   * 分享给好友
-   */
   onShareAppMessage() {
     return {
-      title: '快来试试发型迁移AI，一键换发型！',
+      title: this.data.tReferralShareTitle,
       path: `/pages/index/index`
     }
   }
