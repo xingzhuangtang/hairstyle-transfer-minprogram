@@ -265,6 +265,38 @@ Page({
   formatMoneyRecord(record) {
     const config = FINANCIAL_TYPE_CONFIG[record.record_type] || { icon: '❓', color: '#999' }
     const amountText = record.amount >= 0 ? `+¥${record.amount}` : `-¥${Math.abs(record.amount)}`
+    const t = (key) => app.t(key)
+
+    // 构建翻译后的描述
+    let description = ''
+    const amount = Math.abs(record.amount || 0)
+    const hairs = record.hairs_changed || 0
+    switch (record.record_type) {
+      case 'recharge':
+        description = t('consumption.descRecharge')
+          .replace('{amount}', String(amount))
+          .replace('{hairs}', String(hairs))
+        break
+      case 'member_purchase':
+        description = t('consumption.descMemberPurchase')
+          .replace('{amount}', String(amount))
+          .replace('{hairs}', String(hairs))
+        break
+      case 'refund':
+        description = t('consumption.descRefund').replace('{amount}', String(amount))
+        break
+      case 'commission':
+        description = t('consumption.descCommission').replace('{amount}', String(amount))
+        break
+      case 'withdrawal':
+        description = t('consumption.descWithdrawal').replace('{amount}', String(amount))
+        break
+      case 'cash_consumption':
+        description = t('consumption.descCashConsumption').replace('{amount}', String(amount))
+        break
+      default:
+        description = record.description || ''
+    }
 
     return {
       ...record,
@@ -272,6 +304,7 @@ Page({
       icon: config.icon,
       color: config.color,
       amount_text: amountText,
+      description: description,
       status_text: this._statusNames[record.status] || '',
       created_at: this.formatTime(record.created_at)
     }

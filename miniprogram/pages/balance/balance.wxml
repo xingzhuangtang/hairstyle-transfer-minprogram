@@ -22,8 +22,8 @@
   <view class="virtual-pay-notice">
     <view class="notice-icon">🔒</view>
     <view class="notice-content">
-      <text class="notice-title">微信虚拟支付</text>
-      <text class="notice-desc">本商品为虚拟商品，通过微信官方虚拟支付购买</text>
+      <text class="notice-title">{{tBalanceVirtualPayTitle}}</text>
+      <text class="notice-desc">{{tBalanceVirtualPayNotice}}</text>
     </view>
   </view>
 
@@ -31,7 +31,7 @@
   <view class="recharge-section">
     <view class="section-header">
       <text class="section-title">{{tBalanceSelectAmount}}</text>
-      <text class="section-subtitle" wx:if="{{isVip}}">会员专享优惠</text>
+      <text class="section-subtitle" wx:if="{{isVip}}">{{tBalanceVipDiscount}}</text>
     </view>
 
     <view class="recharge-list">
@@ -109,9 +109,9 @@
     </view>
 
     <button class="pay-btn" bindtap="createOrder" disabled="{{!selectedAmount}}">
-      <text class="btn-text">虚拟支付 {{selectedAmount ? '¥' + selectedAmount : ''}}</text>
+      <text class="btn-text">{{tBalanceVirtualPay}} {{selectedAmount ? '¥' + selectedAmount : ''}}</text>
     </button>
-    <text class="pay-hint">通过微信官方虚拟支付完成购买</text>
+    <text class="pay-hint">{{tBalanceVirtualPayHint}}</text>
   </view>
 
   <!-- 充值说明 -->

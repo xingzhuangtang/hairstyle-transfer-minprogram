@@ -1,20 +1,20 @@
 // pages/refund-admin/refund-admin.js
 import { API_BASE_URL } from '../../utils/constants.js'
 import { getToken } from '../../utils/storage.js'
+import { onLocaleChange } from '../../utils/i18n.js'
+
+const app = getApp()
 
 Page({
   data: {
-    // Tab 切换
     currentTab: 0,
-    tabs: ['退款权限', '申请记录', '成功退款'],
+    tabs: [],
 
-    // Tab 0: 退款权限
     searchPhone: '',
     users: [],
     userPage: 1,
     userHasMore: true,
 
-    // Tab 1 & 2: 申请记录
     appStatusFilter: 'all',
     appPhoneSearch: '',
     applications: [],
@@ -22,15 +22,99 @@ Page({
     appHasMore: true,
     appLoading: false,
 
-    // 通用
-    loading: false
+    loading: false,
+    // i18n
+    // i18n - WXML UI
+    tRaTitle: '',
+    tRaUserPrefix: '',
+    tRaSubtitle: '', tRaSearchPlaceholder: '', tRaSearchBtn: '',
+    tRaEnabled: '', tRaDisabled: '', tRaPhonePrefix: '', tRaIdPrefix: '',
+    tRaSilver: '', tRaCloseRefund: '', tRaOpenRefund: '',
+    tRaSearchHint: '', tRaLoadMore: '',
+    tRaAll: '', tRaPending: '', tRaApproved: '', tRaRejected: '',
+    tRaAmountLabel: '', tRaTypeLabel: '', tRaReasonLabel: '',
+    tRaApplicantLabel: '', tRaTimeLabel: '', tRaProcessTimeLabel: '',
+    tRaRejectReasonLabel: '', tRaNoApplications: '',
+    tRaTabPermission: '',
+    tRaTabApplications: '',
+    tRaTabApproved: '',
+    tRaNotBound: '',
+    tRaVipMember: '',
+    tRaNormalUser: '',
+    tRaConfirmAction: '',
+    tRaConfirmToggle: '',
+    tRaEnable: '',
+    tRaDisable: '',
+    tRaOperationFail: '',
+    tRaNetworkFail: '',
+    tRaLoadFail: '',
+    tRaNoPermission: '',
+    tRaRechargeRefund: '',
+    tRaMemberRefund: '',
+    tRaStatusPending: '',
+    tRaStatusApproved: '',
+    tRaStatusRejected: ''
   },
 
   onLoad() {
+    this._loadI18n()
+    this._setupLocaleListener()
+    app.setNavTitle(this, 'refundAdmin.title')
     this.loadUsers()
   },
 
-  // ==================== Tab 切换 ====================
+  _setupLocaleListener() {
+    onLocaleChange(() => {
+      this._loadI18n()
+      app.setNavTitle(this, 'refundAdmin.title')
+      this._updateDynamicLabels()
+    })
+  },
+
+  _loadI18n() {
+    const t = (key) => app.t(key)
+    this.setData({
+      tRaTitle: t('refundAdmin.title'),
+      tRaUserPrefix: t('refundAdmin.userPrefix'),
+      tRaSubtitle: t('refundAdmin.subtitle'), tRaSearchPlaceholder: t('refundAdmin.searchPlaceholder'),
+      tRaSearchBtn: t('refundAdmin.searchBtn'), tRaEnabled: t('refundAdmin.enabled'),
+      tRaDisabled: t('refundAdmin.disabled'), tRaPhonePrefix: t('refundAdmin.phonePrefix'),
+      tRaIdPrefix: t('refundAdmin.idPrefix'), tRaSilver: t('refundAdmin.silverLabel'),
+      tRaCloseRefund: t('refundAdmin.closeRefund'), tRaOpenRefund: t('refundAdmin.openRefund'),
+      tRaSearchHint: t('refundAdmin.searchUserHint'), tRaLoadMore: t('refundAdmin.loadMore'),
+      tRaAll: t('refundAdmin.filterAll'), tRaPending: t('refundAdmin.filterPending'),
+      tRaApproved: t('refundAdmin.filterApproved'), tRaRejected: t('refundAdmin.filterRejected'),
+      tRaAmountLabel: t('refundAdmin.amountLabel'), tRaTypeLabel: t('refundAdmin.typeLabel'),
+      tRaReasonLabel: t('refundAdmin.reasonLabel'), tRaApplicantLabel: t('refundAdmin.applicantLabel'),
+      tRaTimeLabel: t('refundAdmin.timeLabel'), tRaProcessTimeLabel: t('refundAdmin.processTimeLabel'),
+      tRaRejectReasonLabel: t('refundAdmin.rejectReasonLabel'), tRaNoApplications: t('refundAdmin.noApplications'),
+      tRaTabPermission: t('refundAdmin.tabPermission'),
+      tRaTabApplications: t('refundAdmin.tabApplications'),
+      tRaTabApproved: t('refundAdmin.tabApproved'),
+      tRaNotBound: t('refundAdmin.notBound'),
+      tRaVipMember: t('refundAdmin.vipMember'),
+      tRaNormalUser: t('refundAdmin.normalUser'),
+      tRaConfirmAction: t('refundAdmin.confirmAction'),
+      tRaConfirmToggle: t('refundAdmin.confirmToggle'),
+      tRaEnable: t('refundAdmin.enable'),
+      tRaDisable: t('refundAdmin.disable'),
+      tRaOperationFail: t('refundAdmin.operationFail'),
+      tRaNetworkFail: t('refundAdmin.networkFail'),
+      tRaLoadFail: t('refundAdmin.loadFail'),
+      tRaNoPermission: t('refundAdmin.noPermission'),
+      tRaRechargeRefund: t('refundAdmin.rechargeRefund'),
+      tRaMemberRefund: t('refundAdmin.memberRefund'),
+      tRaStatusPending: t('refundAdmin.statusPending'),
+      tRaStatusApproved: t('refundAdmin.statusApproved'),
+      tRaStatusRejected: t('refundAdmin.statusRejected')
+    })
+  },
+
+  _updateDynamicLabels() {
+    this.setData({
+      tabs: [this.data.tRaTabPermission, this.data.tRaTabApplications, this.data.tRaTabApproved]
+    })
+  },
 
   onTabChange(e) {
     const tab = parseInt(e.currentTarget.dataset.tab)
@@ -44,8 +128,6 @@ Page({
       this.loadApplications('approved')
     }
   },
-
-  // ==================== Tab 0: 退款权限 ====================
 
   onUserSearchInput(e) {
     this.setData({ searchPhone: e.detail.value })
@@ -83,19 +165,19 @@ Page({
           },
           success: (res) => {
             if (res.statusCode === 200) resolve(res.data)
-            else if (res.statusCode === 403) reject(new Error('无权访问'))
-            else reject(new Error(res.data.error || '加载失败'))
+            else if (res.statusCode === 403) reject(new Error(this.data.tRaNoPermission))
+            else reject(new Error(res.data.error || this.data.tRaLoadFail))
           },
-          fail: () => reject(new Error('网络请求失败'))
+          fail: () => reject(new Error(this.data.tRaNetworkFail))
         })
       })
 
       const newUsers = (data.users || []).map(u => ({
         ...u,
         totalHairs: (u.scissor_hairs || 0) + (u.comb_hairs || 0),
-        displayPhone: u.phone || '未绑定',
-        displayName: u.nickname || u.phone || `用户${u.id}`,
-        memberText: u.member_level === 'vip' ? 'VIP会员' : '普通用户'
+        displayPhone: u.phone || this.data.tRaNotBound,
+        displayName: u.nickname || u.phone || `${app.t('common.unknown')}${u.id}`,
+        memberText: u.member_level === 'vip' ? this.data.tRaVipMember : this.data.tRaNormalUser
       }))
 
       this.setData({
@@ -104,7 +186,7 @@ Page({
       })
     } catch (e) {
       console.error('加载用户失败:', e)
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || this.data.tRaLoadFail, icon: 'none' })
     } finally {
       this.setData({ loading: false })
     }
@@ -115,11 +197,11 @@ Page({
     const idx = e.currentTarget.dataset.index
     const user = this.data.users[idx]
 
-    const action = user.refund_enabled ? '关闭' : '开通'
+    const action = user.refund_enabled ? this.data.tRaDisable : this.data.tRaEnable
     const res = await new Promise(resolve => {
       wx.showModal({
-        title: '确认操作',
-        content: `确定要${action}用户 ${user.displayName} 的退款权限吗？`,
+        title: this.data.tRaConfirmAction,
+        content: this.data.tRaConfirmToggle.replace('{action}', action).replace('{name}', user.displayName),
         success: resolve
       })
     })
@@ -139,9 +221,9 @@ Page({
           },
           success: (r) => {
             if (r.statusCode === 200) resolve(r.data)
-            else reject(new Error(r.data.error || '操作失败'))
+            else reject(new Error(r.data.error || this.data.tRaOperationFail))
           },
-          fail: () => reject(new Error('网络请求失败'))
+          fail: () => reject(new Error(this.data.tRaNetworkFail))
         })
       })
 
@@ -152,7 +234,7 @@ Page({
       })
     } catch (e) {
       console.error('切换退款权限失败:', e)
-      wx.showToast({ title: e.message || '操作失败', icon: 'none' })
+      wx.showToast({ title: e.message || this.data.tRaOperationFail, icon: 'none' })
     }
   },
 
@@ -162,8 +244,6 @@ Page({
       this.loadUsers()
     }
   },
-
-  // ==================== Tab 1 & 2: 申请记录 ====================
 
   onAppStatusChange(e) {
     const status = e.currentTarget.dataset.status
@@ -213,17 +293,17 @@ Page({
           },
           success: (res) => {
             if (res.statusCode === 200) resolve(res.data)
-            else if (res.statusCode === 403) reject(new Error('无权访问'))
-            else reject(new Error(res.data.error || '加载失败'))
+            else if (res.statusCode === 403) reject(new Error(this.data.tRaNoPermission))
+            else reject(new Error(res.data.error || this.data.tRaLoadFail))
           },
-          fail: () => reject(new Error('网络请求失败'))
+          fail: () => reject(new Error(this.data.tRaNetworkFail))
         })
       })
 
       const newApps = (data.applications || []).map(a => ({
         ...a,
-        refundTypeText: a.refund_type === 'recharge' ? '充值退款' : '会员退款',
-        statusText: a.status === 'pending' ? '待处理' : a.status === 'approved' ? '已批准' : '已拒绝',
+        refundTypeText: a.refund_type === 'recharge' ? this.data.tRaRechargeRefund : this.data.tRaMemberRefund,
+        statusText: a.status === 'pending' ? this.data.tRaStatusPending : a.status === 'approved' ? this.data.tRaStatusApproved : this.data.tRaStatusRejected,
         statusClass: a.status === 'pending' ? 'status-pending' : a.status === 'approved' ? 'status-approved' : 'status-rejected',
         formattedCreatedAt: this.formatTime(a.created_at),
         formattedApprovedAt: a.approved_at ? this.formatTime(a.approved_at) : null
@@ -235,7 +315,7 @@ Page({
       })
     } catch (e) {
       console.error('加载申请记录失败:', e)
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || this.data.tRaLoadFail, icon: 'none' })
     } finally {
       this.setData({ appLoading: false })
     }
@@ -247,8 +327,6 @@ Page({
       this.loadApplications(this.data.appStatusFilter)
     }
   },
-
-  // ==================== 工具方法 ====================
 
   formatTime(timeStr) {
     if (!timeStr) return ''
