@@ -173,7 +173,7 @@
         <view class="menu-item" bindtap="goToCustomerAdmin">
           <view class="menu-left">
             <image class="menu-icon" src="/images/icons/admin.png"></image>
-            <text class="menu-text">客户档案</text>
+            <text class="menu-text">{{tProfileCustomerAdmin}}</text>
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>
@@ -188,14 +188,14 @@
         <view class="menu-item" bindtap="goToRefundAdmin">
           <view class="menu-left">
             <image class="menu-icon" src="/images/icons/admin.png"></image>
-            <text class="menu-text">退款权限</text>
+            <text class="menu-text">{{tProfileRefundAdmin}}</text>
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>
         <view class="menu-item" bindtap="goToMonitor">
           <view class="menu-left">
             <image class="menu-icon" src="/images/icons/admin.png"></image>
-            <text class="menu-text">系统监控</text>
+            <text class="menu-text">{{tProfileMonitor}}</text>
           </view>
           <image class="arrow" src="/images/icons/arrow-right.png"></image>
         </view>

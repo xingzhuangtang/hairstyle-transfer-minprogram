@@ -66,7 +66,7 @@ Page({
   },
 
   _setupLocaleListener() {
-    app.onLocaleChange(() => {
+    onLocaleChange(() => {
       this._loadI18n()
     })
   },
