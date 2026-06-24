@@ -44,11 +44,6 @@ App({
       // 等待登录后再追踪
       this.globalData.pendingReferralScene = scene
     }
-
-    // 检查未完成订单（不阻塞页面加载，延迟执行）
-    setTimeout(() => {
-      this.checkPendingOrders()
-    }, 1000)
   },
 
   onShow() {
@@ -96,52 +91,6 @@ App({
       })
     } catch (e) {
       console.error('setTabBarLabels error:', e)
-    }
-  },
-
-  /**
-   * 检查未完成订单
-   */
-  async checkPendingOrders() {
-    const pendingOrders = wx.getStorageSync('pending_orders') || []
-
-    if (pendingOrders.length === 0) {
-      return
-    }
-
-    console.log('检查未完成订单:', pendingOrders)
-
-    // 检查每个订单的状态
-    for (const orderNo of pendingOrders) {
-      try {
-        const res = await this.request({
-          url: '/api/recharge/order/status',
-          method: 'GET',
-          data: { order_no: orderNo }
-        })
-
-        if (res.payment_status === 'success') {
-          // 显示支付成功通知
-          wx.showModal({
-            title: this.t('app.paymentSuccess'),
-            content: this.t('app.paymentSuccessContent'),
-            showCancel: false,
-            success: () => {
-              // 刷新用户信息
-              this.refreshUserInfo()
-            }
-          })
-
-          // 移除已完成的订单
-          const orders = wx.getStorageSync('pending_orders') || []
-          wx.setStorageSync(
-            'pending_orders',
-            orders.filter(o => o !== orderNo)
-          )
-        }
-      } catch (e) {
-        console.error('检查订单状态失败:', e)
-      }
     }
   },
 

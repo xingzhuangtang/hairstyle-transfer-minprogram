@@ -257,9 +257,6 @@ module.exports = {
   },
   "balance": {
     "selectAmount": "选择充值金额",
-    "selectPayment": "选择支付方式",
-    "wechatPay": "微信支付",
-    "alipay": "支付宝",
     "recommended": "推荐",
     "hairs": "{hairs}发丝+赠送{bonus}梳子槽",
     "payNow": "立即支付",
@@ -268,7 +265,6 @@ module.exports = {
     "rechargeTip2": "剪刀槽发丝优先消费",
     "rechargeTip3": "如有疑问请联系客服",
     "pleaseSelectAmount": "请选择充值金额",
-    "pleaseSelectPayment": "请选择支付方式",
     "creatingOrder": "创建订单中...",
     "devModePaySuccess": "开发者模式：充值 {amount} 元成功，头发丝已到账",
     "virtualPay": "虚拟支付",
