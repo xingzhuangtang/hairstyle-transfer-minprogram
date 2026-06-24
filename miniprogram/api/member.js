@@ -12,25 +12,6 @@ export function getMemberInfo() {
 }
 
 /**
- * 购买会员
- */
-export function buyMember(payment_method = 'wechat') {
-  return post('/api/member/buy', {
-    payment_method: payment_method
-  })
-}
-
-/**
- * 支付会员订单
- */
-export function payMemberOrder(order_no, payment_method = 'wechat') {
-  return post('/api/member/pay', {
-    order_no: order_no,
-    payment_method: payment_method
-  })
-}
-
-/**
  * 获取会员订单列表
  */
 export function getMemberOrders(page = 1, page_size = 20) {
@@ -39,7 +20,5 @@ export function getMemberOrders(page = 1, page_size = 20) {
 
 export default {
   getMemberInfo,
-  buyMember,
-  payMemberOrder,
   getMemberOrders
 }
