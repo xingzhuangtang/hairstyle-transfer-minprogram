@@ -257,9 +257,6 @@ module.exports = {
   },
   "balance": {
     "selectAmount": "Select Recharge Amount",
-    "selectPayment": "Select Payment Method",
-    "wechatPay": "WeChat Pay",
-    "alipay": "Alipay",
     "recommended": "Recommended",
     "hairs": "{hairs} hairs + {bonus} bonus comb hairs",
     "payNow": "Pay Now",
@@ -268,7 +265,6 @@ module.exports = {
     "rechargeTip2": "Scissor slot hairs are consumed first",
     "rechargeTip3": "Contact customer service if you have questions",
     "pleaseSelectAmount": "Please select an amount",
-    "pleaseSelectPayment": "Please select a payment method",
     "creatingOrder": "Creating order...",
     "devModePaySuccess": "Dev Mode: Recharge of ¥{amount} successful. Hairs credited.",
     "virtualPay": "Virtual Payment",
