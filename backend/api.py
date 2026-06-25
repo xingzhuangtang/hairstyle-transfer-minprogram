@@ -1778,19 +1778,18 @@ def reset_test_user():
         RefundApplication.query.filter_by(user_id=user_id).delete()
         FinancialRecord.query.filter_by(user_id=user_id).delete()
 
-        # 重置用户状态（保留 user ID 以维持开发者身份）
+        # 仅重置发丝余额和会员等级，保留账户属性（开发者身份、手机号等）
         user.scissor_hairs = 0
         user.comb_hairs = 0
         user.member_level = 'normal'
-        user.user_type = 'guest'
-        user.vip_expire_time = None
+        user.member_expire_at = None
         db.session.commit()
 
         print(f"✅ 测试用户已重置：user_id={user_id}, openid={openid}")
 
         return jsonify({
             'success': True,
-            'message': '数据已清除，账户已重置为游客状态'
+            'message': '发丝余额和会员等级已重置，账户属性保留'
         })
 
     except Exception as e:
