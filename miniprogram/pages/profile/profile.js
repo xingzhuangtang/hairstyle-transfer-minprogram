@@ -178,7 +178,7 @@ Page({
       if (res.success && res.user) {
         const userInfo = res.user
         const isPremium = userInfo.member_level === 'vip'
-        const isDeveloper = isDeveloperAccount()
+        const isDeveloper = userInfo.is_developer === true
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
         // 计算剩余天数
