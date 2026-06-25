@@ -530,7 +530,7 @@ module.exports = {
   "about": {
     "title": "About Us",
     "version": "Version",
-    "delta": "🔺",
+    "delta": "Delta",
     "intro": "HairStyle Transfer is an AI-powered virtual try-on app that lets you preview hairstyles before committing.",
     "contact": "Contact Us",
     "email": "Email",
