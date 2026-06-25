@@ -2,6 +2,7 @@
 
 基于 AI 技术的微信小程序发型迁移应用，支持发型虚拟试戴、素描风格转换等功能。
 
+[![Version](https://img.shields.io/badge/version-V1.1-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
 [![Security Audit](https://img.shields.io/badge/security-audited-green)](docs/SECURITY_AUDIT.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![WeChat](https://img.shields.io/badge/platform-WeChat-07c160)](https://developers.weixin.qq.com/miniprogram/dev/framework/)
@@ -26,6 +27,10 @@
 - ✅ VIP 会员历史记录保存 45 天，过期自动删除
 - ✅ 会员到期自动降级和提醒
 - ✅ 完整的用户协议和隐私政策
+
+### 国际化
+
+- 🌐 **多语言支持** - 中文/英文双语界面，运行时切换语言
 
 ### 客服与消息系统
 
@@ -170,6 +175,7 @@ hairstyle-transfer-minprogram/
 │   ├── config.py              # 配置管理
 │   ├── auth.py                # 认证服务
 │   ├── payment_service.py     # 支付服务
+│   ├── financial_service.py   # 财务流水服务
 │   ├── account_service.py     # 账户服务（发丝赠送、余额管理）
 │   ├── virtual_payment_service.py  # 微信虚拟支付
 │   ├── hair_service.py        # 头发服务
@@ -211,8 +217,11 @@ hairstyle-transfer-minprogram/
 │   │   ├── message/           # 客户留言
 │   │   ├── refund/            # 退款申请
 │   │   ├── referral/          # 推广中心（我的惊喜）
+│   │   ├── consumption/       # 消费记录（发丝消费+银两流水）
+│   │   ├── about/             # 关于页面
 │   │   ├── monitor/           # 系统监控（4 Tab：告警/健康/修复/进化）
 │   │   └── legal/             # 协议页面
+│   ├── i18n/                  # 国际化（中文/英文）
 │   ├── utils/                 # 工具函数
 │   ├── api/                   # API 封装
 │   └── app.js                 # 小程序入口
@@ -381,11 +390,25 @@ MIT License
 
 - ✅ 核心功能已完成（发型迁移、素描转换、支付、会员、客服、退款、推广）
 - ✅ 自愈系统三阶段闭环已完成（感知 → 自愈 → 进化）
+- ✅ 服务定价调整完成（前后端同步）
+- ✅ 国际化支持（中文/英文双语）
+- ✅ 消费记录系统（发丝消费 + 银两流水）
 - 🚧 持续优化中
 
 ---
 
 ## 📝 更新日志
+
+### V1.1 (2026-06-25)
+
+**服务定价调整与前端优化**
+- ✅ 服务定价更新：发型提取 20/10、发型迁移 40/20、素描转换 88/46、组合服务 88/46（普通/VIP）
+- ✅ 前端价格动态化：首页消费价格从硬编码改为读取后端配置，VIP/普通用户显示不同价格
+- ✅ 消费记录修复：修复发丝消费记录和银两消费记录接口 500 错误（补充 FinancialService 导入）
+- ✅ 开发者模式财务记录：开发者模式虚拟支付操作自动记录财务流水
+- ✅ 测试工具优化：改为重置用户状态（发丝余额+会员等级）而非删除用户，保留开发者身份等账户属性
+- ✅ 开发者身份判断：profile 页面改用后端返回的 is_developer 字段，不再依赖前端缓存
+- ✅ UI 优化：关于页面 Delta 标签改为 🔺 符号
 
 ### v5.5 (2026-06-22)
 
@@ -436,4 +459,4 @@ MIT License
 
 ---
 
-*最后更新：2026-06-22*
+*最后更新：2026-06-25*
