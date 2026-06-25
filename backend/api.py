@@ -1755,6 +1755,8 @@ def reset_test_user():
         # 删除用户的所有关联数据
         from models import ConsumptionRecord, HistoryRecord, RechargeRecord, MemberOrder
         from models import InsufficientReminder, GuestBonusRecord, UserBonusRecord, Device, MemberReminder
+        from models import ChatMessage, Message, ReferralRelation, CommissionRecord
+        from models import CashWithdrawalRecord, CashConsumptionRecord, RefundApplication, FinancialRecord
 
         # 删除关联记录
         ConsumptionRecord.query.filter_by(user_id=user_id).delete()
@@ -1766,16 +1768,29 @@ def reset_test_user():
         UserBonusRecord.query.filter_by(user_id=user_id).delete()
         Device.query.filter_by(user_id=user_id).delete()
         MemberReminder.query.filter_by(user_id=user_id).delete()
+        ChatMessage.query.filter_by(user_id=user_id).delete()
+        Message.query.filter_by(user_id=user_id).delete()
+        ReferralRelation.query.filter(
+            (ReferralRelation.referrer_id == user_id) | (ReferralRelation.referee_id == user_id)
+        ).delete(synchronize_session=False)
+        CommissionRecord.query.filter_by(user_id=user_id).delete()
+        CashWithdrawalRecord.query.filter_by(user_id=user_id).delete()
+        CashConsumptionRecord.query.filter_by(user_id=user_id).delete()
+        RefundApplication.query.filter_by(user_id=user_id).delete()
+        FinancialRecord.query.filter_by(user_id=user_id).delete()
 
-        # 删除用户本身
-        db.session.delete(user)
+        # 仅重置发丝余额和会员等级，保留账户属性（开发者身份、手机号等）
+        user.scissor_hairs = 0
+        user.comb_hairs = 0
+        user.member_level = 'normal'
+        user.member_expire_at = None
         db.session.commit()
 
-        print(f"✅ 测试用户已删除：user_id={user_id}, openid={openid}")
+        print(f"✅ 测试用户已重置：user_id={user_id}, openid={openid}")
 
         return jsonify({
             'success': True,
-            'message': '数据已清除，下次登录将创建全新游客账户'
+            'message': '发丝余额和会员等级已重置，账户属性保留'
         })
 
     except Exception as e:
