@@ -218,32 +218,32 @@ RECHARGE_RULES = {
 
 # 普通用户服务价格
 NORMAL_SERVICE_PRICING = {
-    "hair_segment": 20,         # 发型分割（别名）
-    "extract_hair_only": 20,    # 仅提取发型
-    "face_merge": 40,           # 脸型融合（别名）
-    "migrate_hair_only": 40,    # 仅迁移发型
-    "sketch": 88,               # 素描（别名）
-    "sketch_only": 88,          # 单独素描
+    "hair_segment": 4,          # 发型分割（别名）
+    "extract_hair_only": 4,     # 仅提取发型
+    "face_merge": 4,            # 脸型融合（别名）
+    "migrate_hair_only": 4,     # 仅迁移发型
+    "sketch": 84,               # 素描（别名）
+    "sketch_only": 84,          # 单独素描
     "combined": 88,             # 综合处理 (发型迁移 + 素描)
-    "face_merge_step": 40,      # 分步模式第1步：仅发型迁移（别名）
-    "step1_migrate": 40,        # 分步模式第 1 步 (发型迁移)
+    "face_merge_step": 4,       # 分步模式第1步：仅发型迁移（别名）
+    "step1_migrate": 4,         # 分步模式第 1 步 (发型迁移)
     "sketch_step": 88,          # 分步模式第2步：基于第1步结果生成素描（别名）
     "step2_sketch": 88,         # 分步模式第 2 步 (素描)
 }
 
-# 陪跑会员服务价格 (约5折优惠)
+# 陪跑会员服务价格 (5 折优惠)
 VIP_SERVICE_PRICING = {
-    "hair_segment": 10,         # 发型分割（别名）
-    "extract_hair_only": 10,    # 仅提取发型
-    "face_merge": 20,           # 脸型融合（别名）
-    "migrate_hair_only": 20,    # 仅迁移发型
-    "sketch": 46,               # 素描（别名）
-    "sketch_only": 46,          # 单独素描
+    "hair_segment": 2,          # 发型分割（别名）
+    "extract_hair_only": 2,     # 仅提取发型
+    "face_merge": 2,            # 脸型融合（别名）
+    "migrate_hair_only": 2,     # 仅迁移发型
+    "sketch": 42,               # 素描（别名）
+    "sketch_only": 42,          # 单独素描
     "combined": 46,             # 综合处理 (发型迁移 + 素描)
-    "face_merge_step": 20,      # 分步模式第1步（会员约50%）（别名）
-    "step1_migrate": 20,        # 分步模式第 1 步
-    "sketch_step": 46,          # 分步模式第2步（会员约50%）（别名）
-    "step2_sketch": 46,         # 分步模式第 2 步
+    "face_merge_step": 2,       # 分步模式第1步（会员50%）（别名）
+    "step1_migrate": 2,         # 分步模式第 1 步
+    "sketch_step": 44,          # 分步模式第2步（会员50%）（别名）
+    "step2_sketch": 44,         # 分步模式第 2 步
 }
 
 # 统一收费规则引用 (根据用户类型动态选择)

@@ -167,11 +167,11 @@
     <view class="action-buttons" wx:if="{{modeIndex === 0}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         {{tIndexExtractOnly}}
-        <text class="cost">{{isPremium ? extractCost : extractCostNormal}} {{tIndexHairs}}</text>
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         {{tIndexTransferOnly}}
-        <text class="cost">{{isPremium ? extractCost : extractCostNormal}} {{tIndexHairs}}</text>
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn primary" bindtap="processAll" disabled="{{processing}}">
         {{tIndexSketchOptimize}}
@@ -183,15 +183,15 @@
     <view class="action-buttons" wx:if="{{modeIndex === 1}}">
       <button class="action-btn secondary" bindtap="extractOnly" disabled="{{processing}}">
         {{tIndexExtractOnly}}
-        <text class="cost">{{isPremium ? extractCost : extractCostNormal}} {{tIndexHairs}}</text>
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn secondary" bindtap="transferOnly" disabled="{{processing}}">
         {{tIndexGenerateHair}}
-        <text class="cost">{{isPremium ? extractCost : extractCostNormal}} {{tIndexHairs}}</text>
+        <text class="cost">{{isPremium ? 2 : 4}} {{tIndexHairs}}</text>
       </button>
       <button class="action-btn primary" bindtap="addSketchOnly" disabled="{{processing || !hasResult}}">
         {{tIndexSketchOptimize}}
-        <text class="cost">{{isPremium ? sketchCost : sketchCostNormal}}{{tIndexHairs}}</text>
+        <text class="cost">{{isPremium ? 44 : 88}}{{tIndexHairs}}</text>
       </button>
     </view>
   </view>

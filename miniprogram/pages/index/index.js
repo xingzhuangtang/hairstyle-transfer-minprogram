@@ -63,12 +63,6 @@ Page({
     // 消耗
     currentCost: 0,
     allCost: 88,
-    extractCost: 10,
-    extractCostNormal: 20,
-    transferCost: 20,
-    transferCostNormal: 40,
-    sketchCost: 46,
-    sketchCostNormal: 88,
 
     // 状态
     processing: false,
@@ -234,13 +228,7 @@ Page({
           totalHairs: totalHairs,
           isPremium: isPremium,
           isLoggedIn: true,
-          allCost: pricing.combined,
-          extractCost: PRICING.vip.hairSegment,
-          extractCostNormal: PRICING.normal.hairSegment,
-          transferCost: PRICING.vip.faceMerge,
-          transferCostNormal: PRICING.normal.faceMerge,
-          sketchCost: PRICING.vip.sketch,
-          sketchCostNormal: PRICING.normal.sketch
+          allCost: pricing.combined
         })
 
         // Feature 1: 游客余额不足，每次进入都弹注册弹窗
@@ -488,7 +476,7 @@ Page({
       return
     }
 
-    const cost = this.data.isPremium ? PRICING.vip.hairSegment : PRICING.normal.hairSegment
+    const cost = this.data.isPremium ? 2 : 4
     if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
@@ -508,7 +496,7 @@ Page({
       return
     }
 
-    const cost = this.data.isPremium ? PRICING.vip.hairSegment : PRICING.normal.hairSegment
+    const cost = this.data.isPremium ? 2 : 4
     if (!await this.checkBalanceAndLogin(cost)) {
       return
     }
@@ -530,7 +518,7 @@ Page({
       return
     }
 
-    const cost = this.data.isPremium ? PRICING.vip.sketch : PRICING.normal.sketch
+    const cost = this.data.isPremium ? 44 : 88  // 分步模式第 2 步：sketch_step 定价
     if (!await this.checkBalanceAndLogin(cost)) {
       return
     }

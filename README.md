@@ -5,7 +5,6 @@
 [![Security Audit](https://img.shields.io/badge/security-audited-green)](docs/SECURITY_AUDIT.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![WeChat](https://img.shields.io/badge/platform-WeChat-07c160)](https://developers.weixin.qq.com/miniprogram/dev/framework/)
-[![Version](https://img.shields.io/badge/version-V1.1-blue)](CHANGELOG.md)
 
 ---
 
@@ -399,14 +398,6 @@ MIT License
 - ✅ 修复开发者模式下会员续期不累计问题
 - ✅ 通过微信审核
 
-### V1.1 (2026-06-25)
-
-**定价体系调整**
-- ✅ 服务价格更新：发型提取 20 发丝、发型迁移 40 发丝、素描 88 发丝、综合处理 88 发丝
-- ✅ VIP 会员约 50% 优惠：提取 10、迁移 20、素描 46、综合 46
-- ✅ 前端价格硬编码消除：index.js 改为引用 PRICING 常量，WXML 绑定动态价格字段
-- ✅ 前后端价格一致性：constants.js 与 config.py 同步更新
-
 ### v5.4 (2026-06-16)
 
 **自愈系统 Phase 2+3**
@@ -445,4 +436,4 @@ MIT License
 
 ---
 
-*最后更新：2026-06-25*
+*最后更新：2026-06-22*
