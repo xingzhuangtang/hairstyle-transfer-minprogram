@@ -2359,6 +2359,17 @@ def create_virtual_pay_order():
             if is_developer:
                 user.scissor_hairs += scissor_hairs
                 user.comb_hairs += comb_hairs
+                # 记录财务流水
+                from financial_service import FinancialService
+                FinancialService.record_recharge(
+                    user_id=user.id,
+                    amount=float(amount),
+                    payment_method='wechat_virtual',
+                    scissor_hairs=scissor_hairs,
+                    comb_hairs=comb_hairs,
+                    order_no=order_no,
+                    status='success'
+                )
         elif order_type == "member":
             order = MemberOrder(
                 user_id=user.id,
@@ -2380,6 +2391,16 @@ def create_virtual_pay_order():
                 else:
                     user.member_expire_at = datetime.now() + timedelta(days=365)
                 user.comb_hairs += 1000
+                # 记录财务流水
+                from financial_service import FinancialService
+                FinancialService.record_member_purchase(
+                    user_id=user.id,
+                    amount=float(amount),
+                    payment_method='wechat_virtual',
+                    bonus_hairs=1000,
+                    order_no=order_no,
+                    status='success'
+                )
         else:
             return jsonify({"error": "不支持的订单类型"}), 400
 
