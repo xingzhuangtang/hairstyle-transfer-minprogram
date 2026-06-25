@@ -896,7 +896,7 @@ def transfer_hairstyle():
             print(f"💰 实际消费: {cost} 发丝 (服务类型: {actual_service_type})")
         else:
             # 没有认证系统，使用旧的逻辑
-            cost = 88 if enable_sketch else 4
+            cost = 88 if enable_sketch else 40
 
         # 构建返回信息
         response_data = {
@@ -1143,7 +1143,7 @@ def add_sketch():
         # 消费发丝
         task_id = str(uuid.uuid4())
         consume_result = None
-        cost = 88  # 默认值
+        cost = 88  # 默认值（combined类型）
 
         if AUTH_AVAILABLE and DB_AVAILABLE:
             user = g.current_user

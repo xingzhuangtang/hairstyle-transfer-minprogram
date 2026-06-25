@@ -11,15 +11,15 @@ export const STORAGE_KEYS = {
 // 价格配置
 export const PRICING = {
   normal: {
-    hairSegment: 4,
-    faceMerge: 4,
-    sketch: 84,
+    hairSegment: 20,
+    faceMerge: 40,
+    sketch: 88,
     combined: 88
   },
   vip: {
-    hairSegment: 2,
-    faceMerge: 2,
-    sketch: 42,
+    hairSegment: 10,
+    faceMerge: 20,
+    sketch: 46,
     combined: 46
   }
 }
