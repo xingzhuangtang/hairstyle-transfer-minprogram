@@ -50,6 +50,9 @@ App({
     // 确保 globalData.locale 与 i18n 模块同步
     this.globalData.locale = getLocale()
 
+    // 更新 tabBar 标签（确保语言切换后标签正确）
+    this.setTabBarLabels()
+
     console.log('小程序显示')
 
     // 移除自动刷新用户信息，改为按需加载
