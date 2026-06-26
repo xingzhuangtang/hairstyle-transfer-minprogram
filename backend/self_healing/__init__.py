@@ -147,7 +147,7 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     app._rule_engine = _rule_engine
     app._evolution_analyzer = _evolution_analyzer
 
-    # 10. 后台初始化：默认防御规则 + 清理过期审批
+    # 10. 后台初始化：默认防御规则 + 清理过期审批 + 启动健康检查
     def _post_init():
         try:
             if _rule_engine and db:
@@ -162,6 +162,25 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
                     _approval_manager.expire_stale_approvals()
         except Exception as e:
             logger.debug(f'过期审批清理: {e}')
+
+        # 启动时主动检查域名配置
+        _startup_health_check()
+
+    def _startup_health_check():
+        """启动时主动检查关键配置"""
+        try:
+            if _fixer:
+                result = _fixer._fix_domain_config_check()
+                if result.get('success') and 'issues' in result.get('detail', '{}'):
+                    import json
+                    detail = json.loads(result['detail'])
+                    issues = detail.get('issues', [])
+                    if issues:
+                        logger.warning(f'启动健康检查发现 {len(issues)} 个域名配置问题: {json.dumps(issues, ensure_ascii=False)}')
+                    else:
+                        logger.info('启动健康检查: 所有域名配置正常')
+        except Exception as e:
+            logger.debug(f'启动健康检查: {e}')
 
     threading.Thread(target=_post_init, daemon=True, name='sh_post_init').start()
 

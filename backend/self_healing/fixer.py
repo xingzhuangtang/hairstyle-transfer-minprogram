@@ -70,6 +70,13 @@ class AutoFixer:
                 'risk': 'high',
                 'match_keywords': ['slow query', 'lock wait', 'Lock wait', 'timeout', 'deadlock'],
             },
+            {
+                'id': 'domain_config_check',
+                'name': '域名配置检查',
+                'description': '检查回调地址等关键域名配置是否可达，发现不可达域名时发送告警',
+                'risk': 'low',
+                'match_keywords': ['域名', 'domain', 'DNS', '回调', 'callback', '无法解析', 'NOTIFY_URL'],
+            },
         ]
 
     def try_auto_fix(self, alert_id):
@@ -277,6 +284,86 @@ class AutoFixer:
 
         except Exception as e:
             return {'success': False, 'message': '慢查询清理失败', 'detail': str(e)}
+
+    def _fix_domain_config_check(self):
+        """域名配置检查"""
+        try:
+            import socket
+            from urllib.parse import urlparse
+
+            issues = []
+            checked = []
+
+            # 检查虚拟支付回调地址
+            notify_url = os.getenv('WECHAT_VIRTUAL_PAY_NOTIFY_URL', '')
+            if notify_url:
+                parsed = urlparse(notify_url)
+                domain = parsed.hostname
+                if domain:
+                    try:
+                        socket.gethostbyname(domain)
+                        checked.append({'domain': domain, 'type': 'callback_url', 'status': 'ok'})
+                    except socket.gaierror:
+                        issues.append({
+                            'domain': domain,
+                            'type': 'callback_url',
+                            'url': notify_url,
+                            'status': 'error',
+                            'message': '域名无法解析'
+                        })
+
+            # 检查关键第三方服务域名
+            critical_domains = [
+                ('api.mch.weixin.qq.com', 'wechat_pay_api'),
+                ('facebody.cn-shanghai.aliyuncs.com', 'aliyun_facebody'),
+                ('dashscope.aliyuncs.com', 'aliyun_dashscope'),
+            ]
+
+            for domain, service_type in critical_domains:
+                try:
+                    socket.gethostbyname(domain)
+                    checked.append({'domain': domain, 'type': service_type, 'status': 'ok'})
+                except socket.gaierror:
+                    issues.append({
+                        'domain': domain,
+                        'type': service_type,
+                        'status': 'error',
+                        'message': 'DNS 解析失败'
+                    })
+
+            if issues:
+                # 发送告警通知
+                if self.wecom_bot:
+                    markdown_msg = f"## ⚠️ 域名配置异常告警\n\n"
+                    text_msg = "[域名配置异常告警]\n"
+                    for issue in issues:
+                        markdown_msg += f"- **域名**: {issue['domain']}\n"
+                        markdown_msg += f"  - 类型: {issue['type']}\n"
+                        markdown_msg += f"  - 状态: {issue['message']}\n"
+                        if 'url' in issue:
+                            markdown_msg += f"  - URL: {issue['url']}\n"
+                        markdown_msg += "\n"
+                        text_msg += f"域名: {issue['domain']}, 类型: {issue['type']}, 状态: {issue['message']}\n"
+                        if 'url' in issue:
+                            text_msg += f"URL: {issue['url']}\n"
+                    markdown_msg += "---\n请及时检查并修正域名配置。"
+                    text_msg += "请及时检查并修正域名配置。"
+                    self.wecom_bot._send(markdown_msg, text_msg)
+
+                return {
+                    'success': True,
+                    'message': f'发现 {len(issues)} 个域名配置异常',
+                    'detail': json.dumps({'issues': issues, 'checked': checked}, ensure_ascii=False),
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': f'所有域名配置正常（已检查 {len(checked)} 个域名）',
+                    'detail': json.dumps({'checked': checked}, ensure_ascii=False),
+                }
+
+        except Exception as e:
+            return {'success': False, 'message': f'域名配置检查失败: {str(e)}'}
 
     # ==================== 辅助方法 ====================
 
