@@ -21,8 +21,10 @@ App({
       this.setTabBarLabels()
     })
 
-    // 初始化 tabBar 标签
-    this.setTabBarLabels()
+    // 初始化 tabBar 标签（延迟确保 tabBar 已就绪）
+    setTimeout(() => {
+      this.setTabBarLabels()
+    }, 100)
 
     console.log('小程序启动')
 
