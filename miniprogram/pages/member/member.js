@@ -1,8 +1,8 @@
 // pages/member/member.js
-import { getMemberInfo, getMemberOrders } from '../../api/member.js'
+import { getMemberInfo, getMemberOrders, createMemberOrder, payMemberOrder } from '../../api/member.js'
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
-import { getVirtualGoodsKey } from '../../utils/platform.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey, requestWechatPay } from '../../api/payment.js'
+import { getVirtualGoodsKey, isIOS } from '../../utils/platform.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
 const app = getApp()
@@ -175,10 +175,18 @@ Page({
   },
 
   async handleVirtualPay() {
+    if (isIOS()) {
+      await this.handleIOSVirtualPay()
+    } else {
+      await this.handleAndroidWechatPay()
+    }
+  },
+
+  async handleIOSVirtualPay() {
     const goodsKey = getVirtualGoodsKey('member', 99)
-    
+
     const sessionKey = await getSessionKey()
-    
+
     const orderRes = await createVirtualPayOrder('member', 99, goodsKey, sessionKey)
     if (!orderRes.success) throw new Error(orderRes.error)
 
@@ -208,6 +216,34 @@ Page({
       this.checkVirtualPayOrderStatus(orderNo)
     } catch (err) {
       console.error('调起虚拟支付失败:', err)
+      wx.showToast({
+        title: this.data.tMemberVirtualPayFail,
+        icon: 'none'
+      })
+    }
+  },
+
+  async handleAndroidWechatPay() {
+    const orderRes = await createMemberOrder('wxpay')
+    if (!orderRes.success) throw new Error(orderRes.error || this.data.tMemberCreateOrderFail)
+
+    const orderNo = orderRes.order_no
+    this.setData({ currentOrderNo: orderNo })
+
+    const payRes = await payMemberOrder(orderNo, 'wxpay')
+    if (!payRes.success) throw new Error(payRes.error || this.data.tMemberGetPayParamsFail)
+
+    const payParams = payRes.wxpay_params
+    if (!payParams) throw new Error(this.data.tMemberGetPayParamsFail)
+
+    wx.hideLoading()
+
+    try {
+      await requestWechatPay(payParams)
+      wx.showToast({ title: this.data.tMemberPaySuccessMember, icon: 'success' })
+      setTimeout(() => this.loadMemberInfo(), 1500)
+    } catch (err) {
+      console.error('调起微信支付失败:', err)
       wx.showToast({
         title: this.data.tMemberVirtualPayFail,
         icon: 'none'

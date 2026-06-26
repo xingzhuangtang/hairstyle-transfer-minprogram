@@ -91,11 +91,50 @@ function requestVirtualPay(payParams) {
   })
 }
 
+// ==================== 普通微信支付（Android端）====================
+
+/**
+ * 创建普通微信支付订单（Android 端）
+ * @param {number} amount - 金额（元）
+ * @param {string} paymentMethod - 支付方式 'wxpay'
+ */
+export function createWechatPayOrder(amount, paymentMethod = 'wxpay') {
+  return post('/api/recharge/create-order', {
+    amount: amount,
+    payment_method: paymentMethod
+  })
+}
+
+/**
+ * 调起普通微信支付（Android 端）
+ * @param {Object} payParams - 后端返回的微信支付参数
+ * 参数格式：{ timeStamp, nonceStr, package, signType, paySign }
+ */
+export function requestWechatPay(payParams) {
+  return new Promise((resolve, reject) => {
+    wx.requestPayment({
+      timeStamp: payParams.timeStamp,
+      nonceStr: payParams.nonceStr,
+      package: payParams.package,
+      signType: payParams.signType || 'MD5',
+      paySign: payParams.paySign,
+      success: (res) => {
+        resolve({ success: true, data: res })
+      },
+      fail: (err) => {
+        reject(err)
+      }
+    })
+  })
+}
+
 export default {
   getRechargeRules,
   getRechargeOrders,
   getSessionKey,
   createVirtualPayOrder,
   getVirtualPayOrderStatus,
-  requestVirtualPay
+  requestVirtualPay,
+  createWechatPayOrder,
+  requestWechatPay
 }
