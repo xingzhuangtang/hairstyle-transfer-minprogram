@@ -106,6 +106,18 @@ export function createWechatPayOrder(amount, paymentMethod = 'wxpay') {
 }
 
 /**
+ * 获取充值微信支付参数（Android 端）
+ * @param {string} orderNo - 订单号
+ * @param {string} paymentMethod - 支付方式 'wxpay'
+ */
+export function payRechargeOrder(orderNo, paymentMethod = 'wxpay') {
+  return post('/api/recharge/pay', {
+    order_no: orderNo,
+    payment_method: paymentMethod
+  })
+}
+
+/**
  * 调起普通微信支付（Android 端）
  * @param {Object} payParams - 后端返回的微信支付参数
  * 参数格式：{ timeStamp, nonceStr, package, signType, paySign }
@@ -136,5 +148,6 @@ export default {
   getVirtualPayOrderStatus,
   requestVirtualPay,
   createWechatPayOrder,
+  payRechargeOrder,
   requestWechatPay
 }

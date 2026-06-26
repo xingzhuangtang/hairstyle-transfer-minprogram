@@ -1,6 +1,6 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey, createWechatPayOrder, requestWechatPay } from '../../api/payment.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey, createWechatPayOrder, payRechargeOrder, requestWechatPay } from '../../api/payment.js'
 import { getVirtualGoodsKey, isIOS } from '../../utils/platform.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
@@ -249,7 +249,13 @@ Page({
     const orderNo = orderRes.order_no
     this.setData({ currentOrderNo: orderNo })
 
-    const payParams = orderRes.wxpay_params
+    // 获取微信支付参数
+    const payRes = await payRechargeOrder(orderNo, 'wxpay')
+    if (!payRes.success) {
+      throw new Error(payRes.error || this.data.tBalanceGetPayParamsFail)
+    }
+
+    const payParams = payRes.wxpay_params
     if (!payParams) {
       throw new Error(this.data.tBalanceGetPayParamsFail)
     }
