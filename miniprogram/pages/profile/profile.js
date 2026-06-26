@@ -140,7 +140,7 @@ Page({
       tProfileDeveloperTools: t('profile.developerTools'),
       tProfileCurrentVipStatus: t('profile.currentVipStatus'),
       tProfileVipMember: t('profile.vipMember'),
-      tProfileNormalUser: t('profile.normalUser'),
+      tProfileNormalUser: t('profile.registered'),
       tProfileExpireTime: t('profile.expireTime'),
       tProfilePermanent: t('profile.permanent'),
       tProfileSwitchToNormal: t('profile.switchToNormal'),
