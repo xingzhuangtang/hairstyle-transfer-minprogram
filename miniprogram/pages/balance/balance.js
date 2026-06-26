@@ -1,7 +1,7 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
-import { getVirtualGoodsKey } from '../../utils/platform.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey, createWechatPayOrder, requestWechatPay } from '../../api/payment.js'
+import { getVirtualGoodsKey, isIOS } from '../../utils/platform.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
 const app = getApp()
@@ -176,9 +176,21 @@ Page({
   },
 
   /**
-   * 处理微信虚拟支付
+   * 处理支付（iOS 虚拟支付 / Android 普通微信支付）
    */
   async handleVirtualPay(amount) {
+    // iOS 使用虚拟支付，Android 使用普通微信支付
+    if (isIOS()) {
+      await this.handleIOSVirtualPay(amount)
+    } else {
+      await this.handleAndroidWechatPay(amount)
+    }
+  },
+
+  /**
+   * iOS 虚拟支付
+   */
+  async handleIOSVirtualPay(amount) {
     const goodsKey = getVirtualGoodsKey('recharge', amount)
 
     const sessionKey = await getSessionKey()
@@ -216,6 +228,46 @@ Page({
       this.checkVirtualPayOrderStatus(orderNo)
     } catch (err) {
       console.error('调起虚拟支付失败:', err)
+      wx.showToast({
+        title: this.data.tBalanceVirtualPayFail,
+        icon: 'none'
+      })
+    }
+  },
+
+  /**
+   * Android 普通微信支付
+   */
+  async handleAndroidWechatPay(amount) {
+    // 创建订单
+    const orderRes = await createWechatPayOrder(amount, 'wxpay')
+
+    if (!orderRes.success) {
+      throw new Error(orderRes.error || app.t('balance.createOrderFail'))
+    }
+
+    const orderNo = orderRes.order_no
+    this.setData({ currentOrderNo: orderNo })
+
+    const payParams = orderRes.wxpay_params
+    if (!payParams) {
+      throw new Error(this.data.tBalanceGetPayParamsFail)
+    }
+
+    wx.hideLoading()
+
+    try {
+      await requestWechatPay(payParams)
+      // 支付成功后刷新用户信息
+      wx.showToast({
+        title: this.data.tBalancePaySuccess,
+        icon: 'success'
+      })
+      setTimeout(() => {
+        this.loadUserInfo()
+      }, 1500)
+    } catch (err) {
+      console.error('调起微信支付失败:', err)
       wx.showToast({
         title: this.data.tBalanceVirtualPayFail,
         icon: 'none'

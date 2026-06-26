@@ -67,12 +67,11 @@ function isDevTools() {
 
 /**
  * 是否需要使用虚拟支付
- * 微信要求所有虚拟商品（发丝、会员等）必须使用小程序虚拟支付
- * 支持全终端（iOS、Android 等）
+ * iOS 必须使用虚拟支付（遵守 Apple IAP 规定）
+ * Android 使用普通微信支付
  */
 function needsVirtualPay() {
-  // 全平台都使用虚拟支付
-  return true
+  return isIOS()
 }
 
 /**
