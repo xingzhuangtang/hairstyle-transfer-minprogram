@@ -612,6 +612,10 @@ def pay_recharge():
 
         user = g.current_user
 
+        # 规范化支付方式
+        if payment_method == 'wxpay':
+            payment_method = 'wechat'
+
         # 根据支付方式调用对应的支付接口
         if payment_method == 'wechat':
             from payment_service import WeChatPayService
@@ -1190,6 +1194,10 @@ def pay_member():
             return jsonify({'error': '缺少 order_no 或 payment_method 参数'}), 400
 
         user = g.current_user
+
+        # 规范化支付方式
+        if payment_method == 'wxpay':
+            payment_method = 'wechat'
 
         if payment_method == 'wechat':
             from payment_service import WeChatPayService
