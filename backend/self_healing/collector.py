@@ -69,6 +69,7 @@ class MetricsCollector:
             'database': self._get_db_status(),
             'redis': self._get_redis_status(),
             'app': self._get_app_metrics(),
+            'external': self._get_external_checks(),
             'collected_at': datetime.now().isoformat(),
         }
 
@@ -172,6 +173,73 @@ class MetricsCollector:
             'today_errors': today_errors,
             'avg_response_ms': avg_response,
         }
+
+    def _get_external_checks(self):
+        """外部服务健康检查（域名可达性、回调地址等）"""
+        checks = {
+            'callback_url': self._check_callback_url(),
+            'dns_resolution': self._check_dns_resolution(),
+        }
+        return checks
+
+    def _check_callback_url(self):
+        """检查虚拟支付回调地址是否可达"""
+        try:
+            from urllib.parse import urlparse
+            import socket
+
+            # 从配置获取回调 URL
+            notify_url = os.getenv('WECHAT_VIRTUAL_PAY_NOTIFY_URL', '')
+            if not notify_url:
+                return {'status': 'not_configured', 'message': '回调地址未配置'}
+
+            # 解析域名
+            parsed = urlparse(notify_url)
+            domain = parsed.hostname
+
+            if not domain:
+                return {'status': 'error', 'message': '回调地址格式错误'}
+
+            # 检查 DNS 解析
+            try:
+                socket.gethostbyname(domain)
+                return {
+                    'status': 'ok',
+                    'domain': domain,
+                    'url': notify_url,
+                    'message': '回调地址域名解析正常'
+                }
+            except socket.gaierror:
+                return {
+                    'status': 'error',
+                    'domain': domain,
+                    'url': notify_url,
+                    'message': f'域名 {domain} 无法解析，请检查配置'
+                }
+
+        except Exception as e:
+            return {'status': 'error', 'message': f'检查失败: {str(e)}'}
+
+    def _check_dns_resolution(self):
+        """检查关键域名的 DNS 解析"""
+        critical_domains = [
+            'api.mch.weixin.qq.com',  # 微信支付 API
+            'facebody.cn-shanghai.aliyuncs.com',  # 阿里云人脸融合
+            'dashscope.aliyuncs.com',  # 百炼 API
+        ]
+
+        results = []
+        for domain in critical_domains:
+            try:
+                import socket
+                socket.gethostbyname(domain)
+                results.append({'domain': domain, 'status': 'ok'})
+            except socket.gaierror:
+                results.append({'domain': domain, 'status': 'error', 'message': 'DNS 解析失败'})
+            except Exception as e:
+                results.append({'domain': domain, 'status': 'error', 'message': str(e)})
+
+        return results
 
     def set_start_time(self, ts):
         self._start_time = ts

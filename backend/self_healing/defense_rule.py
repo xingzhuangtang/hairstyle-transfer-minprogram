@@ -33,6 +33,15 @@ DEFAULT_RULES = [
         'cooldown_seconds': 300,
     },
     {
+        'name': '域名配置异常自动检查',
+        'pattern_type': 'title_contains',
+        'pattern_value': '域名',
+        'action': 'auto_fix',
+        'action_config': json.dumps({'fix_id': 'domain_config_check'}),
+        'priority': 8,
+        'cooldown_seconds': 600,
+    },
+    {
         'name': '同源模块告警抑制',
         'pattern_type': 'frequency',
         'pattern_value': json.dumps({'threshold': 10, 'window_seconds': 300}),
