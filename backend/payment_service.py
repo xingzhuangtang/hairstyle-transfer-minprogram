@@ -43,17 +43,21 @@ class PaymentService:
     def create_recharge_order(self, user_id, amount, payment_method, user=None):
         """
         创建充值订单
-        
+
         Args:
             user_id: 用户ID
             amount: 充值金额
             payment_method: 支付方式 (wechat, alipay, unionpay)
             user: User 对象（可选，用于判断用户类型）
-        
+
         Returns:
             dict: {success, order_no, error}
         """
         try:
+            # 规范化支付方式（前端可能传 'wxpay'，数据库 ENUM 只接受 'wechat'）
+            if payment_method == 'wxpay':
+                payment_method = 'wechat'
+
             # 获取用户等级以选择对应充值规则
             user_level = 'normal'
             if user:
@@ -107,15 +111,19 @@ class PaymentService:
     def create_member_order(self, user_id, payment_method):
         """
         创建会员订单
-        
+
         Args:
             user_id: 用户ID
             payment_method: 支付方式 (wechat, alipay, unionpay)
-        
+
         Returns:
             dict: {success, order_no, error}
         """
         try:
+            # 规范化支付方式（前端可能传 'wxpay'，数据库 ENUM 只接受 'wechat'）
+            if payment_method == 'wxpay':
+                payment_method = 'wechat'
+
             # 获取会员配置
             config = self.member_config['vip']
             
