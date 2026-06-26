@@ -256,6 +256,15 @@ class AliyunHairTransferFixed:
                 if len(image.shape) < 2:
                     raise Exception(f"图像格式异常，shape: {image.shape}")
 
+
+                # 检测是否为空白/纯白图像（阿里云 API 可能返回空白结果）
+                if len(image.shape) == 3:
+                    mean_brightness = np.mean(image[:, :, :3])
+                else:
+                    mean_brightness = np.mean(image)
+                if mean_brightness > 250:
+                    raise Exception(f"图像为空白（平均亮度：{mean_brightness:.1f}），可能是人脸融合失败")
+
                 print(f"   图像尺寸: {w}x{h}, 通道数: {len(image.shape)}")
 
                 # 保存到本地
