@@ -223,3 +223,51 @@ class DefenseRule(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class BugKnowledge(Base):
+    """Bug 知识库表 — 结构化记录已修复的 Bug，防止复发"""
+    __tablename__ = 'bug_knowledge'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bug_id = Column(String(64), unique=True, nullable=False, comment='Bug唯一标识')
+    title = Column(String(256), nullable=False, comment='Bug标题')
+    category = Column(String(32), nullable=False, comment='分类: data_type/deployment/security/performance/logic')
+    severity = Column(String(16), nullable=False, comment='严重级别: low/medium/high/critical')
+    root_cause = Column(Text, comment='根因分析')
+    affected_files = Column(Text, comment='受影响文件列表JSON')
+    fix_description = Column(Text, comment='修复方案')
+    prevention = Column(Text, comment='预防措施')
+    related_alert_id = Column(Integer, comment='关联告警ID')
+    related_evolution_log_id = Column(Integer, comment='关联进化日志ID')
+    status = Column(String(16), nullable=False, default='active', comment='状态: active/archived')
+    discovered_at = Column(DateTime, comment='发现时间')
+    fixed_at = Column(DateTime, comment='修复时间')
+    created_at = Column(DateTime, nullable=False, default=datetime.now, comment='创建时间')
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    __table_args__ = (
+        Index('idx_bug_category', 'category'),
+        Index('idx_bug_status', 'status'),
+        Index('idx_bug_severity', 'severity'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'bug_id': self.bug_id,
+            'title': self.title,
+            'category': self.category,
+            'severity': self.severity,
+            'root_cause': self.root_cause,
+            'affected_files': self.affected_files,
+            'fix_description': self.fix_description,
+            'prevention': self.prevention,
+            'related_alert_id': self.related_alert_id,
+            'related_evolution_log_id': self.related_evolution_log_id,
+            'status': self.status,
+            'discovered_at': self.discovered_at.isoformat() if self.discovered_at else None,
+            'fixed_at': self.fixed_at.isoformat() if self.fixed_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

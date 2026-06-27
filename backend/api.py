@@ -2370,7 +2370,7 @@ def create_virtual_pay_order():
             order = RechargeRecord(
                 user_id=user.id,
                 order_no=order_no,
-                amount=amount,
+                amount=float(amount),
                 scissor_hairs=scissor_hairs,
                 comb_hairs=comb_hairs,
                 payment_method="wechat_virtual",
@@ -2398,7 +2398,7 @@ def create_virtual_pay_order():
                 user_id=user.id,
                 order_no=order_no,
                 member_level="vip",
-                amount=amount,
+                amount=float(amount),
                 bonus_hairs=1000,
                 payment_method="wechat_virtual",
                 payment_status=payment_status,
@@ -2434,7 +2434,7 @@ def create_virtual_pay_order():
         pay_params = virtual_pay_service.create_virtual_pay_order(
             user_openid=user.openid,
             order_no=order_no,
-            amount_yuan=amount,
+            amount_yuan=float(amount),
             goods_id=goods_id,
             body=body,
             session_key=session_key,

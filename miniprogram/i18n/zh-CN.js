@@ -256,6 +256,7 @@ module.exports = {
     "saveFail": "保存失败"
   },
   "balance": {
+    "title": "充值中心",
     "selectAmount": "选择充值金额",
     "recommended": "推荐",
     "hairs": "{hairs}发丝+赠送{bonus}梳子槽",

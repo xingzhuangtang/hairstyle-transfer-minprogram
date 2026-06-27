@@ -257,13 +257,16 @@ class AliyunHairTransferFixed:
                     raise Exception(f"图像格式异常，shape: {image.shape}")
 
 
-                # 检测是否为空白/纯白图像（阿里云 API 可能返回空白结果）
+                # 空白图像三重检测 - 防止阿里云 API 返回白板结果
                 if len(image.shape) == 3:
-                    mean_brightness = np.mean(image[:, :, :3])
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.shape[2] >= 3 else image[:, :, 0]
                 else:
-                    mean_brightness = np.mean(image)
-                if mean_brightness > 250:
-                    raise Exception(f"图像为空白（平均亮度：{mean_brightness:.1f}），可能是人脸融合失败")
+                    gray = image
+                mean_brightness = float(np.mean(gray))
+                std_brightness = float(np.std(gray))
+                non_white_ratio = float(np.sum(gray < 240)) / gray.size
+                if (mean_brightness > 240 and std_brightness < 15) or non_white_ratio < 0.02 or std_brightness < 3.0:
+                    raise Exception(f"图像为空白（亮度={mean_brightness:.1f}, 方差={std_brightness:.1f}, 非白比={non_white_ratio:.4f}）")
 
                 print(f"   图像尺寸: {w}x{h}, 通道数: {len(image.shape)}")
 
@@ -355,24 +358,40 @@ class AliyunHairTransferFixed:
             # 步骤1: 创建模板(使用完整的发型参考图)
             template_id = self.add_face_template(hairstyle_image_url)
             info['template_id'] = template_id
-            
-            # 步骤2: 人脸融合(将客户人脸融合到模板)
-            result_url = self.merge_face(
-                template_id=template_id,
-                user_image_url=customer_image_url,
-                model_version=model_version
-            )
-            info['result_url'] = result_url
-            
-            # 步骤3: 下载结果
+
+            # 步骤2: 人脸融合(将客户人脸融合到模板) - 带空白重试
             save_path = None
             if save_dir:
                 os.makedirs(save_dir, exist_ok=True)
                 timestamp = int(time.time())
                 save_path = os.path.join(save_dir, f'result_{timestamp}.png')
-            
-            result_image = self.download_image(result_url, save_path)
-            info['save_path'] = save_path
+
+            result_image = None
+            versions_to_try = [model_version]
+            alternate = 'v2' if model_version == 'v1' else 'v1'
+            versions_to_try.append(alternate)
+
+            for ver_idx, ver in enumerate(versions_to_try):
+                try:
+                    result_url = self.merge_face(
+                        template_id=template_id,
+                        user_image_url=customer_image_url,
+                        model_version=ver
+                    )
+                    info['result_url'] = result_url
+                    info['used_model_version'] = ver
+
+                    result_image = self.download_image(result_url, save_path)
+                    info['save_path'] = save_path
+
+                    if ver_idx > 0:
+                        print(f"✅ 使用备选模型版本 {ver} 成功获得有效图像")
+                    break
+                except Exception as merge_err:
+                    if ver_idx < len(versions_to_try) - 1:
+                        print(f"⚠️ 模型版本 {ver} 失败: {merge_err}, 尝试备选版本 {alternate}")
+                        continue
+                    raise
             
             # 步骤4: 素描效果(可选)
             if enable_sketch and SKETCH_AVAILABLE:

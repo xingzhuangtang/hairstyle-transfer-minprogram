@@ -111,6 +111,56 @@ check_prerequisites() {
 }
 
 # ============================================
+# 部署路径校验（防止文件同步到错误位置）
+# ============================================
+
+verify_deploy_paths() {
+    log_info "校验部署路径..."
+
+    # 检查服务器上是否存在多份代码副本
+    ROOT_APP="$DEPLOY_PATH/app.py"
+    BACKEND_APP="$DEPLOY_PATH/backend/app.py"
+
+    ROOT_EXISTS=$(remote_exec "test -f $ROOT_APP && echo yes || echo no" 2>/dev/null | tr -d '[:space:]')
+    BACKEND_EXISTS=$(remote_exec "test -f $BACKEND_APP && echo yes || echo no" 2>/dev/null | tr -d '[:space:]')
+
+    if [[ "$ROOT_EXISTS" == "yes" && "$BACKEND_EXISTS" == "yes" ]]; then
+        log_warn "⚠️  检测到服务器上存在两份代码副本:"
+        log_warn "   - $ROOT_APP"
+        log_warn "   - $BACKEND_APP"
+        log_warn "  这可能导致部署更新未生效！"
+
+        # 检查实际运行的进程路径
+        RUNNING_PATH=$(remote_exec "ps aux | grep 'python.*app.py' | grep -v grep | awk '{print \$NF}' | head -1" 2>/dev/null | tr -d '[:space:]')
+
+        if [[ -n "$RUNNING_PATH" ]]; then
+            log_info "  当前运行路径: $RUNNING_PATH"
+
+            if [[ "$RUNNING_PATH" == *"/backend/app.py" ]]; then
+                log_error "❌ 进程从 backend/ 子目录运行，但 deploy.sh 同步到根目录！"
+                log_error "  修复方案: 在服务器上执行以下命令统一路径:"
+                log_error "    cd $DEPLOY_PATH && kill \$(lsof -ti:$BACKEND_PORT) && nohup python3 app.py &"
+                if [[ "$FORCE_MODE" != "--force" ]]; then
+                    log_info "  使用 --force 参数跳过此检查"
+                    exit 1
+                fi
+            else
+                log_info "  ✅ 运行路径与部署路径一致"
+            fi
+        fi
+    elif [[ "$ROOT_EXISTS" == "yes" ]]; then
+        log_info "  ✅ 仅存在根目录副本，路径正确"
+    elif [[ "$BACKEND_EXISTS" == "yes" ]]; then
+        log_warn "  ⚠️  仅存在 backend/ 子目录副本，deploy.sh 将同步到根目录"
+        log_info "  建议统一使用根目录部署"
+    else
+        log_info "  服务器上未找到 app.py（首次部署）"
+    fi
+
+    echo ""
+}
+
+# ============================================
 # 同步代码到服务器
 # ============================================
 
@@ -160,6 +210,7 @@ sync_code() {
         "manual_fix_recharge.py"
         "migrate_dev_indexes.py"
         "migrate_self_healing_tables.py"
+        "migrate_bug_knowledge.py"
     )
 
     for file in "${CORE_FILES[@]}"; do
@@ -607,6 +658,7 @@ main() {
     local start_time=$(date +%s)
 
     check_prerequisites "$@"
+    verify_deploy_paths
     sync_code
     sync_nginx_config
     check_env_completeness

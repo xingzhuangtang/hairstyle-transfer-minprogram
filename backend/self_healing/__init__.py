@@ -32,6 +32,7 @@ _fixer = None
 _approval_manager = None
 _rule_engine = None
 _evolution_analyzer = None
+_bug_recorder = None
 
 
 def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
@@ -119,11 +120,34 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     except Exception as e:
         logger.warning(f'进化分析引擎初始化失败: {e}')
 
-    # 8. 异常捕获探针
+    # 8. Phase 4: Bug 知识库
+    global _bug_recorder
+    _bug_recorder = None
+    try:
+        from .bug_recorder import BugRecorder
+        _bug_recorder = BugRecorder(app, db=db)
+        logger.info('Phase 4: Bug 知识库已初始化')
+    except Exception as e:
+        logger.warning(f'Bug 知识库初始化失败: {e}')
+
+    # 9. 配置校验探针
+    _config_validator = None
+    try:
+        from .config_validator import init_config_validator
+        _config_validator = init_config_validator(
+            app, db=db,
+            alert_manager=_alert_manager,
+            bug_recorder=_bug_recorder,
+        )
+        logger.info('配置校验探针已初始化')
+    except Exception as e:
+        logger.warning(f'配置校验探针初始化失败: {e}')
+
+    # 10. 异常捕获探针
     from .probe import init_probe
     init_probe(app, _alert_manager, _collector)
 
-    # 9. 注册监控面板 API
+    # 11. 注册监控面板 API
     from .api import monitor_bp, _init_api
 
     def _default_is_developer():
@@ -146,6 +170,8 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     app._approval_manager = _approval_manager
     app._rule_engine = _rule_engine
     app._evolution_analyzer = _evolution_analyzer
+    app._bug_recorder = _bug_recorder
+    app._config_validator = _config_validator
 
     # 10. 后台初始化：默认防御规则 + 清理过期审批 + 启动健康检查
     def _post_init():
@@ -189,6 +215,10 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
         phases.append('Phase 2 自愈层')
     if _rule_engine or _evolution_analyzer:
         phases.append('Phase 3 进化层')
+    if _bug_recorder:
+        phases.append('Phase 4 知识库')
+    if _config_validator:
+        phases.append('Phase 5 配置校验')
     logger.info(f'自愈系统初始化完成: {" + ".join(phases)}')
 
     return _alert_manager, _collector
@@ -216,6 +246,10 @@ def get_rule_engine():
 
 def get_evolution_analyzer():
     return _evolution_analyzer
+
+
+def get_bug_recorder():
+    return _bug_recorder
 
 
 def monitor_business(source_module=None):

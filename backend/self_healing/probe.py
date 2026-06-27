@@ -189,8 +189,12 @@ def _classify_severity(exception):
     if any(k in msg for k in ['connection refused', 'database down', 'redis down']):
         return 'critical'
 
-    # High: 支付相关、认证相关
+    # High: 支付相关、认证相关、数据类型错误（影响业务功能）
     if any(k in name.lower() for k in ['payment', 'auth', 'permission', 'forbidden']):
+        return 'high'
+    if 'DataError' in name or '1265' in msg:
+        return 'high'
+    if any(k in msg for k in ['空白', '白板', 'blank', '图像为空', 'mean_brightness', 'non_white_ratio']):
         return 'high'
 
     # Medium: 业务逻辑错误

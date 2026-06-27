@@ -33,7 +33,7 @@ class User(db.Model):
     device_id = db.Column(db.String(64), nullable=True, comment='主设备追踪ID（永不改变）')
     nickname = db.Column(db.String(100), nullable=True, comment='昵称')
     avatar_url = db.Column(db.String(500), nullable=True, comment='头像URL')
-    member_level = db.Column(db.Enum('normal', 'vip'), default='normal', comment='会员等级')
+    member_level = db.Column(db.Enum('normal', 'premium', 'vip'), default='normal', comment='会员等级')
     member_expire_at = db.Column(db.DateTime, nullable=True, comment='会员到期时间')
     scissor_hairs = db.Column(db.Integer, default=0, comment='剪刀卡槽头发丝数量')
     comb_hairs = db.Column(db.Integer, default=0, comment='梳子卡槽头发丝数量')

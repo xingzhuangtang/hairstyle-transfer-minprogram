@@ -256,6 +256,7 @@ module.exports = {
     "saveFail": "Save failed"
   },
   "balance": {
+    "title": "Recharge Center",
     "selectAmount": "Select Recharge Amount",
     "recommended": "Recommended",
     "hairs": "{hairs} hairs + {bonus} bonus comb hairs",

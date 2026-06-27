@@ -77,6 +77,34 @@ class AutoFixer:
                 'risk': 'low',
                 'match_keywords': ['域名', 'domain', 'DNS', '回调', 'callback', '无法解析', 'NOTIFY_URL'],
             },
+            {
+                'id': 'amount_type_guard',
+                'name': '金额类型防护',
+                'description': '检测 DataError 1265 错误，确保 amount 字段在写入数据库前转换为 float 类型',
+                'risk': 'medium',
+                'match_keywords': ['DataError', '1265', 'amount', 'Numeric', '数据类型', '类型转换'],
+            },
+            {
+                'id': 'deploy_path_validator',
+                'name': '部署路径校验',
+                'description': '验证部署脚本同步路径与实际运行路径是否一致，防止文件上传到错误位置',
+                'risk': 'low',
+                'match_keywords': ['部署', 'deploy', '路径', 'scp', '同步', 'upload'],
+            },
+            {
+                'id': 'config_validator',
+                'name': '配置校验',
+                'description': '校验关键配置项（DEVELOPER_ACCOUNTS、环境变量、数据库表），发现配置问题自动告警',
+                'risk': 'low',
+                'match_keywords': ['配置', 'config', 'DEVELOPER_ACCOUNTS', '环境变量', 'env'],
+            },
+            {
+                'id': 'blank_image_guard',
+                'name': '空白图像防护',
+                'description': '检测阿里云 API 返回空白图像问题，验证 image_guard 空白检测是否在所有图像处理模块中生效',
+                'risk': 'low',
+                'match_keywords': ['空白', '白板', 'blank', 'white', '图像为空', 'image_guard', 'mean_brightness'],
+            },
         ]
 
     def try_auto_fix(self, alert_id):
@@ -364,6 +392,302 @@ class AutoFixer:
 
         except Exception as e:
             return {'success': False, 'message': f'域名配置检查失败: {str(e)}'}
+
+    def _fix_amount_type_guard(self):
+        """金额类型防护 — 检查关键文件中 amount 赋值是否有 float() 转换"""
+        try:
+            import re
+
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            files_to_check = [
+                os.path.join(base_dir, 'api.py'),
+                os.path.join(base_dir, 'payment_service.py'),
+            ]
+
+            issues = []
+            fixed = []
+
+            for filepath in files_to_check:
+                if not os.path.exists(filepath):
+                    continue
+
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+
+                file_issues = []
+                for i, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    # 查找 amount= 赋值但没有 float() 包裹的情况
+                    if re.search(r'\bamount\s*=\s*amount\b', stripped) and 'float(' not in stripped:
+                        file_issues.append({
+                            'line': i,
+                            'content': stripped[:100],
+                        })
+
+                if file_issues:
+                    issues.append({'file': os.path.basename(filepath), 'issues': file_issues})
+
+                    # 自动修复：将 amount=amount 替换为 amount=float(amount)
+                    new_content = re.sub(
+                        r'(\s+)amount\s*=\s*amount\b(?!\s*\))',
+                        r'\1amount=float(amount)',
+                        content
+                    )
+
+                    if new_content != content:
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.write(new_content)
+                        fixed.append({
+                            'file': os.path.basename(filepath),
+                            'count': len(file_issues),
+                        })
+
+            if issues:
+                msg = f'发现 {sum(len(i["issues"]) for i in issues)} 处 amount 类型风险'
+                if fixed:
+                    msg += f'，已自动修复 {len(fixed)} 个文件'
+                return {
+                    'success': True,
+                    'message': msg,
+                    'detail': json.dumps({'issues': issues, 'fixed': fixed}, ensure_ascii=False),
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': '所有 amount 赋值已有 float() 类型转换，无需修复',
+                }
+
+        except Exception as e:
+            return {'success': False, 'message': f'金额类型防护检查失败: {str(e)}'}
+
+    def _fix_deploy_path_validator(self):
+        """部署路径校验 — 检查 deploy.sh 同步路径与实际运行路径是否一致"""
+        try:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            deploy_sh = os.path.join(base_dir, 'deploy.sh')
+
+            if not os.path.exists(deploy_sh):
+                return {'success': True, 'message': 'deploy.sh 不存在，跳过校验'}
+
+            with open(deploy_sh, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            checks = []
+
+            # 检查 DEPLOY_PATH 配置
+            deploy_path_match = re.search(r'DEPLOY_PATH=["\']?([^"\'\s]+)', content)
+            if deploy_path_match:
+                deploy_path = deploy_path_match.group(1)
+                checks.append({
+                    'item': 'DEPLOY_PATH',
+                    'value': deploy_path,
+                    'status': 'ok',
+                })
+
+            # 检查同步目标路径
+            if 'remote_scp' in content and '$DEPLOY_PATH/' in content:
+                checks.append({
+                    'item': 'sync_target',
+                    'value': '$DEPLOY_PATH/',
+                    'status': 'ok',
+                    'note': '文件同步到部署根目录',
+                })
+
+            # 检查是否有 backend/ 子目录混淆风险
+            has_backend_subdir = '$DEPLOY_PATH/backend/' in content or 'backend/app.py' in content
+            if has_backend_subdir:
+                checks.append({
+                    'item': 'backend_subdir_risk',
+                    'status': 'warning',
+                    'message': '检测到 backend/ 子目录引用，可能与部署根目录混淆',
+                })
+            else:
+                checks.append({
+                    'item': 'backend_subdir_risk',
+                    'status': 'ok',
+                    'message': '未检测到 backend/ 子目录混淆风险',
+                })
+
+            # 检查 restart 命令中的路径
+            restart_match = re.search(r'cd\s+([^&;]+).*python.*app\.py', content)
+            if restart_match:
+                restart_dir = restart_match.group(1).strip()
+                checks.append({
+                    'item': 'restart_directory',
+                    'value': restart_dir,
+                    'status': 'ok',
+                })
+
+            warnings = [c for c in checks if c.get('status') == 'warning']
+
+            if warnings:
+                return {
+                    'success': True,
+                    'message': f'部署路径校验完成，发现 {len(warnings)} 个警告',
+                    'detail': json.dumps({'checks': checks, 'warnings': warnings}, ensure_ascii=False),
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': '部署路径校验通过，所有检查项正常',
+                    'detail': json.dumps({'checks': checks}, ensure_ascii=False),
+                }
+
+        except Exception as e:
+            return {'success': False, 'message': f'部署路径校验失败: {str(e)}'}
+
+    def _fix_config_validator(self):
+        """配置校验 — 检查关键配置项是否正确"""
+        try:
+            from config import DEVELOPER_MODE_ENABLED, DEVELOPER_ACCOUNTS
+            from models import User
+
+            issues = []
+            checks = []
+
+            # 检查 DEVELOPER_MODE_ENABLED
+            checks.append({
+                'item': 'DEVELOPER_MODE_ENABLED',
+                'value': str(DEVELOPER_MODE_ENABLED),
+                'status': 'ok',
+            })
+
+            # 检查 DEVELOPER_ACCOUNTS
+            if DEVELOPER_MODE_ENABLED:
+                if not DEVELOPER_ACCOUNTS:
+                    issues.append({
+                        'item': 'DEVELOPER_ACCOUNTS',
+                        'problem': '开发者模式已开启但未配置用户 ID 列表',
+                        'severity': 'high',
+                    })
+                else:
+                    # 检查每个用户 ID 是否存在
+                    for user_id in DEVELOPER_ACCOUNTS:
+                        user = User.query.filter_by(id=user_id).first()
+                        if user:
+                            checks.append({
+                                'item': f'DEVELOPER_ACCOUNTS[{user_id}]',
+                                'value': f'{user.phone} ({user.nickname})',
+                                'status': 'ok',
+                            })
+                        else:
+                            issues.append({
+                                'item': f'DEVELOPER_ACCOUNTS[{user_id}]',
+                                'problem': f'用户 ID {user_id} 不存在于数据库',
+                                'severity': 'medium',
+                            })
+            else:
+                checks.append({
+                    'item': 'DEVELOPER_ACCOUNTS',
+                    'value': '开发者模式未启用',
+                    'status': 'ok',
+                })
+
+            # 检查关键环境变量
+            critical_vars = ['MYSQL_HOST', 'MYSQL_DATABASE', 'JWT_SECRET_KEY']
+            for var in critical_vars:
+                value = os.getenv(var, '')
+                if value:
+                    checks.append({
+                        'item': var,
+                        'value': '已配置' if var != 'JWT_SECRET_KEY' else '***',
+                        'status': 'ok',
+                    })
+                else:
+                    issues.append({
+                        'item': var,
+                        'problem': f'关键环境变量 {var} 未配置',
+                        'severity': 'high',
+                    })
+
+            if issues:
+                return {
+                    'success': True,
+                    'message': f'配置校验完成，发现 {len(issues)} 个问题',
+                    'detail': json.dumps({'issues': issues, 'checks': checks}, ensure_ascii=False),
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': f'配置校验通过，所有检查项正常（共 {len(checks)} 项）',
+                    'detail': json.dumps({'checks': checks}, ensure_ascii=False),
+                }
+
+        except Exception as e:
+            return {'success': False, 'message': f'配置校验失败: {str(e)}'}
+
+    def _fix_blank_image_guard(self):
+        """空白图像防护 — 验证空白检测代码是否在所有图像处理模块中生效"""
+        try:
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            checks = []
+            issues = []
+
+            files_to_check = {
+                'hair_segmentation.py': ['mean_brightness', 'std_brightness', 'non_white_ratio', '图像为空白'],
+                'aliyun_hair_transfer_fixed.py': ['mean_brightness', 'std_brightness', 'non_white_ratio', '图像为空白'],
+            }
+
+            for filename, required_patterns in files_to_check.items():
+                filepath = os.path.join(backend_dir, filename)
+                if not os.path.exists(filepath):
+                    issues.append({
+                        'file': filename,
+                        'problem': '文件不存在',
+                        'severity': 'high',
+                    })
+                    continue
+
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                missing = [p for p in required_patterns if p not in content]
+                if missing:
+                    issues.append({
+                        'file': filename,
+                        'problem': f'缺少空白检测逻辑: {", ".join(missing)}',
+                        'severity': 'high',
+                    })
+                else:
+                    checks.append({
+                        'file': filename,
+                        'status': 'ok',
+                        'detail': '空白图像三重检测已启用',
+                    })
+
+            app_py_path = os.path.join(backend_dir, 'app.py')
+            if os.path.exists(app_py_path):
+                with open(app_py_path, 'r', encoding='utf-8') as f:
+                    app_content = f.read()
+                if 'sk_mean' in app_content and 'sk_std' in app_content:
+                    checks.append({
+                        'file': 'app.py (add_sketch)',
+                        'status': 'ok',
+                        'detail': '素描结果空白检测已启用',
+                    })
+                else:
+                    issues.append({
+                        'file': 'app.py (add_sketch)',
+                        'problem': '素描结果缺少空白检测逻辑',
+                        'severity': 'high',
+                    })
+
+            if issues:
+                return {
+                    'success': True,
+                    'message': f'空白图像防护校验完成，发现 {len(issues)} 个问题',
+                    'detail': json.dumps({'issues': issues, 'checks': checks}, ensure_ascii=False),
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': f'空白图像防护校验通过，所有 {len(checks)} 个模块均已启用空白检测',
+                    'detail': json.dumps({'checks': checks}, ensure_ascii=False),
+                }
+
+        except Exception as e:
+            return {'success': False, 'message': f'空白图像防护校验失败: {str(e)}'}
 
     # ==================== 辅助方法 ====================
 

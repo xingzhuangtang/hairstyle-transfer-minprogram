@@ -50,6 +50,42 @@ DEFAULT_RULES = [
         'priority': 50,
         'cooldown_seconds': 600,
     },
+    {
+        'name': 'DataError类型错误自动防护',
+        'pattern_type': 'title_contains',
+        'pattern_value': 'DataError',
+        'action': 'auto_fix',
+        'action_config': json.dumps({'fix_id': 'amount_type_guard'}),
+        'priority': 5,
+        'cooldown_seconds': 3600,
+    },
+    {
+        'name': '部署路径校验',
+        'pattern_type': 'title_contains',
+        'pattern_value': '部署路径',
+        'action': 'auto_fix',
+        'action_config': json.dumps({'fix_id': 'deploy_path_validator'}),
+        'priority': 10,
+        'cooldown_seconds': 86400,
+    },
+    {
+        'name': '配置问题自动校验',
+        'pattern_type': 'title_contains',
+        'pattern_value': '配置告警',
+        'action': 'auto_fix',
+        'action_config': json.dumps({'fix_id': 'config_validator'}),
+        'priority': 8,
+        'cooldown_seconds': 3600,
+    },
+    {
+        'name': '空白图像自动防护',
+        'pattern_type': 'title_contains',
+        'pattern_value': '空白',
+        'action': 'auto_fix',
+        'action_config': json.dumps({'fix_id': 'blank_image_guard'}),
+        'priority': 3,
+        'cooldown_seconds': 3600,
+    },
 ]
 
 

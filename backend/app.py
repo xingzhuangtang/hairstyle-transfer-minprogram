@@ -530,35 +530,51 @@ def extract_hair():
 
         # 提取发型
         print(f"\n✂️  提取发型...")
-        
+
         # 检查并压缩图片分辨率（阿里云API要求低于2000x2000）
         hairstyle_url = ensure_image_resolution(hairstyle_url, max_size=1990)
-        
+
         hair_seg = HairSegmentation()
 
-        # 调用头发分割API
-        result = hair_seg.segment_hair(image_url=hairstyle_url)
+        # 调用头发分割API - 带空白重试
+        max_extract_attempts = 2
+        extract_success = False
 
-        if not result["success"]:
-            return jsonify({"error": "发型提取失败", "message": result["message"]}), 500
+        for extract_attempt in range(max_extract_attempts):
+            result = hair_seg.segment_hair(image_url=hairstyle_url)
 
-        # 下载提取的发型图
-        print(f"\n📥 下载提取的发型...")
-        output_filename = f"hair_extracted_{uuid.uuid4().hex[:8]}.png"
-        extracted_path = os.path.join(
-            app.config["HAIR_EXTRACTED_FOLDER"], output_filename
-        )
+            if not result["success"]:
+                if extract_attempt < max_extract_attempts - 1:
+                    print(f"⚠️ 发型提取失败(尝试{extract_attempt+1}), 重试...")
+                    continue
+                return jsonify({"error": "发型提取失败", "message": result["message"]}), 500
 
-        download_success = hair_seg.download_hair_image(
-            result["hair_url"], extracted_path
-        )
+            # 下载提取的发型图
+            print(f"\n📥 下载提取的发型...")
+            output_filename = f"hair_extracted_{uuid.uuid4().hex[:8]}.png"
+            extracted_path = os.path.join(
+                app.config["HAIR_EXTRACTED_FOLDER"], output_filename
+            )
 
-        # 检查下载是否成功
-        if not download_success or not os.path.exists(extracted_path):
+            download_success = hair_seg.download_hair_image(
+                result["hair_url"], extracted_path
+            )
+
+            if download_success and os.path.exists(extracted_path):
+                extract_success = True
+                if extract_attempt > 0:
+                    print(f"✅ 第{extract_attempt+1}次尝试获得有效图像")
+                break
+            else:
+                print(f"⚠️ 下载失败或图像为空白(尝试{extract_attempt+1}/{max_extract_attempts})")
+                if os.path.exists(extracted_path):
+                    os.remove(extracted_path)
+
+        if not extract_success:
             return jsonify(
                 {
-                    "error": "发型图片下载失败",
-                    "message": "阿里云API返回的图片无法下载，请稍后重试",
+                    "error": "发型提取失败",
+                    "message": "阿里云API多次返回空白结果，请稍后重试",
                 }
             ), 500
 
@@ -1121,6 +1137,20 @@ def add_sketch():
             file_size = os.path.getsize(sketch_path)
             if file_size == 0:
                 raise Exception(f"素描文件为空: {sketch_path}")
+
+            # 空白图像检测 - 防止百炼 API 返回白板结果
+            sketch_img = cv2.imread(sketch_path, cv2.IMREAD_UNCHANGED)
+            if sketch_img is not None:
+                if len(sketch_img.shape) == 3:
+                    sk_gray = cv2.cvtColor(sketch_img, cv2.COLOR_BGRA2GRAY) if sketch_img.shape[2] == 4 else cv2.cvtColor(sketch_img, cv2.COLOR_BGR2GRAY)
+                else:
+                    sk_gray = sketch_img
+                sk_mean = float(np.mean(sk_gray))
+                sk_std = float(np.std(sk_gray))
+                sk_non_white = float(np.sum(sk_gray < 240)) / sk_gray.size
+                if (sk_mean > 240 and sk_std < 15) or sk_non_white < 0.02 or sk_std < 3.0:
+                    os.remove(sketch_path)
+                    raise Exception(f"素描结果为空白(亮度={sk_mean:.1f}, 方差={sk_std:.1f}, 非白比={sk_non_white:.4f})")
 
             print(f"✅ 素描文件已保存: {sketch_path} ({file_size} bytes)")
 
