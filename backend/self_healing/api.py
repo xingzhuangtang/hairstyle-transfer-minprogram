@@ -479,3 +479,109 @@ def _init_api(app, alert_manager, collector, db, is_developer_func,
             return jsonify({'success': True, 'data': score})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    # ==================== Phase 4: Bug 知识库 ====================
+
+    @monitor_bp.route('/bugs', methods=['GET'])
+    def get_bugs():
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from .models import BugKnowledge
+
+            page = max(int(request.args.get('page', 1)), 1)
+            page_size = min(max(int(request.args.get('page_size', 20)), 1), 50)
+            category = request.args.get('category')
+            status = request.args.get('status', 'active')
+
+            query = db.session.query(BugKnowledge)
+            if category:
+                query = query.filter(BugKnowledge.category == category)
+            if status:
+                query = query.filter(BugKnowledge.status == status)
+
+            total = query.count()
+            bugs = query.order_by(BugKnowledge.created_at.desc()) \
+                .offset((page - 1) * page_size).limit(page_size).all()
+
+            return jsonify({
+                'success': True,
+                'data': {
+                    'items': [b.to_dict() for b in bugs],
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                }
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @monitor_bp.route('/bugs/<bug_id>', methods=['GET'])
+    def get_bug_detail(bug_id):
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from .models import BugKnowledge
+            bug = db.session.query(BugKnowledge).filter_by(bug_id=bug_id).first()
+            if not bug:
+                return jsonify({'success': False, 'error': 'Bug 不存在'}), 404
+            return jsonify({'success': True, 'data': bug.to_dict()})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @monitor_bp.route('/bugs/<bug_id>/archive', methods=['PUT'])
+    def archive_bug(bug_id):
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from .models import BugKnowledge
+            bug = db.session.query(BugKnowledge).filter_by(bug_id=bug_id).first()
+            if not bug:
+                return jsonify({'success': False, 'error': 'Bug 不存在'}), 404
+            bug.status = 'archived'
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @monitor_bp.route('/bugs/search', methods=['GET'])
+    def search_bugs():
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from .models import BugKnowledge
+
+            keyword = request.args.get('keyword', '')
+            if not keyword:
+                return jsonify({'success': False, 'error': '缺少 keyword 参数'}), 400
+
+            keyword_lower = keyword.lower()
+            bugs = db.session.query(BugKnowledge) \
+                .filter(BugKnowledge.status == 'active') \
+                .all()
+
+            matches = []
+            for bug in bugs:
+                search_text = (
+                    (bug.title or '').lower() + ' ' +
+                    (bug.root_cause or '').lower() + ' ' +
+                    (bug.fix_description or '').lower()
+                )
+                if keyword_lower in search_text:
+                    matches.append(bug.to_dict())
+
+            return jsonify({
+                'success': True,
+                'data': {'items': matches, 'total': len(matches)}
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500

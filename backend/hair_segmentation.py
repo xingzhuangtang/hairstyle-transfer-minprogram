@@ -7,6 +7,8 @@
 
 import os
 import requests
+import numpy as np
+import cv2
 from alibabacloud_imageseg20191230.client import Client as ImagesegClient
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_imageseg20191230 import models as imageseg_models
@@ -169,11 +171,24 @@ class HairSegmentation:
                 file_size = os.path.getsize(save_path) / 1024  # KB
                 if file_size < 1:  # 小于1KB的文件可能是错误的
                     raise ValueError(f"文件大小异常: {file_size:.1f}KB")
-                
+
+                # 空白图像检测 - 防止阿里云 API 返回白板结果
+                image = cv2.imread(save_path, cv2.IMREAD_UNCHANGED)
+                if image is not None:
+                    if len(image.shape) == 3:
+                        gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY) if image.shape[2] == 4 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    else:
+                        gray = image
+                    mean_brightness = float(np.mean(gray))
+                    std_brightness = float(np.std(gray))
+                    non_white_ratio = float(np.sum(gray < 240)) / gray.size
+                    if (mean_brightness > 240 and std_brightness < 15) or non_white_ratio < 0.02 or std_brightness < 3.0:
+                        raise ValueError(f"图像为空白(亮度={mean_brightness:.1f}, 方差={std_brightness:.1f}, 非白比={non_white_ratio:.4f})")
+
                 print(f"✅ 头发图像下载成功")
                 print(f"   文件大小: {file_size:.1f}KB")
                 print(f"   保存路径: {save_path}")
-                
+
                 return True
             
             except Exception as e:

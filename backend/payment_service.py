@@ -80,7 +80,7 @@ class PaymentService:
             recharge_record = RechargeRecord(
                 user_id=user_id,
                 order_no=order_no,
-                amount=amount,
+                amount=float(amount),
                 scissor_hairs=rule['scissor_hairs'],
                 comb_hairs=rule['comb_hairs'],
                 payment_method=payment_method,
