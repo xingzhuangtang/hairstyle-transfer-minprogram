@@ -85,3 +85,12 @@ export function getEvolutionReport() {
 export function getHealthScore() {
   return get('/api/dev/monitor/health-score')
 }
+
+// Phase 4: Bug 知识库 & 验证
+export function verifyAlertResolution(id, data) {
+  return post(`/api/dev/monitor/alerts/${id}/verify`, data)
+}
+
+export function getSimilarBugs(id) {
+  return get(`/api/dev/monitor/alerts/${id}/similar-bugs`)
+}

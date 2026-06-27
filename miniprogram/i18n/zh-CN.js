@@ -926,7 +926,20 @@ module.exports = {
     "stackTrace": "堆栈信息",
     "requestParams": "请求参数",
     "acknowledge": "确认",
-    "resolve": "解决"
+    "resolve": "解决",
+    "resolveRecordTitle": "记录修复方案",
+    "bugCategory": "Bug 分类",
+    "rootCause": "根因分析",
+    "fixSolution": "修复方案",
+    "prevention": "预防措施",
+    "resolveRecord": "记录并解决",
+    "resolveSkip": "跳过记录",
+    "similarBugs": "相似历史 Bug",
+    "verifyResolution": "确认有效",
+    "reopenAlert": "重新打开",
+    "verificationVerified": "已验证",
+    "verificationFailed": "验证失败",
+    "verificationPending": "待验证"
   },
   "refundAdmin": {
     "title": "退款管理",

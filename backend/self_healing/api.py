@@ -11,7 +11,8 @@ monitor_bp = Blueprint('self_healing_monitor', __name__, url_prefix='/api/dev/mo
 
 
 def _init_api(app, alert_manager, collector, db, is_developer_func,
-              fixer=None, approval_manager=None, rule_engine=None, evolution_analyzer=None):
+              fixer=None, approval_manager=None, rule_engine=None,
+              evolution_analyzer=None, bug_recorder=None):
     """注册 API 路由（需要外部传入依赖）"""
 
     def require_dev():
@@ -118,10 +119,122 @@ def _init_api(app, alert_manager, collector, db, is_developer_func,
             alert.resolved_at = datetime.now()
             alert.resolved_by = data.get('resolved_by', 'developer')
             alert.resolve_note = data.get('note', '')
+
+            bug_data = data.get('bug_knowledge')
+            if bug_data and bug_recorder:
+                import time as _time
+                bug_id = f'BUG-{alert_id}-{int(_time.time())}'
+                bug = bug_recorder.record_bug(
+                    bug_id=bug_id,
+                    title=alert.title or bug_data.get('title', ''),
+                    category=bug_data.get('category', 'logic'),
+                    severity=bug_data.get('severity', alert.severity or 'medium'),
+                    root_cause=bug_data.get('root_cause', ''),
+                    affected_files=bug_data.get('affected_files', []),
+                    fix_description=bug_data.get('fix_description', ''),
+                    prevention=bug_data.get('prevention', ''),
+                    related_alert_id=alert_id,
+                    discovered_at=alert.created_at,
+                    fixed_at=datetime.now(),
+                )
+                if bug:
+                    alert.bug_knowledge_id = bug_id
+                    alert.verification_status = 'pending'
+
             db.session.commit()
-            return jsonify({'success': True})
+            return jsonify({'success': True, 'data': {
+                'bug_knowledge_id': alert.bug_knowledge_id,
+                'verification_status': alert.verification_status,
+            }})
         except Exception as e:
             db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @monitor_bp.route('/alerts/<int:alert_id>/verify', methods=['POST'])
+    def verify_alert(alert_id):
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from datetime import datetime
+            from .models import SystemAlert, BugKnowledge
+            alert = db.session.query(SystemAlert).get(alert_id)
+            if not alert:
+                return jsonify({'success': False, 'error': '告警不存在'}), 404
+
+            if alert.status != 'resolved':
+                return jsonify({'success': False, 'error': '仅已解决的告警可验证'}), 400
+
+            action = (request.get_json(silent=True) or {}).get('action', 'verify')
+
+            if action == 'verify':
+                alert.verification_status = 'verified'
+                alert.verified_at = datetime.now()
+
+                if alert.bug_knowledge_id:
+                    bug = db.session.query(BugKnowledge).filter_by(
+                        bug_id=alert.bug_knowledge_id
+                    ).first()
+                    if bug:
+                        bug.verification_count = (bug.verification_count or 0) + 1
+                        bug.success_count = (bug.success_count or 0) + 1
+                        bug.confidence = round(
+                            bug.success_count / bug.verification_count, 2
+                        ) if bug.verification_count > 0 else 0
+
+                db.session.commit()
+                return jsonify({'success': True, 'data': {
+                    'verification_status': 'verified',
+                }})
+
+            elif action == 'reopen':
+                alert.status = 'new'
+                alert.verification_status = 'failed'
+                alert.verified_at = datetime.now()
+                alert.resolved_at = None
+                alert.resolved_by = None
+
+                if alert.bug_knowledge_id:
+                    bug = db.session.query(BugKnowledge).filter_by(
+                        bug_id=alert.bug_knowledge_id
+                    ).first()
+                    if bug:
+                        bug.verification_count = (bug.verification_count or 0) + 1
+                        bug.confidence = round(
+                            bug.success_count / bug.verification_count, 2
+                        ) if bug.verification_count > 0 else 0
+
+                db.session.commit()
+                return jsonify({'success': True, 'data': {
+                    'verification_status': 'failed',
+                    'alert_status': 'new',
+                }})
+
+            return jsonify({'success': False, 'error': f'未知 action: {action}'}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @monitor_bp.route('/alerts/<int:alert_id>/similar-bugs', methods=['GET'])
+    def get_similar_bugs(alert_id):
+        err = require_dev()
+        if err:
+            return err
+
+        try:
+            from .models import SystemAlert
+            alert = db.session.query(SystemAlert).get(alert_id)
+            if not alert:
+                return jsonify({'success': False, 'error': '告警不存在'}), 404
+
+            if not bug_recorder:
+                return jsonify({'success': True, 'data': []})
+
+            search_text = (alert.title or '') + ' ' + (alert.description or '')
+            matches = bug_recorder.search_similar_bugs(search_text)
+            return jsonify({'success': True, 'data': matches})
+        except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @monitor_bp.route('/alert-stats', methods=['GET'])

@@ -211,6 +211,7 @@ sync_code() {
         "migrate_dev_indexes.py"
         "migrate_self_healing_tables.py"
         "migrate_bug_knowledge.py"
+        "migrate_bug_knowledge_v2.py"
     )
 
     for file in "${CORE_FILES[@]}"; do

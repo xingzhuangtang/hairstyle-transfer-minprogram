@@ -20,7 +20,7 @@ class AlertManager:
     """告警管理器"""
 
     def __init__(self, app, config, db=None, redis_client=None, wecom_bot=None,
-                 fixer=None, rule_engine=None):
+                 fixer=None, rule_engine=None, bug_recorder=None):
         self.app = app
         self.config = config
         self.db = db
@@ -28,6 +28,7 @@ class AlertManager:
         self.wecom_bot = wecom_bot
         self.fixer = fixer
         self.rule_engine = rule_engine
+        self.bug_recorder = bug_recorder
 
         self._queue = queue.Queue(maxsize=config.get('ALERT_QUEUE_MAXSIZE', 1000))
         self._worker_thread = None
@@ -110,6 +111,25 @@ class AlertManager:
                     environment_info=json.dumps(environment_info, ensure_ascii=False) if environment_info else None,
                     source_module=source_module,
                 )
+
+                # 搜索相似历史 Bug 并存储
+                if alert_id and self.bug_recorder:
+                    try:
+                        search_text = (title or '') + ' ' + (description or '')
+                        similar = self.bug_recorder.search_similar_bugs(search_text)
+                        if similar:
+                            from .models import SystemAlert
+                            alert_obj = self.db.session.query(SystemAlert).get(alert_id)
+                            if alert_obj:
+                                alert_obj.similar_bugs = json.dumps(
+                                    [{'bug_id': b.get('bug_id'), 'title': b.get('title'),
+                                      'fix_description': b.get('fix_description', '')[:200]}
+                                     for b in similar[:5]],
+                                    ensure_ascii=False,
+                                )
+                                self.db.session.commit()
+                    except Exception as e:
+                        logger.debug(f'相似Bug搜索失败: {e}')
         except Exception as e:
             logger.error(f'告警DB写入失败: {e}')
 

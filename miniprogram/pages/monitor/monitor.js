@@ -3,6 +3,7 @@ import {
   getAlerts, getAlertDetail, acknowledgeAlert, resolveAlert, getAlertStats, getSystemHealth,
   getFixList, executeFix, getFixHistory, getApprovals, approveFix, rejectFix,
   getDefenseRules, runEvolutionAnalysis, getEvolutionReport, getHealthScore,
+  verifyAlertResolution, getSimilarBugs,
 } from '../../api/monitor.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
@@ -123,7 +124,41 @@ Page({
     tMonJustNow: '刚刚',
     tMonMinutesAgo: '{mins}分钟前',
     tMonHoursAgo: '{hours}小时前',
-    tMonDaysAgo: '{days}天前'
+    tMonDaysAgo: '{days}天前',
+
+    // 解法记录弹窗
+    showResolveModal: false,
+    resolveSubmitting: false,
+    resolveForm: {
+      category: 'logic',
+      severity: 'medium',
+      root_cause: '',
+      fix_description: '',
+      prevention: '',
+    },
+    bugCategories: ['data_type', 'deployment', 'security', 'performance', 'logic'],
+    bugCategoryLabels: ['数据类型', '部署', '安全', '性能', '逻辑'],
+    bugCategoryIndex: 4,
+    severityLabels: ['低', '中', '高', '严重'],
+    severityValues: ['low', 'medium', 'high', 'critical'],
+    severityIndex: 1,
+    similarBugs: [],
+
+    // 解法记录 i18n
+    tMonResolveRecordTitle: '记录修复方案',
+    tMonBugCategory: 'Bug 分类',
+    tMonSeverity: '严重级别',
+    tMonRootCause: '根因分析',
+    tMonFixSolution: '修复方案',
+    tMonPrevention: '预防措施',
+    tMonResolveRecord: '记录并解决',
+    tMonResolveSkip: '跳过记录',
+    tMonSimilarBugs: '相似历史 Bug',
+    tMonVerify: '确认有效',
+    tMonReopen: '重新打开',
+    tMonVerified: '已验证',
+    tMonVerifyFailed: '验证失败',
+    tMonVerifyPending: '待验证',
   },
 
   onLoad() {
@@ -246,7 +281,20 @@ Page({
       tMonJustNow: t('monitor.justNow'),
       tMonMinutesAgo: t('monitor.minutesAgo'),
       tMonHoursAgo: t('monitor.hoursAgo'),
-      tMonDaysAgo: t('monitor.daysAgo')
+      tMonDaysAgo: t('monitor.daysAgo'),
+      tMonResolveRecordTitle: t('monitor.resolveRecordTitle'),
+      tMonBugCategory: t('monitor.bugCategory'),
+      tMonRootCause: t('monitor.rootCause'),
+      tMonFixSolution: t('monitor.fixSolution'),
+      tMonPrevention: t('monitor.prevention'),
+      tMonResolveRecord: t('monitor.resolveRecord'),
+      tMonResolveSkip: t('monitor.resolveSkip'),
+      tMonSimilarBugs: t('monitor.similarBugs'),
+      tMonVerify: t('monitor.verifyResolution'),
+      tMonReopen: t('monitor.reopenAlert'),
+      tMonVerified: t('monitor.verificationVerified'),
+      tMonVerifyFailed: t('monitor.verificationFailed'),
+      tMonVerifyPending: t('monitor.verificationPending'),
     })
   },
 
@@ -371,16 +419,126 @@ Page({
     } catch (e) { wx.showToast({ title: this.data.tMonOperationFail, icon: 'none' }) }
   },
 
-  async onResolve() {
+  onResolve() {
+    const alert = this.data.currentAlert
+    if (!alert) return
+    this.setData({
+      showResolveModal: true,
+      resolveForm: { category: 'logic', severity: 'medium', root_cause: '', fix_description: '', prevention: '' },
+      bugCategoryIndex: 4,
+      severityIndex: 1,
+      similarBugs: [],
+    })
+    this.loadSimilarBugs(alert.id)
+  },
+
+  async loadSimilarBugs(alertId) {
+    try {
+      const res = await getSimilarBugs(alertId)
+      if (res.success) this.setData({ similarBugs: res.data || [] })
+    } catch (e) { /* ignore */ }
+  },
+
+  onCategoryChange(e) {
+    const idx = parseInt(e.detail.value)
+    this.setData({
+      bugCategoryIndex: idx,
+      'resolveForm.category': this.data.bugCategories[idx],
+    })
+  },
+
+  onSeverityChange(e) {
+    const idx = parseInt(e.detail.value)
+    this.setData({
+      severityIndex: idx,
+      'resolveForm.severity': this.data.severityValues[idx],
+    })
+  },
+
+  onRootCauseInput(e) {
+    this.setData({ 'resolveForm.root_cause': e.detail.value })
+  },
+
+  onFixSolutionInput(e) {
+    this.setData({ 'resolveForm.fix_description': e.detail.value })
+  },
+
+  onPreventionInput(e) {
+    this.setData({ 'resolveForm.prevention': e.detail.value })
+  },
+
+  async submitResolveForm() {
+    const alert = this.data.currentAlert
+    if (!alert) return
+    const form = this.data.resolveForm
+    if (!form.root_cause.trim()) {
+      wx.showToast({ title: this.data.tMonRootCause + '不能为空', icon: 'none' })
+      return
+    }
+    this.setData({ resolveSubmitting: true })
+    try {
+      const res = await resolveAlert(alert.id, {
+        resolved_by: 'developer',
+        note: '手动解决',
+        bug_knowledge: {
+          category: form.category,
+          severity: form.severity,
+          root_cause: form.root_cause,
+          fix_description: form.fix_description,
+          prevention: form.prevention,
+        },
+      })
+      if (res.success) {
+        wx.showToast({ title: this.data.tMonResolved, icon: 'success' })
+        this.setData({ showResolveModal: false })
+        this.closeDetail()
+        this.loadAlerts(true)
+        this.loadAlertStats()
+      }
+    } catch (e) {
+      wx.showToast({ title: this.data.tMonOperationFail, icon: 'none' })
+    } finally {
+      this.setData({ resolveSubmitting: false })
+    }
+  },
+
+  async skipResolve() {
     const alert = this.data.currentAlert
     if (!alert) return
     try {
-      const res = await resolveAlert(alert.id, { resolved_by: 'developer', note: '手动解决' })
+      const res = await resolveAlert(alert.id, { resolved_by: 'developer', note: '手动解决（跳过记录）' })
       if (res.success) {
         wx.showToast({ title: this.data.tMonResolved, icon: 'success' })
-        this.closeDetail(); this.loadAlerts(true); this.loadAlertStats()
+        this.setData({ showResolveModal: false })
+        this.closeDetail()
+        this.loadAlerts(true)
+        this.loadAlertStats()
       }
-    } catch (e) { wx.showToast({ title: this.data.tMonOperationFail, icon: 'none' }) }
+    } catch (e) {
+      wx.showToast({ title: this.data.tMonOperationFail, icon: 'none' })
+    }
+  },
+
+  closeResolveModal() {
+    this.setData({ showResolveModal: false })
+  },
+
+  async onVerifyAlert(e) {
+    const alert = this.data.currentAlert
+    if (!alert) return
+    const action = e.currentTarget.dataset.action
+    try {
+      const res = await verifyAlertResolution(alert.id, { action })
+      if (res.success) {
+        const label = action === 'verify' ? this.data.tMonVerified : this.data.tMonVerifyFailed
+        wx.showToast({ title: label, icon: action === 'verify' ? 'success' : 'none' })
+        this.closeDetail()
+        this.loadAlerts(true)
+        this.loadAlertStats()
+      }
+    } catch (e) {
+      wx.showToast({ title: this.data.tMonOperationFail, icon: 'none' })
+    }
   },
 
   loadMoreAlerts() { if (!this.data.alertNoMore && !this.data.alertLoading) this.loadAlerts(false) },

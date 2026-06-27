@@ -34,6 +34,10 @@ class SystemAlert(Base):
     resolved_by = Column(String(128), comment='解决人')
     resolved_at = Column(DateTime, comment='解决时间')
     resolve_note = Column(Text, comment='解决备注')
+    verification_status = Column(String(32), comment='验证状态: pending/verified/failed')
+    verified_at = Column(DateTime, comment='验证时间')
+    bug_knowledge_id = Column(String(64), comment='关联Bug知识库ID')
+    similar_bugs = Column(Text, comment='相似历史Bug JSON')
     created_at = Column(DateTime, nullable=False, default=datetime.now, comment='创建时间')
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -64,6 +68,10 @@ class SystemAlert(Base):
             'resolved_by': self.resolved_by,
             'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
             'resolve_note': self.resolve_note,
+            'verification_status': self.verification_status,
+            'verified_at': self.verified_at.isoformat() if self.verified_at else None,
+            'bug_knowledge_id': self.bug_knowledge_id,
+            'similar_bugs': self.similar_bugs,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -243,6 +251,9 @@ class BugKnowledge(Base):
     status = Column(String(16), nullable=False, default='active', comment='状态: active/archived')
     discovered_at = Column(DateTime, comment='发现时间')
     fixed_at = Column(DateTime, comment='修复时间')
+    verification_count = Column(Integer, nullable=False, default=0, comment='验证次数')
+    success_count = Column(Integer, nullable=False, default=0, comment='验证成功次数')
+    confidence = Column(Float, nullable=False, default=0, comment='置信度')
     created_at = Column(DateTime, nullable=False, default=datetime.now, comment='创建时间')
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -268,6 +279,9 @@ class BugKnowledge(Base):
             'status': self.status,
             'discovered_at': self.discovered_at.isoformat() if self.discovered_at else None,
             'fixed_at': self.fixed_at.isoformat() if self.fixed_at else None,
+            'verification_count': self.verification_count,
+            'success_count': self.success_count,
+            'confidence': self.confidence,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
