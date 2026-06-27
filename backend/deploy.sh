@@ -216,7 +216,7 @@ sync_code() {
 
     for file in "${CORE_FILES[@]}"; do
         if [[ -f "$BACKEND_DIR/$file" ]]; then
-            remote_scp "$BACKEND_DIR/$file" "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/"
+            remote_scp "$BACKEND_DIR/$file" "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/backend/"
             log_info "  已同步: $file"
         else
             log_warn "  本地不存在: $file (跳过)"
@@ -225,8 +225,8 @@ sync_code() {
 
     # 同步 self_healing 目录
     if [[ -d "$BACKEND_DIR/self_healing" ]]; then
-        remote_exec "mkdir -p $DEPLOY_PATH/self_healing"
-        remote_scp -r "$BACKEND_DIR"/self_healing/* "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/self_healing/"
+        remote_exec "mkdir -p $DEPLOY_PATH/backend/self_healing"
+        remote_scp -r "$BACKEND_DIR"/self_healing/* "$SSH_USER@$SERVER_IP:$DEPLOY_PATH/backend/self_healing/"
         log_info "  已同步: self_healing/"
     fi
 
