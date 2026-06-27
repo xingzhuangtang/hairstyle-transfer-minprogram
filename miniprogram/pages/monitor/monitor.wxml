@@ -308,7 +308,65 @@
             <button class="action-btn acknowledge" bindtap="onAcknowledge">{{tMonAcknowledge}}</button>
             <button class="action-btn resolve" bindtap="onResolve">{{tMonResolve}}</button>
           </view>
+          <view class="detail-actions" wx:if="{{currentAlert.status === 'resolved' && currentAlert.verification_status === 'pending'}}">
+            <button class="action-btn verify" data-action="verify" bindtap="onVerifyAlert">{{tMonVerify}}</button>
+            <button class="action-btn reopen" data-action="reopen" bindtap="onVerifyAlert">{{tMonReopen}}</button>
+          </view>
+          <view class="detail-verification" wx:if="{{currentAlert.verification_status}}">
+            <text class="verify-tag {{currentAlert.verification_status}}">
+              {{currentAlert.verification_status === 'pending' ? tMonVerifyPending : currentAlert.verification_status === 'verified' ? tMonVerified : tMonVerifyFailed}}
+            </text>
+          </view>
+          <view class="detail-section" wx:if="{{similarBugs.length > 0}}">
+            <text class="section-title">{{tMonSimilarBugs}}</text>
+            <view class="similar-bug-item" wx:for="{{similarBugs}}" wx:key="bug_id">
+              <text class="similar-bug-title">{{item.title}}</text>
+              <text class="similar-bug-fix" wx:if="{{item.fix_description}}">{{item.fix_description}}</text>
+            </view>
+          </view>
         </block>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 解法记录弹窗 -->
+  <view class="detail-mask" wx:if="{{showResolveModal}}" bindtap="closeResolveModal">
+    <view class="detail-panel resolve-modal" catchtap>
+      <view class="detail-header">
+        <text class="detail-title">{{tMonResolveRecordTitle}}</text>
+        <text class="detail-close" bindtap="closeResolveModal"></text>
+      </view>
+      <scroll-view scroll-y class="detail-body">
+        <view class="form-group">
+          <text class="form-label">{{tMonBugCategory}}</text>
+          <picker mode="selector" range="{{bugCategoryLabels}}" value="{{bugCategoryIndex}}" bindchange="onCategoryChange">
+            <view class="picker-value">{{bugCategoryLabels[bugCategoryIndex]}}</view>
+          </picker>
+        </view>
+        <view class="form-group">
+          <text class="form-label">{{tMonSeverity}}</text>
+          <picker mode="selector" range="{{severityLabels}}" value="{{severityIndex}}" bindchange="onSeverityChange">
+            <view class="picker-value">{{severityLabels[severityIndex]}}</view>
+          </picker>
+        </view>
+        <view class="form-group">
+          <text class="form-label">{{tMonRootCause}}</text>
+          <textarea class="form-textarea" placeholder="{{tMonRootCause}}" value="{{resolveForm.root_cause}}" bindinput="onRootCauseInput" maxlength="2000"></textarea>
+        </view>
+        <view class="form-group">
+          <text class="form-label">{{tMonFixSolution}}</text>
+          <textarea class="form-textarea" placeholder="{{tMonFixSolution}}" value="{{resolveForm.fix_description}}" bindinput="onFixSolutionInput" maxlength="2000"></textarea>
+        </view>
+        <view class="form-group">
+          <text class="form-label">{{tMonPrevention}}</text>
+          <textarea class="form-textarea" placeholder="{{tMonPrevention}}" value="{{resolveForm.prevention}}" bindinput="onPreventionInput" maxlength="2000"></textarea>
+        </view>
+        <view class="modal-actions">
+          <button class="action-btn skip" bindtap="skipResolve">{{tMonResolveSkip}}</button>
+          <button class="action-btn submit" bindtap="submitResolveForm" disabled="{{resolveSubmitting}}">
+            {{resolveSubmitting ? tMonLoading : tMonResolveRecord}}
+          </button>
+        </view>
       </scroll-view>
     </view>
   </view>

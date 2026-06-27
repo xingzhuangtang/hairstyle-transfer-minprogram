@@ -97,30 +97,7 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
         except Exception as e:
             logger.warning(f'防御规则引擎初始化失败: {e}')
 
-    # 5. 告警管理器（集成 fixer 和 rule_engine）
-    from .alert_manager import AlertManager
-    _alert_manager = AlertManager(
-        app, config, db=db, redis_client=redis_client, wecom_bot=wecom_bot,
-        fixer=_fixer, rule_engine=_rule_engine,
-    )
-    _alert_manager.start()
-
-    # 6. 指标采集器
-    from .collector import MetricsCollector
-    _collector = MetricsCollector(app, config, db=db, redis_client=redis_client)
-    _collector.set_start_time(time.time())
-    _collector.start()
-
-    # 7. Phase 3: 进化分析引擎
-    _evolution_analyzer = None
-    try:
-        from .evolution import EvolutionAnalyzer
-        _evolution_analyzer = EvolutionAnalyzer(app, config, db=db, collector=_collector)
-        logger.info('Phase 3: 进化分析引擎已初始化')
-    except Exception as e:
-        logger.warning(f'进化分析引擎初始化失败: {e}')
-
-    # 8. Phase 4: Bug 知识库
+    # 5. Bug 知识库（提前初始化，供 alert_manager 使用）
     global _bug_recorder
     _bug_recorder = None
     try:
@@ -129,6 +106,29 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
         logger.info('Phase 4: Bug 知识库已初始化')
     except Exception as e:
         logger.warning(f'Bug 知识库初始化失败: {e}')
+
+    # 6. 告警管理器（集成 fixer、rule_engine 和 bug_recorder）
+    from .alert_manager import AlertManager
+    _alert_manager = AlertManager(
+        app, config, db=db, redis_client=redis_client, wecom_bot=wecom_bot,
+        fixer=_fixer, rule_engine=_rule_engine, bug_recorder=_bug_recorder,
+    )
+    _alert_manager.start()
+
+    # 7. 指标采集器
+    from .collector import MetricsCollector
+    _collector = MetricsCollector(app, config, db=db, redis_client=redis_client)
+    _collector.set_start_time(time.time())
+    _collector.start()
+
+    # 8. Phase 3: 进化分析引擎
+    _evolution_analyzer = None
+    try:
+        from .evolution import EvolutionAnalyzer
+        _evolution_analyzer = EvolutionAnalyzer(app, config, db=db, collector=_collector)
+        logger.info('Phase 3: 进化分析引擎已初始化')
+    except Exception as e:
+        logger.warning(f'进化分析引擎初始化失败: {e}')
 
     # 9. 配置校验探针
     _config_validator = None
@@ -143,11 +143,21 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     except Exception as e:
         logger.warning(f'配置校验探针初始化失败: {e}')
 
-    # 10. 异常捕获探针
+    # 10. 修复验证器
+    _verifier = None
+    try:
+        from .verifier import AlertVerifier
+        _verifier = AlertVerifier(app, db=db, config=config)
+        _verifier.start()
+        logger.info('修复验证器已初始化')
+    except Exception as e:
+        logger.warning(f'修复验证器初始化失败: {e}')
+
+    # 11. 异常捕获探针
     from .probe import init_probe
     init_probe(app, _alert_manager, _collector)
 
-    # 11. 注册监控面板 API
+    # 12. 注册监控面板 API
     from .api import monitor_bp, _init_api
 
     def _default_is_developer():
@@ -160,6 +170,7 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
         approval_manager=_approval_manager,
         rule_engine=_rule_engine,
         evolution_analyzer=_evolution_analyzer,
+        bug_recorder=_bug_recorder,
     )
     app.register_blueprint(monitor_bp)
 
@@ -172,13 +183,15 @@ def init_self_healing(app, db=None, is_developer_func=None, redis_client=None):
     app._evolution_analyzer = _evolution_analyzer
     app._bug_recorder = _bug_recorder
     app._config_validator = _config_validator
+    app._verifier = _verifier
 
-    # 10. 后台初始化：默认防御规则 + 清理过期审批 + 启动健康检查
+    # 13. 后台初始化：默认防御规则 + 清理过期审批 + 启动健康检查
     def _post_init():
         try:
             if _rule_engine and db:
                 with app.app_context():
                     _rule_engine.init_default_rules()
+                    _rule_engine.auto_generate_rules_from_bugs()
         except Exception as e:
             logger.debug(f'默认规则初始化: {e}')
 

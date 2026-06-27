@@ -926,7 +926,20 @@ module.exports = {
     "stackTrace": "Stack Trace",
     "requestParams": "Request Params",
     "acknowledge": "Acknowledge",
-    "resolve": "Resolve"
+    "resolve": "Resolve",
+    "resolveRecordTitle": "Record Fix Solution",
+    "bugCategory": "Bug Category",
+    "rootCause": "Root Cause",
+    "fixSolution": "Fix Solution",
+    "prevention": "Prevention",
+    "resolveRecord": "Record & Resolve",
+    "resolveSkip": "Skip Recording",
+    "similarBugs": "Similar Historical Bugs",
+    "verifyResolution": "Verify Resolution",
+    "reopenAlert": "Reopen",
+    "verificationVerified": "Verified",
+    "verificationFailed": "Verification Failed",
+    "verificationPending": "Pending Verification"
   },
   "refundAdmin": {
     "title": "Refund Management",

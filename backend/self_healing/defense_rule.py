@@ -370,3 +370,68 @@ class RuleEngine:
                 self.db.session.rollback()
             except Exception:
                 pass
+
+    def auto_generate_rules_from_bugs(self):
+        """从 Bug 知识库自动生成防御规则（高置信度 Bug）"""
+        if not self.db:
+            return
+
+        try:
+            from .models import BugKnowledge, DefenseRule
+
+            high_confidence_bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.confidence >= 0.7,
+            ).all()
+
+            if not high_confidence_bugs:
+                return
+
+            existing_rules = self.db.session.query(DefenseRule).all()
+            existing_names = {r.name for r in existing_rules}
+
+            new_count = 0
+            for bug in high_confidence_bugs:
+                rule_name = f'[自动] {bug.title} - 防护'
+                if rule_name in existing_names:
+                    continue
+
+                pattern_type = 'title_contains'
+                pattern_value = bug.title[:100] if bug.title else ''
+                action = 'warn'
+                priority = max(1, int(50 * (1 - bug.confidence)))
+
+                if bug.category == 'data_type':
+                    pattern_value = 'DataError'
+                    action = 'auto_fix'
+                    priority = 5
+                elif bug.category == 'deployment':
+                    pattern_value = '部署路径'
+                    action = 'auto_fix'
+                    priority = 10
+
+                rule = DefenseRule(
+                    name=rule_name,
+                    enabled=1,
+                    priority=priority,
+                    pattern_type=pattern_type,
+                    pattern_value=pattern_value,
+                    action=action,
+                    action_config=json.dumps({
+                        'source_bug': bug.bug_id,
+                        'confidence': bug.confidence,
+                    }),
+                    cooldown_seconds=3600,
+                )
+                self.db.session.add(rule)
+                new_count += 1
+
+            if new_count > 0:
+                self.db.session.commit()
+                logger.info(f'从 Bug 知识库自动生成了 {new_count} 条防御规则')
+        except Exception as e:
+            logger.error(f'自动生成防御规则失败: {e}')
+            try:
+                self.db.session.rollback()
+            except Exception:
+                pass
