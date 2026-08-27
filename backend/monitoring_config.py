@@ -6,6 +6,8 @@
 """
 
 import os
+import ssl
+import socket
 import time
 import psutil
 import threading
@@ -122,10 +124,36 @@ class SystemMonitor:
                     "num_threads": process.num_threads(),
                     "create_time": process.create_time(),
                 },
+                "ssl": self._get_ssl_cert_info(),
             }
 
         except Exception as e:
             logging.error(f"收集系统指标失败: {e}")
+
+    def _get_ssl_cert_info(self):
+        """获取SSL证书信息"""
+        try:
+            domain = os.getenv("SSL_CHECK_DOMAIN", "xn--gmq63iba0780e.com")
+            port = 443
+            context = ssl.create_default_context()
+            with socket.create_connection((domain, port), timeout=10) as sock:
+                with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                    cert = ssock.getpeercert()
+            not_after_str = cert.get("notAfter", "")
+            if not_after_str:
+                try:
+                    not_after = datetime.strptime(not_after_str, "%Y%m%d%H%M%SZ")
+                except ValueError:
+                    not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
+                days_remaining = (not_after - datetime.utcnow()).days
+                return {
+                    "domain": domain,
+                    "not_after": not_after.isoformat(),
+                    "days_remaining": days_remaining,
+                }
+        except Exception as e:
+            return {"error": str(e), "days_remaining": -1}
+        return {"days_remaining": -1}
 
     def _check_alerts(self):
         """检查告警条件"""
@@ -167,6 +195,34 @@ class SystemMonitor:
                     "level": "warning"
                     if self.metrics["disk"]["percent"] < 95
                     else "critical",
+                }
+            )
+
+        # SSL证书告警
+        ssl_info = self.metrics.get("ssl", {})
+        ssl_days = ssl_info.get("days_remaining", -1)
+        if ssl_days < 0:
+            alerts.append(
+                {
+                    "type": "ssl_cert_error",
+                    "message": f"SSL证书异常: {ssl_info.get('error', '无法获取证书信息')}",
+                    "level": "critical",
+                }
+            )
+        elif ssl_days <= 7:
+            alerts.append(
+                {
+                    "type": "ssl_cert_expiring",
+                    "message": f"SSL证书将在 {ssl_days} 天后过期!",
+                    "level": "critical",
+                }
+            )
+        elif ssl_days <= 14:
+            alerts.append(
+                {
+                    "type": "ssl_cert_expiring",
+                    "message": f"SSL证书将在 {ssl_days} 天后过期",
+                    "level": "warning",
                 }
             )
 
@@ -256,6 +312,22 @@ class SystemMonitor:
             except Exception as e:
                 health_status["checks"]["aliyun"] = f"error: {str(e)}"
                 health_status["status"] = "error"
+
+            # 检查SSL证书
+            ssl_info = self.metrics.get("ssl", {})
+            ssl_days = ssl_info.get("days_remaining", -1)
+            if ssl_days < 0:
+                health_status["checks"]["ssl_cert"] = f"error: {ssl_info.get('error', '无法获取证书信息')}"
+                health_status["status"] = "error"
+            elif ssl_days <= 7:
+                health_status["checks"]["ssl_cert"] = f"critical: 证书将在 {ssl_days} 天后过期"
+                health_status["status"] = "error"
+            elif ssl_days <= 14:
+                health_status["checks"]["ssl_cert"] = f"warning: 证书将在 {ssl_days} 天后过期"
+                if health_status["status"] == "ok":
+                    health_status["status"] = "warning"
+            else:
+                health_status["checks"]["ssl_cert"] = f"ok: 证书有效，剩余 {ssl_days} 天"
 
             return jsonify(health_status)
 
@@ -362,6 +434,9 @@ class HealthChecker:
 
         # 磁盘空间检查
         self.add_check("disk_space", self._check_disk_space)
+
+        # SSL证书检查
+        self.add_check("ssl_cert", self._check_ssl_cert)
 
     def add_check(self, name, check_func):
         """添加检查项"""
@@ -486,6 +561,66 @@ class HealthChecker:
             }
         except Exception as e:
             return {"status": "error", "message": f"磁盘空间检查失败: {str(e)}"}
+
+    def _check_ssl_cert(self):
+        """检查SSL证书有效期"""
+        try:
+            domain = os.getenv("SSL_CHECK_DOMAIN", "xn--gmq63iba0780e.com")
+            port = 443
+            warn_days = int(os.getenv("SSL_CERT_WARN_DAYS", "14"))
+
+            context = ssl.create_default_context()
+            with socket.create_connection((domain, port), timeout=10) as sock:
+                with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                    cert = ssock.getpeercert()
+
+            # 解析过期时间
+            not_after = None
+            issuer = None
+            for rdn in cert.get("issuer", ()):
+                for attr_type, attr_value in rdn:
+                    if attr_type == "organizationName":
+                        issuer = attr_value
+
+            not_after_str = cert.get("notAfter", "")
+            if not_after_str:
+                try:
+                    not_after = datetime.strptime(not_after_str, "%Y%m%d%H%M%SZ")
+                except ValueError:
+                    not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
+                days_remaining = (not_after - datetime.utcnow()).days
+            else:
+                return {"status": "error", "message": "无法解析证书过期时间"}
+
+            if days_remaining < 0:
+                status = "error"
+                message = f"SSL证书已过期 {abs(days_remaining)} 天!"
+            elif days_remaining <= 7:
+                status = "error"
+                message = f"SSL证书将在 {days_remaining} 天后过期!"
+            elif days_remaining <= warn_days:
+                status = "warning"
+                message = f"SSL证书将在 {days_remaining} 天后过期"
+            else:
+                status = "ok"
+                message = f"SSL证书有效，剩余 {days_remaining} 天"
+
+            return {
+                "status": status,
+                "message": message,
+                "details": {
+                    "domain": domain,
+                    "issuer": issuer,
+                    "not_after": not_after.isoformat() if not_after else None,
+                    "days_remaining": days_remaining,
+                },
+            }
+        except ssl.SSLCertVerificationError as e:
+            return {"status": "error", "message": f"SSL证书验证失败: {str(e)}"}
+        except socket.timeout:
+            return {"status": "error", "message": "SSL证书检查超时"}
+        except Exception as e:
+            return {"status": "error", "message": f"SSL证书检查失败: {str(e)}"}
 
 
 # 全局监控实例
