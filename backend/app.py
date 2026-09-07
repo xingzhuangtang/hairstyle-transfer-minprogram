@@ -285,10 +285,10 @@ def upload_to_oss(local_path: str, max_retries: int = 3) -> str:
     上传文件到阿里云OSS并返回公网可访问的URL
 
     配置信息:
-    - 区域: 上海 (oss-cn-shanghai)
-    - Bucket: hair-transfer-bucket
-    - 超时设置: 180秒连接 + 120秒读取 (企业网络优化)
-    - 重试机制: 最多重试3次 (网络超时友好)
+    - 上传Endpoint: 内网 (oss-cn-shanghai-internal.aliyuncs.com) — 免流量费
+    - 返回URL: 公网 (oss-cn-shanghai.aliyuncs.com) — AI API和前端代理需要公网可访问
+    - Bucket: 从 Config.OSS_BUCKET_NAME 读取
+    - 重试机制: 最多重试3次
 
     Args:
         local_path: 本地文件路径
@@ -306,15 +306,14 @@ def upload_to_oss(local_path: str, max_retries: int = 3) -> str:
     import time
     import requests
     import urllib3
+    from config import Config
 
     # ===== OSS配置 =====
-    # 从环境变量获取AccessKey
-    access_key_id = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
-    access_key_secret = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
-
-    # OSS配置
-    endpoint = "oss-cn-shanghai.aliyuncs.com"  # 上海区域
-    bucket_name = "hair-transfer-bucket"  # Bucket名称
+    access_key_id = Config.ALIBABA_CLOUD_ACCESS_KEY_ID
+    access_key_secret = Config.ALIBABA_CLOUD_ACCESS_KEY_SECRET
+    endpoint = Config.OSS_INTERNAL_ENDPOINT
+    public_endpoint = Config.OSS_ENDPOINT
+    bucket_name = Config.OSS_BUCKET_NAME
 
     # 检查配置
     if not access_key_id or not access_key_secret:
@@ -358,8 +357,8 @@ def upload_to_oss(local_path: str, max_retries: int = 3) -> str:
                 raise Exception(f"上传失败: HTTP {result.status}")
 
             # ===== 生成公网URL =====
-            # 直接拼接URL (需要Bucket设置为公共读)
-            public_url = f"https://{bucket_name}.{endpoint}/{object_name}"
+            # 上传用内网（免流量费），返回URL用公网（AI API和前端代理需要公网可访问）
+            public_url = f"https://{bucket_name}.{public_endpoint}/{object_name}"
 
             print(f"✅ 上传成功!")
             print(f"   公网URL: {public_url}")
