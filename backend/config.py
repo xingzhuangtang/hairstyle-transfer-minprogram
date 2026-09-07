@@ -43,6 +43,7 @@ class Config:
 
     # OSS配置
     OSS_ENDPOINT = os.getenv("OSS_ENDPOINT", "oss-cn-shanghai.aliyuncs.com")
+    OSS_INTERNAL_ENDPOINT = os.getenv("OSS_INTERNAL_ENDPOINT", "oss-cn-shanghai-internal.aliyuncs.com")
     OSS_BUCKET_NAME = os.getenv("OSS_BUCKET_NAME", "hair-transfer-bucket")
 
     # 微信小程序配置
