@@ -15,7 +15,7 @@ export const PRICING = {
     faceMerge: 40,
     sketch: 88,
     combined: 88,
-    drawingVideo: 20,
+    drawingVideo: 200,
     drawingVideoCreative: 800
   },
   vip: {
@@ -23,8 +23,8 @@ export const PRICING = {
     faceMerge: 20,
     sketch: 46,
     combined: 46,
-    drawingVideo: 10,
-    drawingVideoCreative: 800
+    drawingVideo: 100,
+    drawingVideoCreative: 600
   }
 }
 
