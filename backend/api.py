@@ -3992,6 +3992,213 @@ def dev_today():
 
 
 # ============================================
+# 手绘视频 API
+# ============================================
+
+@api_bp.route('/drawing-video/latest-sketch', methods=['GET'])
+@login_required
+def get_latest_sketch():
+    """获取用户最近一次素描结果（用于手绘视频生成）"""
+    try:
+        user = g.current_user
+
+        sketch_types = ('sketch', 'combined', 'sk_step')
+        record = HistoryRecord.query.filter(
+            HistoryRecord.user_id == user.id,
+            HistoryRecord.service_type.in_(sketch_types),
+            HistoryRecord.sketch_url.isnot(None),
+            HistoryRecord.sketch_url != ''
+        ).order_by(HistoryRecord.created_at.desc()).first()
+
+        if not record:
+            record = ConsumptionRecord.query.filter(
+                ConsumptionRecord.user_id == user.id,
+                ConsumptionRecord.service_type.in_(sketch_types),
+                ConsumptionRecord.result_url.isnot(None),
+                ConsumptionRecord.result_url != ''
+            ).order_by(ConsumptionRecord.created_at.desc()).first()
+
+            if record:
+                sketch_url = record.result_url
+                style = 'pencil'
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': '没有找到素描记录，请先完成素描'
+                }), 404
+        else:
+            sketch_url = record.sketch_url or record.result_url
+            style = 'pencil'
+            if record.model_version:
+                style = record.model_version
+
+        # 统一转换为相对路径（处理旧的内网IP地址）
+        if sketch_url and sketch_url.startswith('http'):
+            from urllib.parse import urlparse
+            parsed = urlparse(sketch_url)
+            sketch_url = parsed.path  # 只保留路径部分，如 /static/results/xxx.png
+
+        hair_service = HairService()
+        cost = hair_service.calculate_cost(user, 'drawing_video')
+        creative_cost = hair_service.calculate_cost(user, 'drawing_video_creative')
+
+        return jsonify({
+            'success': True,
+            'sketch_url': sketch_url,
+            'style': style,
+            'cost': cost,
+            'creative_cost': creative_cost,
+            'record_id': record.id if hasattr(record, 'id') else None
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f'Get latest sketch error: {e}')
+        return jsonify({'success': False, 'error': '服务器错误'}), 500
+
+
+@api_bp.route('/drawing-video/generate', methods=['POST'])
+@login_required
+def generate_drawing_video():
+    """生成手绘视频"""
+    try:
+        user = g.current_user
+        data = request.get_json() or {}
+        style = data.get('style', 'pencil')
+        mode = data.get('mode', 'programmatic')
+
+        service_type = 'drawing_video_creative' if mode == 'creative' else 'drawing_video'
+
+        hair_service = HairService()
+        cost = hair_service.calculate_cost(user, service_type)
+
+        if not user.has_enough_hairs(cost):
+            return jsonify({
+                'success': False,
+                'error': '余额不足',
+                'code': 'INSUFFICIENT_BALANCE',
+                'required': cost,
+                'available': user.get_total_hairs()
+            }), 402
+
+        sketch_url = data.get('sketch_url')
+        if not sketch_url:
+            record = HistoryRecord.query.filter(
+                HistoryRecord.user_id == user.id,
+                HistoryRecord.service_type.in_(('sketch', 'combined', 'sk_step')),
+                HistoryRecord.sketch_url.isnot(None),
+                HistoryRecord.sketch_url != ''
+            ).order_by(HistoryRecord.created_at.desc()).first()
+
+            if record:
+                sketch_url = record.sketch_url or record.result_url
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': '没有找到素描记录，请先完成素描'
+                }), 404
+        
+        print(f"📹 视频生成 - 收到 sketch_url: {sketch_url}")
+
+        import requests as http_requests
+        import tempfile
+        import os
+
+        local_image = tempfile.mktemp(suffix='.png', prefix='sketch_')
+        try:
+            # 提取路径部分（兼容相对路径和完整URL）
+            from urllib.parse import urlparse
+            parsed = urlparse(sketch_url)
+            url_path = parsed.path if parsed.scheme else sketch_url
+
+            print(f"📹 视频生成 - 解析路径: url_path={url_path}")
+
+            # 支持本地文件路径（/static/...）
+            if url_path.startswith('/static/'):
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                local_path = os.path.join(base_dir, url_path.lstrip('/'))
+                print(f"📹 视频生成 - 本地路径: {local_path}, 存在: {os.path.exists(local_path)}")
+                
+                if os.path.exists(local_path):
+                    import shutil
+                    shutil.copy(local_path, local_image)
+                    print(f"📹 视频生成 - 文件已复制到临时位置: {local_image}")
+                else:
+                    # 列出 results 目录帮助调试
+                    results_dir = os.path.join(base_dir, 'static', 'results')
+                    if os.path.exists(results_dir):
+                        files = os.listdir(results_dir)
+                        print(f"📹 视频生成 - results 目录文件列表: {files[:10]}")  # 只显示前10个
+                    
+                    return jsonify({
+                        'success': False, 
+                        'error': f'素描文件不存在: {os.path.basename(local_path)}。请重新生成素描后再试。',
+                        'debug': {
+                            'requested_path': local_path,
+                            'results_dir_exists': os.path.exists(results_dir),
+                            'available_files': os.listdir(results_dir) if os.path.exists(results_dir) else []
+                        }
+                    }), 400
+            else:
+                # 下载远程文件
+                print(f"📹 视频生成 - 下载远程文件: {sketch_url}")
+                resp = http_requests.get(sketch_url, timeout=60)
+                resp.raise_for_status()
+                with open(local_image, 'wb') as f:
+                    f.write(resp.content)
+                print(f"📹 视频生成 - 远程文件已下载: {local_image}")
+
+            if mode == 'creative':
+                from app import upload_to_oss
+                sketch_public_url = upload_to_oss(local_image)
+                from dashscope_video_generator import DashScopeVideoGenerator
+                generator = DashScopeVideoGenerator()
+                video_path = generator.generate(sketch_public_url, style=style)
+            else:
+                from drawing_video_generator import DrawingVideoGenerator
+                generator = DrawingVideoGenerator()
+                video_path = generator.generate_video(local_image, style=style)
+
+            from app import upload_to_oss
+            video_url = upload_to_oss(video_path)
+
+            import uuid
+            task_id = str(uuid.uuid4())
+
+            consume_result = hair_service.consume_hairs(
+                user, service_type, task_id=task_id,
+                result_url=video_url, sketch_url=sketch_url
+            )
+
+            if not consume_result['success']:
+                return jsonify(consume_result), 400
+
+            return jsonify({
+                'success': True,
+                'video_url': video_url,
+                'cost': cost,
+                'remaining_hairs': consume_result['remaining_total'],
+                'mode': mode
+            })
+
+        finally:
+            if os.path.exists(local_image):
+                os.remove(local_image)
+            try:
+                if 'video_path' in dir() and os.path.exists(video_path):
+                    os.remove(video_path)
+            except Exception:
+                pass
+
+    except Exception as e:
+        import logging
+        logging.error(f'Generate drawing video error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': '视频生成失败'}), 500
+
+
+# ============================================
 # 全局错误处理（防止堆栈泄漏）
 # ============================================
 

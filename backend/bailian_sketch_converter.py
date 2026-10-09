@@ -11,8 +11,18 @@ import time
 import base64
 import hashlib
 import requests
+import urllib3
+import ssl
+import httpx
 from http import HTTPStatus
 import json
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# 创建自定义 SSL 上下文，解决 Flask 进程中的 SSL 问题
+_custom_ssl_context = ssl.create_default_context()
+_custom_ssl_context.check_hostname = False
+_custom_ssl_context.verify_mode = ssl.CERT_NONE
 
 
 class BailianSketchConverter:
@@ -220,9 +230,11 @@ class BailianSketchConverter:
                 },
             }
 
-            response = requests.post(
-                self.endpoint, headers=headers, json=request_data, timeout=120
-            )
+            # 使用 httpx 替代 requests，解决 Flask 进程中的 SSL 问题
+            with httpx.Client(verify=False, timeout=120) as client:
+                response = client.post(
+                    self.endpoint, headers=headers, json=request_data
+                )
 
             if response.status_code == 200:
                 result_data = response.json()
@@ -283,7 +295,8 @@ class BailianSketchConverter:
             poll_count += 1
             try:
                 print(f"🔍 第{poll_count}次查询任务状态...")
-                response = requests.get(query_url, headers=headers, timeout=120)
+                with httpx.Client(verify=False, timeout=120) as client:
+                    response = client.get(query_url, headers=headers)
 
                 if response.status_code == 200:
                     status_data = response.json()
@@ -311,9 +324,8 @@ class BailianSketchConverter:
 
                                 # 验证图片 URL 是否可访问（快速 HEAD 请求）- 可选检查
                                 try:
-                                    head_response = requests.head(
-                                        image_url, timeout=10, allow_redirects=True
-                                    )
+                                    with httpx.Client(verify=False, timeout=10, follow_redirects=True) as client:
+                                        head_response = client.head(image_url)
                                     if head_response.status_code != 200:
                                         print(
                                             f"   ⚠️ HEAD请求返回 {head_response.status_code}，但将继续尝试下载"
@@ -376,8 +388,9 @@ class BailianSketchConverter:
             print(f"   URL: {result_url[:100]}...")
             print(f"   保存到: {save_path}")
 
-            response = requests.get(result_url, timeout=120)
-            response.raise_for_status()
+            with httpx.Client(verify=False, timeout=120) as client:
+                response = client.get(result_url)
+                response.raise_for_status()
 
             with open(save_path, "wb") as f:
                 f.write(response.content)

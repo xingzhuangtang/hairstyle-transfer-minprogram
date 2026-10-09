@@ -19,7 +19,8 @@
     "pages/refund/refund",
     "pages/refund-admin/refund-admin",
     "pages/customer-admin/customer-admin",
-    "pages/monitor/monitor"
+    "pages/monitor/monitor",
+    "pages/drawing-video/drawing-video"
   ],
   "window": {
     "backgroundTextStyle": "light",

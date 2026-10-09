@@ -163,7 +163,25 @@ module.exports = {
     "transferSuccess": "Hairstyle generated, {cost} hairs deducted",
     "fetchTimeout": "Fetch timeout",
     "fetchFail": "Fetch failed",
-    "unknownDevice": "Unknown device"
+    "unknownDevice": "Unknown device",
+    "drawingVideo": "Drawing Video",
+    "drawingVideoTip": "Auto transfer + sketch, then generate hand-drawn video",
+    "drawingVideoConfirm": "Will auto-complete hairstyle transfer and sketch (vivid style), then generate drawing video. Total cost: {cost} hairs. Continue?",
+    "drawingVideoProcessing": "Generating sketch...",
+    "drawingVideoNoSketch": "Sketch generation failed, please retry"
+  },
+  "drawingVideo": {
+    "generating": "Drawing...",
+    "generatingSub": "Stroke by stroke, just for you",
+    "videoTitle": "Hand-drawn Video",
+    "sketchTitle": "Original Sketch",
+    "costPrefix": "Cost",
+    "hairs": "hairs",
+    "remaining": "Remaining",
+    "saveVideo": "Save Video",
+    "saveSketch": "Save Image",
+    "goHome": "Go Home",
+    "tapToEnlarge": "Tap to enlarge"
   },
   "profile": {
     "guestMode": "You are in Guest Mode",

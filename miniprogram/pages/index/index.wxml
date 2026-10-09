@@ -196,6 +196,15 @@
     </view>
   </view>
 
+  <!-- 手绘视频入口 -->
+  <view class="drawing-video-section">
+    <button class="action-btn drawing-video-btn" bindtap="startDrawingVideo" disabled="{{processing}}">
+      <text class="btn-label">{{tIndexDrawingVideo}}</text>
+      <text class="cost">{{isPremium ? drawingVideoAllCost : drawingVideoAllCostNormal}}{{tIndexHairs}}</text>
+    </button>
+    <text class="drawing-video-tip">{{tIndexDrawingVideoTip}}</text>
+  </view>
+
   <!-- 会员提示 -->
   <view class="vip-tip" wx:if="{{!isPremium}}">
     <text class="tip-icon">👑</text>

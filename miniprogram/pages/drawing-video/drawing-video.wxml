@@ -1,0 +1,118 @@
+<!--pages/drawing-video/drawing-video.wxml-->
+<view class="dv-container">
+  <!-- 生成中：全屏 Canvas 动画 -->
+  <view class="dv-canvas-section" wx:if="{{generating}}">
+    <view class="dv-canvas-wrapper">
+      <canvas id="revealCanvas" type="2d" class="dv-canvas"></canvas>
+      <image class="dv-canvas-bg" src="{{sketchUrl}}" mode="aspectFit"></image>
+    </view>
+    <view class="dv-generating-info">
+      <view class="dv-spinner"></view>
+      <text class="dv-generating-text">{{tGenerating}}</text>
+      <text class="dv-generating-sub">{{tGeneratingSub}}</text>
+    </view>
+  </view>
+
+  <!-- 完成后：左视频 / 右素描 -->
+  <view class="dv-result-section" wx:if="{{videoReady && !generating}}">
+    <view class="dv-comparison">
+      <view class="dv-comparison-item">
+        <text class="dv-label">{{tVideoTitle}}</text>
+        <view class="dv-video-wrapper" bindtap="openFullscreenVideo">
+          <video
+            class="dv-video"
+            src="{{videoUrl}}"
+            autoplay
+            loop
+            show-center-play-btn
+            object-fit="contain"
+            poster="{{sketchUrl}}">
+          </video>
+          <view class="dv-video-tap-hint">
+            <text>{{tTapToEnlarge}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="dv-comparison-item" wx:if="{{showSketch}}">
+        <text class="dv-label">{{tSketchTitle}}</text>
+        <view class="dv-sketch-wrapper" bindtap="openFullscreenSketch">
+          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="aspectFit" show-menu-by-longpress></image>
+          <view class="dv-sketch-tap-hint">
+            <text>{{tTapToEnlarge}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 消耗信息 -->
+    <view class="dv-cost-info">
+      <text class="dv-cost-text">{{tCostPrefix}}：{{cost}}{{tHairs}}</text>
+      <text class="dv-remaining">{{tRemaining}}：{{remainingHairs}}{{tHairs}}</text>
+    </view>
+
+    <!-- 风格选择 -->
+    <view class="dv-style-selector">
+      <text class="dv-style-label">{{tStyleLabel}}</text>
+      <view class="dv-style-options">
+        <view class="dv-style-option {{style === 'pencil' ? 'active' : ''}}" bindtap="selectStyle" data-style="pencil">
+          <text>{{tStylePencil}}</text>
+        </view>
+        <view class="dv-style-option {{style === 'vivid' ? 'active' : ''}}" bindtap="selectStyle" data-style="vivid">
+          <text>{{tStyleVivid}}</text>
+        </view>
+        <view class="dv-style-option {{style === 'ink' ? 'active' : ''}}" bindtap="selectStyle" data-style="ink">
+          <text>{{tStyleInk}}</text>
+        </view>
+        <view class="dv-style-option {{style === 'anime' ? 'active' : ''}}" bindtap="selectStyle" data-style="anime">
+          <text>{{tStyleAnime}}</text>
+        </view>
+      </view>
+      <button class="dv-btn regenerate-btn" bindtap="regenerateVideo">
+        <text>{{tRegenerate}}</text>
+      </button>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="dv-actions">
+      <button class="dv-btn secondary" bindtap="saveVideoToAlbum">
+        <text>{{tSaveVideo}}</text>
+      </button>
+      <button class="dv-btn secondary" bindtap="saveSketchToAlbum">
+        <text>{{tSaveSketch}}</text>
+      </button>
+      <button class="dv-btn primary" bindtap="goHome">
+        <text>{{tGoHome}}</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="dv-error-section" wx:if="{{error && !generating}}">
+    <text class="dv-error-text">{{error}}</text>
+    <button class="dv-btn primary" bindtap="goHome">{{tGoHome}}</button>
+  </view>
+
+  <!-- 全屏视频预览 -->
+  <view class="dv-fullscreen-overlay" wx:if="{{videoFullscreen}}" bindtap="closeFullscreenVideo">
+    <video
+      class="dv-fullscreen-video"
+      src="{{videoUrl}}"
+      autoplay
+      loop
+      show-center-play-btn
+      object-fit="contain"
+      controls>
+    </video>
+    <view class="dv-fullscreen-close">
+      <text class="dv-fullscreen-close-icon">×</text>
+    </view>
+  </view>
+
+  <!-- 全屏图片预览 -->
+  <view class="dv-fullscreen-overlay" wx:if="{{sketchFullscreen}}" bindtap="closeFullscreenSketch">
+    <image class="dv-fullscreen-image" src="{{sketchUrl}}" mode="aspectFit"></image>
+    <view class="dv-fullscreen-close">
+      <text class="dv-fullscreen-close-icon">×</text>
+    </view>
+  </view>
+</view>

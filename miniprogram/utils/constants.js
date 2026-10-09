@@ -1,4 +1,4 @@
-export const API_BASE_URL = "https://xn--gmq63iba0780e.com" 
+export const API_BASE_URL = "http://localhost:5003" // 本地测试用，上线前改回 "https://xn--gmq63iba0780e.com"
 
 // 存储键位定义
 export const STORAGE_KEYS = {
@@ -14,13 +14,17 @@ export const PRICING = {
     hairSegment: 20,
     faceMerge: 40,
     sketch: 88,
-    combined: 88
+    combined: 88,
+    drawingVideo: 20,
+    drawingVideoCreative: 800
   },
   vip: {
     hairSegment: 10,
     faceMerge: 20,
     sketch: 46,
-    combined: 46
+    combined: 46,
+    drawingVideo: 10,
+    drawingVideoCreative: 800
   }
 }
 
