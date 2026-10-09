@@ -416,6 +416,15 @@ class AliyunHairTransferFixed:
                             # 保存素描版本
                             if save_path:
                                 sketch_path = save_path.replace('.png', '_sketch.png')
+                                
+                                # 验证 result_image 是否有效
+                                if result_image is None:
+                                    raise Exception("download_image 返回 None，素描图像下载失败")
+                                
+                                if not isinstance(result_image, np.ndarray) or result_image.size == 0:
+                                    raise Exception(f"result_image 无效: type={type(result_image)}, size={result_image.size if isinstance(result_image, np.ndarray) else 'N/A'}")
+                                
+                                print(f"   准备保存素描: {sketch_path}, 图像大小: {result_image.shape}")
                                 write_success = cv2.imwrite(sketch_path, result_image)
 
                                 # 验证文件是否真正写入成功

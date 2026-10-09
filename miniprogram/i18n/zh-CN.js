@@ -163,7 +163,25 @@ module.exports = {
     "transferSuccess": "发型生成成功，已扣费{cost}发丝",
     "fetchTimeout": "获取超时",
     "fetchFail": "获取失败",
-    "unknownDevice": "未知设备"
+    "unknownDevice": "未知设备",
+    "drawingVideo": "视频绘制",
+    "drawingVideoTip": "自动完成发型迁移+素描，生成手绘视频",
+    "drawingVideoConfirm": "将自动完成发型迁移和素描（淡彩风格），然后生成手绘视频，共消耗{cost}发丝，确定继续？",
+    "drawingVideoProcessing": "正在生成素描...",
+    "drawingVideoNoSketch": "素描生成失败，请重试"
+  },
+  "drawingVideo": {
+    "generating": "正在绘制中...",
+    "generatingSub": "一笔一画，为您呈现",
+    "videoTitle": "手绘视频",
+    "sketchTitle": "素描原图",
+    "costPrefix": "消耗",
+    "hairs": "发丝",
+    "remaining": "剩余",
+    "saveVideo": "保存视频",
+    "saveSketch": "保存图片",
+    "goHome": "返回首页",
+    "tapToEnlarge": "点击放大"
   },
   "profile": {
     "guestMode": "您当前是游客模式",

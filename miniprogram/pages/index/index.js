@@ -28,7 +28,9 @@ const I18N_KEYS = [
   'index.imageLoadFail', 'index.balanceNotEnough', 'index.loginPrompt',
   'index.guestBonus', 'index.normalTip1', 'index.normalTip2',
   'index.annualLimitTip', 'index.annualLimitJoke', 'index.generating',
-  'index.switchToStep', 'index.switchToComprehensive'
+  'index.switchToStep', 'index.switchToComprehensive',
+  'index.drawingVideo', 'index.drawingVideoTip',
+  'index.drawingVideoConfirm', 'index.drawingVideoProcessing', 'index.drawingVideoNoSketch'
 ]
 
 Page({
@@ -69,6 +71,10 @@ Page({
     transferCostNormal: 40,
     sketchCost: 46,
     sketchCostNormal: 88,
+    drawingVideoCost: 10,
+    drawingVideoCostNormal: 20,
+    drawingVideoAllCost: 56,
+    drawingVideoAllCostNormal: 108,
 
     // 状态
     processing: false,
@@ -114,6 +120,11 @@ Page({
     tIndexUpgradeNow: '立即升级',
     tIndexSwitchToStep: '已切换到分步模式',
     tIndexSwitchToComprehensive: '已切换到综合模式',
+    tIndexDrawingVideo: '视频绘制',
+    tIndexDrawingVideoTip: '自动完成发型迁移+素描，生成手绘视频',
+    tIndexDrawingVideoConfirm: '将自动完成发型迁移和素描（淡彩风格），然后生成手绘视频，共消耗{cost}发丝，确定继续？',
+    tIndexDrawingVideoProcessing: '正在生成素描...',
+    tIndexDrawingVideoNoSketch: '素描生成失败，请重试',
     // i18n picker ranges
     modePickerRange: [],
     modePickerDisplay: '',
@@ -195,6 +206,11 @@ Page({
       tIndexUpgradeNow: t('index.upgradeNow'),
       tIndexSwitchToStep: t('index.switchToStep'),
       tIndexSwitchToComprehensive: t('index.switchToComprehensive'),
+      tIndexDrawingVideo: t('index.drawingVideo'),
+      tIndexDrawingVideoTip: t('index.drawingVideoTip'),
+      tIndexDrawingVideoConfirm: t('index.drawingVideoConfirm'),
+      tIndexDrawingVideoProcessing: t('index.drawingVideoProcessing'),
+      tIndexDrawingVideoNoSketch: t('index.drawingVideoNoSketch'),
       modePickerRange: [t('index.comprehensiveMode'), t('index.stepByStepMode')],
       modePickerDisplay: this.data.modeIndex === 0 ? t('index.comprehensiveMode') : t('index.stepByStepMode'),
       modelVersionPickerRange: [t('index.faceFit'), t('index.keepFace')],
@@ -240,7 +256,9 @@ Page({
           transferCost: PRICING.vip.faceMerge,
           transferCostNormal: PRICING.normal.faceMerge,
           sketchCost: PRICING.vip.sketch,
-          sketchCostNormal: PRICING.normal.sketch
+          sketchCostNormal: PRICING.normal.sketch,
+          drawingVideoAllCost: pricing.combined + pricing.drawingVideo,
+          drawingVideoAllCostNormal: PRICING.normal.combined + PRICING.normal.drawingVideo
         })
 
         // Feature 1: 游客余额不足，每次进入都弹注册弹窗
@@ -872,18 +890,57 @@ Page({
         customer_image: this.data.customerHttpUrl,
         model_version: modelVersion,
         fusion_degree: fusionDegree,
-        step_by_step: this.data.modeIndex === 1  // 分步模式（modeIndex=1）时传递 true
+        step_by_step: this.data.modeIndex === 1
       }
 
       // 如果启用素描，添加参数
       if (enableSketch) {
         params.enable_sketch = true
-        params.sketch_style = this.data.sketchStyles[this.data.sketchStyleIndex].value
+        const currentStyle = this.data.sketchStyles[this.data.sketchStyleIndex]
+        params.sketch_style = currentStyle ? currentStyle.value : 'vivid'
       }
 
+      console.log('[callTransferAPI] enableSketch=', enableSketch, 'sketch_style=', params.sketch_style, 'enable_sketch=', params.enable_sketch)
       const res = await transferHair(params)
+      console.log('[callTransferAPI] 后端返回 sketch_url=', res.sketch_url, 'info=', res.info)
 
       if (res.success) {
+        // 视频绘制模式：跳转到视频页面
+        if (this._drawingVideoMode) {
+          wx.hideLoading()
+
+          if (!res.sketch_url) {
+            console.error('视频绘制流程 - 没有素描URL，返回结果:', res)
+            wx.showToast({
+              title: app.t('index.drawingVideoNoSketch'),
+              icon: 'none'
+            })
+            return
+          }
+
+          let sketchUrl = res.sketch_url
+          if (sketchUrl.startsWith('/static/')) {
+            sketchUrl = API_BASE_URL + sketchUrl
+          }
+          if (sketchUrl.startsWith('http')) {
+            const pathStart = sketchUrl.indexOf('/', sketchUrl.indexOf('//') + 2)
+            if (pathStart !== -1) {
+              sketchUrl = API_BASE_URL + sketchUrl.substring(pathStart)
+            }
+          }
+
+          const videoParams = encodeURIComponent(JSON.stringify({
+            sketchUrl: sketchUrl,
+            style: 'vivid',
+            cost: this.data.isPremium ? PRICING.vip.drawingVideo : PRICING.normal.drawingVideo
+          }))
+
+          wx.navigateTo({
+            url: `/pages/drawing-video/drawing-video?data=${videoParams}`
+          })
+          return
+        }
+
         // 保存结果用于分步模式
         if (saveResult) {
           // 将相对路径转换为完整 URL（真机显示需要）
@@ -999,6 +1056,62 @@ Page({
           wx.navigateTo({
             url: '/pages/login/login'
           })
+        }
+      }
+    })
+  },
+
+  /**
+   * 开始手绘视频 — 自动完成发型迁移+素描，然后跳转到视频页面
+   */
+  async startDrawingVideo() {
+    if (this.data.processing) return
+
+    if (!this.data.hairstyleUrl || !this.data.customerUrl) {
+      wx.showToast({
+        title: app.t('index.uploadBothFirst'),
+        icon: 'none'
+      })
+      return
+    }
+
+    const totalCost = this.data.isPremium
+      ? (PRICING.vip.combined + PRICING.vip.drawingVideo)
+      : (PRICING.normal.combined + PRICING.normal.drawingVideo)
+
+    if (!await this.checkBalanceAndLogin(totalCost)) {
+      return
+    }
+
+    const self = this
+    wx.showModal({
+      title: app.t('common.tip'),
+      content: app.t('index.drawingVideoConfirm').replace('{cost}', totalCost),
+      success: async (modalRes) => {
+        if (!modalRes.confirm) return
+
+        self.setData({
+          processing: true,
+          processingText: app.t('index.drawingVideoProcessing'),
+          enableSketch: true,
+          sketchStyleIndex: 3
+        })
+        wx.showLoading({ title: app.t('index.drawingVideoProcessing') })
+
+        self._drawingVideoMode = true
+
+        try {
+          await self.callTransferAPI(true, false)
+        } catch (e) {
+          wx.hideLoading()
+          console.error('视频绘制流程失败:', e)
+          wx.showToast({
+            title: e.error || app.t('common.processFail'),
+            icon: 'none'
+          })
+        } finally {
+          self._drawingVideoMode = false
+          self.setData({ processing: false })
         }
       }
     })

@@ -288,6 +288,41 @@
   background-color: #fff;
 }
 
+/* 手绘视频入口 */
+.drawing-video-section {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.drawing-video-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.drawing-video-btn .cost {
+  font-size: 24rpx;
+  opacity: 0.85;
+  font-weight: normal;
+}
+
+.drawing-video-tip {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
 /* 会员提示 */
 .vip-tip {
   background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);

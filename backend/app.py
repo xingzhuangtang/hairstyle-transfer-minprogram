@@ -20,7 +20,7 @@ from PIL import Image
 try:
     from dotenv import load_dotenv
 
-    load_dotenv()
+    load_dotenv(override=True)
     print("✅ 已加载.env环境变量")
 except ImportError:
     print("⚠️ 未安装python-dotenv，使用系统环境变量")
@@ -98,7 +98,7 @@ app.config["SECRET_KEY"] = os.urandom(24)
 
 # 使用绝对路径，基于项目根目录（app.py 的父目录）
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_BASE_DIR)
+_PROJECT_ROOT = _BASE_DIR
 app.config["UPLOAD_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "uploads")
 app.config["RESULT_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "results")
 app.config["HAIR_EXTRACTED_FOLDER"] = os.path.join(_PROJECT_ROOT, "static", "hair_extracted")
@@ -145,17 +145,21 @@ def get_full_url(relative_path):
     from flask import request
 
     try:
-        # 生产环境始终使用 HTTPS
         # 检查是否经过反向代理（Nginx）
         forwarded_proto = request.headers.get('X-Forwarded-Proto')
         if forwarded_proto:
             protocol = forwarded_proto
         else:
-            protocol = 'https'
+            # 本地开发环境使用 HTTP，生产环境使用 HTTPS
+            host = request.host
+            if 'localhost' in host or '127.0.0.1' in host:
+                protocol = 'http'
+            else:
+                protocol = 'https'
         host = request.host
         return f"{protocol}://{host}{relative_path}"
     except RuntimeError:
-        return f"https://localhost:5003{relative_path}"
+        return f"http://localhost:5003{relative_path}"
 
 
 # 配置数据库
@@ -813,11 +817,15 @@ def transfer_hairstyle():
             )  # 小程序发送的是 fusion_degree
             enable_sketch = json_data.get("enable_sketch", False)
             sketch_style = json_data.get("sketch_style", "artistic")
+            print(f"   [DEBUG] enable_sketch from JSON: {enable_sketch} (type: {type(enable_sketch)})")
+            print(f"   [DEBUG] sketch_style from JSON: {sketch_style}")
+            print(f"   [DEBUG] All JSON keys: {list(json_data.keys())}")
         else:
             model_version = request.form.get("model_version", "v1")
             face_blend_ratio = float(request.form.get("face_blend_ratio", "0.5"))
             enable_sketch = request.form.get("enable_sketch", "false").lower() == "true"
             sketch_style = request.form.get("sketch_style", "artistic")
+            print(f"   [DEBUG] enable_sketch from Form: {enable_sketch}")
 
         # 检查素描功能是否可用
         if enable_sketch and not SKETCH_AVAILABLE:
@@ -875,7 +883,11 @@ def transfer_hairstyle():
             and info.get("sketch_enabled", False)
             and "sketch_path" in info
             and info["sketch_path"]
+            and os.path.exists(info["sketch_path"])  # 验证文件确实存在
         )
+        
+        if enable_sketch and not sketch_success:
+            print(f"⚠️  素描失败或文件不存在 - sketch_enabled: {info.get('sketch_enabled')}, sketch_path: {info.get('sketch_path')}, 文件存在: {os.path.exists(info.get('sketch_path', '')) if info.get('sketch_path') else False}")
 
         actual_service_type = "combined" if sketch_success else "face_merge"
         task_id = str(uuid.uuid4())

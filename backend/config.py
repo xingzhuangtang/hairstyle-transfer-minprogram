@@ -230,6 +230,8 @@ NORMAL_SERVICE_PRICING = {
     "step1_migrate": 40,        # 分步模式第 1 步 (发型迁移)
     "sketch_step": 88,          # 分步模式第2步：基于第1步结果生成素描（别名）
     "step2_sketch": 88,         # 分步模式第 2 步 (素描)
+    "drawing_video": 20,        # 手绘视频（帧合成，免费成本）
+    "drawing_video_creative": 800,  # AI创意视频（DashScope，成本7.34元）
 }
 
 # 陪跑会员服务价格 (约5折优惠)
@@ -245,6 +247,8 @@ VIP_SERVICE_PRICING = {
     "step1_migrate": 20,        # 分步模式第 1 步
     "sketch_step": 46,          # 分步模式第2步（会员约50%）（别名）
     "step2_sketch": 46,         # 分步模式第 2 步
+    "drawing_video": 10,        # 手绘视频（帧合成，免费成本）
+    "drawing_video_creative": 800,  # AI创意视频（DashScope，成本7.34元，会员同价）
 }
 
 # 统一收费规则引用 (根据用户类型动态选择)

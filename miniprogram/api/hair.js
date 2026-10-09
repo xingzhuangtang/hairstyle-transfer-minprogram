@@ -51,11 +51,27 @@ export function downloadHistoryImage(recordId) {
     return get('/api/history/download', { record_id: recordId })
 }
 
+/**
+ * 获取最近一次素描结果（用于手绘视频）
+ */
+export function getLatestSketch() {
+    return get('/api/drawing-video/latest-sketch')
+}
+
+/**
+ * 生成手绘视频
+ */
+export function generateDrawingVideo(data) {
+    return post('/api/drawing-video/generate', data, { timeout: 300000 })
+}
+
 export default {
     extractHair,
     transferHair,
     addSketch,
     getHistoryList,
     getHistoryRecords,
-    downloadHistoryImage
+    downloadHistoryImage,
+    getLatestSketch,
+    generateDrawingVideo
 }

@@ -1,0 +1,319 @@
+.dv-container {
+  min-height: 100vh;
+  background: #f8f8f8;
+  padding: 20rpx;
+}
+
+/* 生成中 */
+.dv-canvas-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 40rpx;
+}
+
+.dv-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600rpx;
+  aspect-ratio: 1;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: #fff;
+}
+
+.dv-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.dv-canvas-bg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.15;
+}
+
+.dv-generating-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40rpx;
+}
+
+.dv-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #e0e0e0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.dv-generating-text {
+  margin-top: 20rpx;
+  font-size: 32rpx;
+  color: #333;
+  font-weight: bold;
+}
+
+.dv-generating-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 结果区域 */
+.dv-result-section {
+  padding-top: 20rpx;
+}
+
+.dv-comparison {
+  display: flex;
+  gap: 20rpx;
+}
+
+.dv-comparison-item {
+  flex: 1;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dv-label {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+  font-weight: bold;
+}
+
+.dv-video-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.dv-video {
+  width: 100%;
+  border-radius: 12rpx;
+  aspect-ratio: 1;
+}
+
+.dv-video-tap-hint {
+  position: absolute;
+  bottom: 12rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  pointer-events: none;
+}
+
+.dv-video-tap-hint text {
+  font-size: 22rpx;
+  color: #fff;
+}
+
+.dv-sketch-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.dv-sketch-image {
+  width: 100%;
+  border-radius: 12rpx;
+  aspect-ratio: 1;
+}
+
+.dv-sketch-tap-hint {
+  position: absolute;
+  bottom: 12rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  pointer-events: none;
+}
+
+.dv-sketch-tap-hint text {
+  font-size: 22rpx;
+  color: #fff;
+}
+
+/* 全屏视频 */
+.dv-fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dv-fullscreen-video {
+  width: 100%;
+  height: 80vh;
+}
+
+.dv-fullscreen-image {
+  width: 100%;
+  height: 80vh;
+}
+
+.dv-fullscreen-close {
+  position: absolute;
+  top: 80rpx;
+  right: 40rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dv-fullscreen-close-icon {
+  font-size: 48rpx;
+  color: #fff;
+  line-height: 1;
+}
+
+.dv-sketch-image {
+  width: 100%;
+  border-radius: 12rpx;
+  aspect-ratio: 1;
+}
+
+/* 消耗信息 */
+.dv-cost-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 24rpx 20rpx;
+  margin-top: 20rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.dv-cost-text,
+.dv-remaining {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.dv-remaining {
+  color: #667eea;
+  font-weight: bold;
+}
+
+/* 风格选择 */
+.dv-style-selector {
+  margin-top: 20rpx;
+  padding: 24rpx 20rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.dv-style-label {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.dv-style-options {
+  display: flex;
+  gap: 16rpx;
+  flex-wrap: wrap;
+  margin-bottom: 20rpx;
+}
+
+.dv-style-option {
+  flex: 1;
+  min-width: 140rpx;
+  padding: 16rpx 24rpx;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.dv-style-option.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  font-weight: bold;
+}
+
+.dv-style-option text {
+  display: block;
+}
+
+.dv-regenerate-btn {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+/* 操作按钮 */
+.dv-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 30rpx;
+}
+
+.dv-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.dv-btn.secondary {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.dv-btn.primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+/* 错误状态 */
+.dv-error-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+}
+
+.dv-error-text {
+  font-size: 30rpx;
+  color: #e74c3c;
+  margin-bottom: 40rpx;
+  text-align: center;
+}
