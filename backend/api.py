@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import re
 import time
+import certifi
 import config
 from auth import AuthService, login_required, vip_required, optional_login, is_developer
 from sms_service import SMSService
@@ -4137,7 +4138,7 @@ def generate_drawing_video():
                         print(f"📹 视频生成 - 原图本地文件不存在: {local_full}")
                         return jsonify({'success': False, 'error': '原图文件不存在'}), 400
                 else:
-                    with httpx.Client(verify=False, timeout=60) as client:
+                    with httpx.Client(verify=certifi.where(), timeout=60) as client:
                         resp = client.get(result_url)
                         resp.raise_for_status()
                         with open(result_local, 'wb') as f:
@@ -4161,7 +4162,7 @@ def generate_drawing_video():
                 print(f"📹 视频生成 - 素描转换完成: result_url={sketch_result_url}, info_success={sketch_info.get('success', False)}")
 
                 if sketch_result_url and sketch_result_url.startswith('http'):
-                    with httpx.Client(verify=False, timeout=60) as client:
+                    with httpx.Client(verify=certifi.where(), timeout=60) as client:
                         resp = client.get(sketch_result_url)
                         resp.raise_for_status()
                         with open(sketch_local_path, 'wb') as f:
@@ -4241,7 +4242,7 @@ def generate_drawing_video():
             else:
                 # 下载远程文件
                 print(f"📹 视频生成 - 下载远程文件: {sketch_url}")
-                with httpx.Client(verify=False, timeout=60) as client:
+                with httpx.Client(verify=certifi.where(), timeout=60) as client:
                     resp = client.get(sketch_url)
                     resp.raise_for_status()
                     with open(local_image, 'wb') as f:
