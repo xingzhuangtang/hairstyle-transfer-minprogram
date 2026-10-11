@@ -60,7 +60,7 @@ Page({
     fusionDegree: 70,
     enableSketch: false,
     sketchStyles: [],
-    sketchStyleIndex: 0,
+    sketchStyleIndex: 3,
 
     // 消耗
     currentCost: 0,
@@ -929,9 +929,24 @@ Page({
             }
           }
 
+          // 获取原图URL（发型迁移后的结果图）
+          let resultUrl = res.result_url || ''
+          if (resultUrl.startsWith('/static/')) {
+            resultUrl = API_BASE_URL + resultUrl
+          }
+          if (resultUrl.startsWith('http')) {
+            const pathStart = resultUrl.indexOf('/', resultUrl.indexOf('//') + 2)
+            if (pathStart !== -1) {
+              resultUrl = API_BASE_URL + resultUrl.substring(pathStart)
+            }
+          }
+
+          const selectedStyle = this.data.sketchStyles[this.data.sketchStyleIndex]?.value || 'vivid'
+
           const videoParams = encodeURIComponent(JSON.stringify({
             sketchUrl: sketchUrl,
-            style: 'vivid',
+            resultUrl: resultUrl,
+            style: selectedStyle,
             cost: this.data.isPremium ? PRICING.vip.drawingVideo : PRICING.normal.drawingVideo
           }))
 
@@ -1093,8 +1108,7 @@ Page({
         self.setData({
           processing: true,
           processingText: app.t('index.drawingVideoProcessing'),
-          enableSketch: true,
-          sketchStyleIndex: 3
+          enableSketch: true
         })
         wx.showLoading({ title: app.t('index.drawingVideoProcessing') })
 

@@ -37,7 +37,9 @@ class DrawingVideoGenerator:
 
     def generate_video(self, image_path, style='pencil', duration=20, fps=24,
                        output_path=None, max_width=720):
+        print(f"🎨 DrawingVideoGenerator.generate_video - style={style}, image_path={image_path}")
         if style not in self.SUPPORTED_STYLES:
+            print(f"️ 不支持的风格: {style}, 使用默认 pencil")
             style = 'pencil'
 
         image = cv2.imread(image_path)
@@ -126,16 +128,35 @@ class DrawingVideoGenerator:
 
     def _extract_stroke_paths(self, image, style):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape[:2]
 
-        if style in ('pencil', 'anime'):
-            edges = cv2.Canny(gray, 20, 80)
+        # 不同风格使用不同的边缘检测参数
+        if style == 'pencil':
+            # 铅笔素描：细线条，低阈值
+            edges = cv2.Canny(gray, 15, 60)
         elif style == 'ink':
-            edges = cv2.Canny(gray, 30, 100)
-        else:
+            # 水墨风格：粗线条，高阈值
+            edges = cv2.Canny(gray, 40, 120)
+        elif style == 'anime':
+            # 日式动漫：清晰轮廓
             edges = cv2.Canny(gray, 25, 90)
+        else:  # vivid, color
+            # 淡彩素描：柔和边缘
+            edges = cv2.Canny(gray, 20, 80)
 
-        kernel = np.ones((3, 3), np.uint8)
-        edges = cv2.dilate(edges, kernel, iterations=1)
+        # 不同风格的膨胀程度不同
+        if style == 'ink':
+            kernel = np.ones((5, 5), np.uint8)
+            edges = cv2.dilate(edges, kernel, iterations=2)
+        elif style == 'anime':
+            kernel = np.ones((5, 5), np.uint8)
+            edges = cv2.dilate(edges, kernel, iterations=2)
+        elif style == 'pencil':
+            kernel = np.ones((3, 3), np.uint8)
+            edges = cv2.dilate(edges, kernel, iterations=2)
+        else:
+            kernel = np.ones((3, 3), np.uint8)
+            edges = cv2.dilate(edges, kernel, iterations=1)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -167,45 +188,109 @@ class DrawingVideoGenerator:
         all_points = list(set(all_points))
         all_points.sort(key=lambda p: (p[1], p[0]))
 
-        if len(all_points) > 8000:
-            step = len(all_points) // 8000
+        if len(all_points) > 15000:
+            step = len(all_points) // 15000
             all_points = all_points[::step]
 
-        return [all_points]
+        edge_mask = np.zeros((h, w), dtype=np.uint8)
+        for x, y in all_points:
+            cv2.circle(edge_mask, (x, y), 15, 255, -1)
+        edge_mask = cv2.dilate(edge_mask, np.ones((21, 21), np.uint8), iterations=2)
 
-    def _draw_hand_drawing_animation(self, image, stroke_points, total_frames, frame_dir, style, hand_sprite):
+        uncovered = cv2.bitwise_not(edge_mask)
+        fill_ys, fill_xs = np.where(uncovered > 0)
+        fill_points = []
+        if len(fill_xs) > 0:
+            n_fill = min(len(fill_xs), 50000)
+            step = max(1, len(fill_xs) // n_fill)
+            for i in range(0, len(fill_xs), step):
+                fill_points.append((int(fill_xs[i]), int(fill_ys[i])))
+
+        edge_points_sorted = sorted(all_points, key=lambda p: (p[1], p[0]))
+        fill_points_sorted = sorted(fill_points, key=lambda p: (p[1], p[0]))
+
+        return [edge_points_sorted, fill_points_sorted]
+
+    def _draw_hand_drawing_animation(self, image, stroke_paths, total_frames, frame_dir, style, hand_sprite):
         h, w = image.shape[:2]
-        total_points = len(stroke_points) if stroke_points else 0
+
+        if isinstance(stroke_paths, list) and len(stroke_paths) == 2:
+            edge_points, fill_points = stroke_paths
+        else:
+            edge_points = stroke_paths if stroke_paths else []
+            fill_points = []
+
+        all_points = edge_points + fill_points
+        total_points = len(all_points)
+        edge_count = len(edge_points)
 
         sh, sw = hand_sprite.shape[:2]
         pen_tip_offset_x = int(sw * 0.3)
         pen_tip_offset_y = int(sh * 0.85)
 
+        # 不同风格的绘制参数
+        if style == 'pencil':
+            reveal_radius_factor = 0.03
+            line_thickness_factor = 0.01
+            blur_size = 7
+            color_boost = 1.0
+            dilate_iterations = 1
+        elif style == 'ink':
+            reveal_radius_factor = 0.08
+            line_thickness_factor = 0.04
+            blur_size = 31
+            color_boost = 0.3
+            dilate_iterations = 4
+        elif style == 'anime':
+            reveal_radius_factor = 0.07
+            line_thickness_factor = 0.035
+            blur_size = 25
+            color_boost = 1.8
+            dilate_iterations = 3
+        else:  # vivid, color
+            reveal_radius_factor = 0.05
+            line_thickness_factor = 0.02
+            blur_size = 15
+            color_boost = 1.5
+            dilate_iterations = 2
+
+        blurred_bg = cv2.GaussianBlur(image, (51, 51), 0)
+        blurred_bg = cv2.addWeighted(image, 0.3, blurred_bg, 0.7, 0)
+
+        if style == 'anime':
+            white_mask = np.all(image > 240, axis=2).astype(np.uint8) * 255
+            kernel = np.ones((15, 15), np.uint8)
+            white_mask = cv2.dilate(white_mask, kernel, iterations=2)
+            blurred_bg[white_mask > 0] = [200, 200, 200]
+
+        reveal_radius = max(15, int(min(w, h) * reveal_radius_factor))
+        thickness = max(8, int(min(w, h) * line_thickness_factor))
+        dilate_kernel = np.ones((31, 31), np.uint8)
+
+        cumulative_mask = np.zeros((h, w), dtype=np.uint8)
+        prev_target = 0
+        image_f = image.astype(np.float32)
+        bg_f = blurred_bg.astype(np.float32)
+
         for frame_idx in range(total_frames):
             progress = (frame_idx + 1) / total_frames
             target_points = int(progress * total_points)
 
-            canvas = np.ones((h, w, 3), dtype=np.uint8) * 255
+            canvas = blurred_bg.copy()
 
-            if stroke_points and target_points > 0:
-                current_x, current_y = stroke_points[min(target_points - 1, len(stroke_points) - 1)]
+            if all_points and target_points > 0:
+                current_x, current_y = all_points[min(target_points - 1, len(all_points) - 1)]
 
-                reveal_mask = np.zeros((h, w), dtype=np.uint8)
+                for i in range(prev_target, target_points):
+                    x, y = all_points[i]
+                    cv2.circle(cumulative_mask, (x, y), reveal_radius, 255, -1)
+                    if i > 0:
+                        px, py = all_points[i - 1]
+                        cv2.line(cumulative_mask, (px, py), (x, y), 255, thickness)
 
-                for i in range(0, target_points):
-                    x, y = stroke_points[i]
-                    reveal_radius = max(8, int(min(w, h) * 0.04))
-                    cv2.circle(reveal_mask, (x, y), reveal_radius, 255, -1)
-
-                for i in range(1, target_points):
-                    pt1 = stroke_points[i - 1]
-                    pt2 = stroke_points[i]
-                    dist = ((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2) ** 0.5
-                    if dist < 50:
-                        thickness = max(6, int(min(w, h) * 0.015))
-                        cv2.line(reveal_mask, pt1, pt2, 255, thickness)
-
-                reveal_mask = cv2.GaussianBlur(reveal_mask, (15, 15), 0)
+                reveal_mask = cv2.dilate(cumulative_mask, dilate_kernel, iterations=dilate_iterations)
+                reveal_mask = cv2.GaussianBlur(reveal_mask, (blur_size, blur_size), 0)
+                _, reveal_mask = cv2.threshold(reveal_mask, 127, 255, cv2.THRESH_BINARY)
 
                 reveal_3ch = cv2.merge([reveal_mask, reveal_mask, reveal_mask])
                 reveal_inv = cv2.bitwise_not(reveal_3ch)
@@ -213,9 +298,21 @@ class DrawingVideoGenerator:
                 bg_part = cv2.bitwise_and(canvas, reveal_inv)
                 canvas = cv2.add(img_part, bg_part)
 
-                if style in ('vivid', 'color'):
+                prev_target = target_points
+
+                if style == 'ink':
                     hsv = cv2.cvtColor(canvas, cv2.COLOR_BGR2HSV)
-                    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 1.15, 0, 255)
+                    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * color_boost, 0, 255)
+                    hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.3, 0, 255)
+                    canvas = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+                elif style == 'anime':
+                    hsv = cv2.cvtColor(canvas, cv2.COLOR_BGR2HSV)
+                    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * color_boost, 0, 255)
+                    hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.2, 0, 255)
+                    canvas = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+                elif style in ('vivid', 'color'):
+                    hsv = cv2.cvtColor(canvas, cv2.COLOR_BGR2HSV)
+                    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * color_boost, 0, 255)
                     canvas = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
                 hand_x = current_x - pen_tip_offset_x
