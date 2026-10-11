@@ -4,7 +4,7 @@ const app = getApp()
 
 Page({
   data: {
-    version: 'V1.12',
+    version: 'V1.20',
     delta: '0.001',
     tAppName: '',
     tDeltaLabel: '',
