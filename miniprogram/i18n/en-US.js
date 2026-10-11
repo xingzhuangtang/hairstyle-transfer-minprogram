@@ -183,7 +183,22 @@ module.exports = {
     "saveSketch": "Save Sketch",
     "saveResult": "Save Original",
     "goHome": "Go Home",
-    "tapToEnlarge": "Tap to enlarge"
+    "tapToEnlarge": "Tap to enlarge",
+    "styleLabel": "Sketch Style",
+    "stylePencil": "Pencil Sketch",
+    "styleVivid": "Vivid Sketch",
+    "styleInk": "Ink Wash",
+    "styleAnime": "Japanese Anime",
+    "regenerate": "Regenerate",
+    "regenerateConfirm": "Regenerate with \"{style}\" style? This will cost {cost} hairs again.",
+    "errorNoSketch": "Missing sketch, please complete sketch first",
+    "errorGenerateFail": "Video generation failed, please retry",
+    "saving": "Saving...",
+    "saveSuccess": "Saved",
+    "saveFail": "Save failed",
+    "downloadFail": "Download failed",
+    "imageLoadFail": "Image load failed",
+    "needPermission": "Save permission needed. Go to Settings?"
   },
   "profile": {
     "guestMode": "You are in Guest Mode",
