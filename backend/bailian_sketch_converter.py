@@ -8,21 +8,11 @@
 import os
 import base64
 import time
-import base64
 import hashlib
-import requests
-import urllib3
-import ssl
 import httpx
+import certifi
 from http import HTTPStatus
 import json
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# 创建自定义 SSL 上下文，解决 Flask 进程中的 SSL 问题
-_custom_ssl_context = ssl.create_default_context()
-_custom_ssl_context.check_hostname = False
-_custom_ssl_context.verify_mode = ssl.CERT_NONE
 
 
 class BailianSketchConverter:
@@ -231,7 +221,7 @@ class BailianSketchConverter:
             }
 
             # 使用 httpx 替代 requests，解决 Flask 进程中的 SSL 问题
-            with httpx.Client(verify=False, timeout=120) as client:
+            with httpx.Client(verify=certifi.where(), timeout=120) as client:
                 response = client.post(
                     self.endpoint, headers=headers, json=request_data
                 )
@@ -295,7 +285,7 @@ class BailianSketchConverter:
             poll_count += 1
             try:
                 print(f"🔍 第{poll_count}次查询任务状态...")
-                with httpx.Client(verify=False, timeout=120) as client:
+                with httpx.Client(verify=certifi.where(), timeout=120) as client:
                     response = client.get(query_url, headers=headers)
 
                 if response.status_code == 200:
@@ -324,7 +314,7 @@ class BailianSketchConverter:
 
                                 # 验证图片 URL 是否可访问（快速 HEAD 请求）- 可选检查
                                 try:
-                                    with httpx.Client(verify=False, timeout=10, follow_redirects=True) as client:
+                                    with httpx.Client(verify=certifi.where(), timeout=10, follow_redirects=True) as client:
                                         head_response = client.head(image_url)
                                     if head_response.status_code != 200:
                                         print(
@@ -388,7 +378,7 @@ class BailianSketchConverter:
             print(f"   URL: {result_url[:100]}...")
             print(f"   保存到: {save_path}")
 
-            with httpx.Client(verify=False, timeout=120) as client:
+            with httpx.Client(verify=certifi.where(), timeout=120) as client:
                 response = client.get(result_url)
                 response.raise_for_status()
 
