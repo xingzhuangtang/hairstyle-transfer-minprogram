@@ -101,21 +101,64 @@ class RuleEngine:
         self._cooldown_cache = {}
 
     def evaluate(self, alert):
-        """评估告警，返回处置动作"""
+        """
+        评估告警，多路匹配取最优规则。
+        评分维度：优先级(50%) + 历史命中数(30%) + 模式精确度(20%)
+        """
         rules = self._load_rules()
         if not rules:
             return None
 
-        for rule in sorted(rules, key=lambda r: r.priority):
+        candidates = []
+        for rule in rules:
             if not rule.enabled:
                 continue
+            if not self._match_rule(rule, alert):
+                continue
+            if not self._check_cooldown(rule):
+                continue
 
-            if self._match_rule(rule, alert):
-                if self._check_cooldown(rule):
-                    self._update_hit(rule)
-                    return self._execute_action(rule, alert)
+            score = self._score_rule(rule)
+            candidates.append((rule, score))
 
-        return None
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        best_rule, best_score = candidates[0]
+
+        alternatives = [
+            {'name': r.name, 'score': f'{s:.1f}'}
+            for r, s in candidates[1:3]
+        ]
+        if alternatives:
+            logger.info(
+                f'规则决策: best="{best_rule.name}"(score={best_score:.1f}), '
+                f'alternatives={alternatives}'
+            )
+
+        self._update_hit(best_rule)
+        return self._execute_action(best_rule, alert)
+
+    def _score_rule(self, rule):
+        """
+        计算规则综合评分。
+        优先级(50%): priority=1 → 50分, priority=50 → 1分
+        历史命中(30%): hit_count 对数映射，防止老规则垄断
+        模式精确度(20%): regex=20, source_module=15, frequency=12, title_contains=8
+        """
+        priority_score = max(1, 50 / max(rule.priority or 10, 1))
+
+        hit_count = rule.hit_count or 0
+        history_score = min(30, (hit_count ** 0.5) * 5)
+
+        precision_map = {
+            'regex': 20, 'source_module': 15,
+            'frequency': 12, 'title_contains': 8,
+        }
+        precision_score = precision_map.get(rule.pattern_type, 5)
+
+        return priority_score + history_score + precision_score
 
     def _load_rules(self):
         """从 DB 加载规则"""

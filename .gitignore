@@ -22,14 +22,32 @@ backend/logs/
 # 临时文件
 *.tmp
 *.temp
+*.bak
 tmp_*.jpg
 temp_*.png
+
+# 调试和测试脚本（本地使用）
+backend/fix_admin_account.py
+backend/record_*.py
+backend/test_smart_decision.py
+
+# Zero_Nine 任务文件
+task-*.md
+backend/task-*.md
 
 # 静态文件
 backend/static/uploads/
 backend/static/results/
 backend/static/hair_extracted/
 backend/results/
+backend/static/assets/
+miniprogram/assets/
+
+# 独立部署包（已有独立仓库）
+self_healing_standalone/
+
+# 空目录
+static/
 
 # 微信小程序
 miniprogram/node_modules/
