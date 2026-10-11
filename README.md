@@ -2,7 +2,7 @@
 
 基于 AI 技术的微信小程序发型迁移应用，支持发型虚拟试戴、素描风格转换等功能。
 
-[![Version](https://img.shields.io/badge/version-V1.1-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
+[![Version](https://img.shields.io/badge/version-V1.20-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
 [![Security Audit](https://img.shields.io/badge/security-audited-green)](docs/SECURITY_AUDIT.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![WeChat](https://img.shields.io/badge/platform-WeChat-07c160)](https://developers.weixin.qq.com/miniprogram/dev/framework/)
@@ -390,6 +390,7 @@ MIT License
 
 - ✅ 核心功能已完成（发型迁移、素描转换、支付、会员、客服、退款、推广）
 - ✅ 自愈系统三阶段闭环已完成（感知 → 自愈 → 进化）
+- ✅ 智能决策系统升级（多路评分 + 规则引擎优先）
 - ✅ 服务定价调整完成（前后端同步）
 - ✅ 国际化支持（中文/英文双语）
 - ✅ 消费记录系统（发丝消费 + 银两流水）
@@ -398,6 +399,15 @@ MIT License
 ---
 
 ## 📝 更新日志
+
+### V1.20 (2026-10-11)
+
+**智能决策系统升级**
+- ✅ 自愈系统 Phase 2 智能决策链：规则引擎优先评估，修复器多路评分兜底
+- ✅ 修复器评分算法：匹配度(60%) + 历史成功率(40%)，动态风险调整
+- ✅ 规则引擎多路匹配：优先级(50%) + 历史命中(30%) + 模式精确度(20%) 综合评分
+- ✅ 告警分发优化：从简单关键词匹配升级为多维度智能评分系统
+- ✅ 文档优化：AGENTS.md 简化关键说明，便于快速理解
 
 ### V1.1 (2026-06-25)
 
@@ -459,4 +469,4 @@ MIT License
 
 ---
 
-*最后更新：2026-06-25*
+*最后更新：2026-10-11*

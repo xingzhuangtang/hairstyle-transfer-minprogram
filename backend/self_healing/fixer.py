@@ -116,15 +116,22 @@ class AutoFixer:
                     return
 
                 registry = self.get_fix_registry()
-                matched = self._match_fixer(alert, registry)
+                scored = self._score_fixers(alert, registry)
 
-                if not matched:
+                if not scored:
                     return
 
-                fixer = matched
-                risk = fixer['risk']
+                best = scored[0]
+                fixer = best['fixer']
+                dynamic_risk = best['dynamic_risk']
 
-                if risk == 'low':
+                logger.info(
+                    f'告警 {alert_id} 修复决策: fixer={fixer["id"]}, '
+                    f'score={best["score"]:.2f}, risk={dynamic_risk}, '
+                    f'alternatives={[s["fixer"]["id"] for s in scored[1:3]]}'
+                )
+
+                if dynamic_risk == 'low':
                     self._execute_fix(fixer['id'], alert_id, fix_type='auto', executed_by='system')
                 else:
                     if self._approval_manager:
@@ -132,7 +139,7 @@ class AutoFixer:
                             fix_id=fixer['id'],
                             fix_name=fixer['name'],
                             alert_id=alert_id,
-                            risk_level=risk,
+                            risk_level=dynamic_risk,
                             fix_description=fixer['description'],
                         )
         except Exception as e:
@@ -184,17 +191,111 @@ class AutoFixer:
             self._update_fix_record(record, 'failed', error_result, duration_ms)
             return {'success': False, 'error': str(e)}
 
-    def _match_fixer(self, alert, registry):
-        """根据告警内容匹配修复器"""
+    def _score_fixers(self, alert, registry):
+        """
+        对所有修复器评分，返回按分数降序排列的列表。
+        评分维度：关键词匹配度(60%) + 历史成功率(40%)
+        """
         title = (alert.title or '').lower()
         description = (alert.description or '').lower()
-        text = title + ' ' + description
+        severity = getattr(alert, 'severity', 'medium') or 'medium'
 
+        results = []
         for fixer in registry:
-            for keyword in fixer['match_keywords']:
-                if keyword.lower() in text:
-                    return fixer
-        return None
+            score = self._calculate_match_score(fixer, title, description)
+            if score <= 0:
+                continue
+
+            success_rate = self._get_fix_success_rate(fixer['id'])
+            final_score = score * 0.6 + success_rate * 40 * 0.4
+
+            dynamic_risk = self._calculate_dynamic_risk(
+                fixer, severity, success_rate
+            )
+
+            results.append({
+                'fixer': fixer,
+                'score': final_score,
+                'match_score': score,
+                'success_rate': success_rate,
+                'dynamic_risk': dynamic_risk,
+            })
+
+        results.sort(key=lambda x: x['score'], reverse=True)
+        return results
+
+    def _calculate_match_score(self, fixer, title, description):
+        """
+        计算修复器与告警的匹配分数。
+        标题匹配权重 2.0，描述匹配权重 1.0。
+        """
+        score = 0
+        for keyword in fixer['match_keywords']:
+            kw = keyword.lower()
+            if kw in title:
+                score += 2.0
+            if kw in description:
+                score += 1.0
+        return score
+
+    def _get_fix_success_rate(self, fix_id):
+        """
+        查询修复器近 30 天的成功率（0.0 ~ 1.0）。
+        无历史记录时返回 0.5（中性先验）。
+        """
+        if not self.db:
+            return 0.5
+
+        try:
+            from .models import FixExecution
+            from sqlalchemy import func as sql_func
+            from datetime import timedelta
+
+            since = datetime.now() - timedelta(days=30)
+            stats = self.db.session.query(
+                sql_func.count(FixExecution.id),
+                sql_func.sum(
+                    sql_func.IF(FixExecution.status == 'success', 1, 0)
+                ),
+            ).filter(
+                FixExecution.fix_id == fix_id,
+                FixExecution.executed_at >= since,
+            ).first()
+
+            if not stats or stats[0] == 0:
+                return 0.5
+
+            total, success = stats[0], stats[1] or 0
+            return success / total
+        except Exception:
+            return 0.5
+
+    def _calculate_dynamic_risk(self, fixer, alert_severity, success_rate):
+        """
+        动态风险评估：基于静态风险 + 告警严重度 + 历史成功率。
+        返回 'low' / 'medium' / 'high'
+        """
+        risk_map = {'low': 1, 'medium': 2, 'high': 3}
+        severity_map = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
+
+        base = risk_map.get(fixer['risk'], 2)
+        sev = severity_map.get(alert_severity, 2)
+
+        score = base
+        if sev >= 3:
+            score += 1
+        if success_rate < 0.3:
+            score += 1
+        elif success_rate >= 0.8 and base >= 2:
+            score -= 1
+
+        score = max(1, min(3, score))
+        return {1: 'low', 2: 'medium', 3: 'high'}[score]
+
+    def _match_fixer(self, alert, registry):
+        """根据告警内容匹配修复器（兼容旧接口，内部使用 _score_fixers）"""
+        scored = self._score_fixers(alert, registry)
+        return scored[0]['fixer'] if scored else None
 
     # ==================== 修复器实现 ====================
 

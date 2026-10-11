@@ -161,18 +161,18 @@ class AlertManager:
                 except queue.Full:
                     pass
 
-        # Phase 2: 触发自动修复
-        if alert_id and self.fixer and self.config.get('AUTO_FIX_ENABLED', True):
+        # Phase 2: 智能决策（规则引擎优先，修复器兜底）
+        if alert_id and self.config.get('AUTO_FIX_ENABLED', True):
             try:
                 t = threading.Thread(
-                    target=self.fixer.try_auto_fix,
+                    target=self._smart_dispatch,
                     args=(alert_id,),
                     daemon=True,
-                    name=f'sh_autofix_{alert_id}',
+                    name=f'sh_dispatch_{alert_id}',
                 )
                 t.start()
             except Exception as e:
-                logger.error(f'自动修复触发失败: {e}')
+                logger.error(f'智能决策触发失败: {e}')
 
         return alert_id
 
@@ -287,6 +287,37 @@ class AlertManager:
                 pass
 
         return True
+
+    def _smart_dispatch(self, alert_id):
+        """
+        智能决策链：规则引擎优先，修复器兜底。
+        1. 规则引擎评估 → 命中则执行规则动作
+        2. 未命中规则 → 修复器评分选择最优修复
+        """
+        try:
+            with self.app.app_context():
+                from .models import SystemAlert
+                alert = self.db.session.query(SystemAlert).get(alert_id)
+                if not alert:
+                    return
+
+                # Step 1: 规则引擎评估
+                if self.rule_engine:
+                    rule_result = self.rule_engine.evaluate(alert)
+                    if rule_result:
+                        logger.info(
+                            f'告警 {alert_id} 命中防御规则: '
+                            f'action={rule_result.get("action")}, '
+                            f'rule_id={rule_result.get("rule_id")}'
+                        )
+                        return
+
+                # Step 2: 修复器评分兜底
+                if self.fixer:
+                    self.fixer.try_auto_fix(alert_id)
+
+        except Exception as e:
+            logger.error(f'智能决策异常: {e}')
 
     def _save_alert(self, **kwargs):
         """保存告警到数据库"""
