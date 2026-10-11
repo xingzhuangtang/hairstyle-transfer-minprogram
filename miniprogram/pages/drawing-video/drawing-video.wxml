@@ -1,21 +1,35 @@
 <!--pages/drawing-video/drawing-video.wxml-->
 <view class="dv-container">
-  <!-- 生成中：全屏 Canvas 动画 -->
+  <!-- 生成中：过渡视频 -->
   <view class="dv-canvas-section" wx:if="{{generating}}">
     <view class="dv-canvas-wrapper">
-      <canvas id="revealCanvas" type="2d" class="dv-canvas"></canvas>
-      <image class="dv-canvas-bg" src="{{sketchUrl}}" mode="aspectFit"></image>
+      <video
+        id="transitionVideo"
+        class="dv-transition-video"
+        src="{{transitionVideoUrl}}"
+        autoplay
+        loop
+        muted
+        show-center-play-btn="{{false}}"
+        show-play-btn="{{false}}"
+        controls="{{false}}"
+        enable-play-gesture="{{false}}"
+        show-fullscreen-btn="{{false}}"
+        object-fit="contain"
+        binderror="onVideoError"
+        bindloadedmetadata="onVideoLoaded">
+      </video>
     </view>
     <view class="dv-generating-info">
-      <view class="dv-spinner"></view>
       <text class="dv-generating-text">{{tGenerating}}</text>
       <text class="dv-generating-sub">{{tGeneratingSub}}</text>
     </view>
   </view>
 
-  <!-- 完成后：左视频 / 右素描 -->
+  <!-- 完成后：视频 / 原图 / 素描 -->
   <view class="dv-result-section" wx:if="{{videoReady && !generating}}">
-    <view class="dv-comparison">
+    <!-- 视频（第一行，全宽） -->
+    <view class="dv-video-row">
       <view class="dv-comparison-item">
         <text class="dv-label">{{tVideoTitle}}</text>
         <view class="dv-video-wrapper" bindtap="openFullscreenVideo">
@@ -33,10 +47,23 @@
           </view>
         </view>
       </view>
+    </view>
+
+    <!-- 原图 + 素描（第二行，并排） -->
+    <view class="dv-images-row">
+      <view class="dv-comparison-item" wx:if="{{showResult && resultUrl}}">
+        <text class="dv-label">{{tResultTitle}}</text>
+        <view class="dv-result-wrapper" bindtap="openFullscreenResult">
+          <image class="dv-result-image" src="{{resultUrl}}" mode="widthFix" show-menu-by-longpress></image>
+          <view class="dv-result-tap-hint">
+            <text>{{tTapToEnlarge}}</text>
+          </view>
+        </view>
+      </view>
       <view class="dv-comparison-item" wx:if="{{showSketch}}">
         <text class="dv-label">{{tSketchTitle}}</text>
         <view class="dv-sketch-wrapper" bindtap="openFullscreenSketch">
-          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="aspectFit" show-menu-by-longpress></image>
+          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="widthFix" show-menu-by-longpress></image>
           <view class="dv-sketch-tap-hint">
             <text>{{tTapToEnlarge}}</text>
           </view>
@@ -46,7 +73,7 @@
 
     <!-- 消耗信息 -->
     <view class="dv-cost-info">
-      <text class="dv-cost-text">{{tCostPrefix}}：{{cost}}{{tHairs}}</text>
+      <text class="dv-cost-text">{{tCostPrefix}}：{{totalCost}}{{tHairs}}</text>
       <text class="dv-remaining">{{tRemaining}}：{{remainingHairs}}{{tHairs}}</text>
     </view>
 
@@ -76,6 +103,9 @@
     <view class="dv-actions">
       <button class="dv-btn secondary" bindtap="saveVideoToAlbum">
         <text>{{tSaveVideo}}</text>
+      </button>
+      <button class="dv-btn secondary" bindtap="saveResultToAlbum" wx:if="{{resultUrl}}">
+        <text>{{tSaveResult}}</text>
       </button>
       <button class="dv-btn secondary" bindtap="saveSketchToAlbum">
         <text>{{tSaveSketch}}</text>
@@ -111,6 +141,14 @@
   <!-- 全屏图片预览 -->
   <view class="dv-fullscreen-overlay" wx:if="{{sketchFullscreen}}" bindtap="closeFullscreenSketch">
     <image class="dv-fullscreen-image" src="{{sketchUrl}}" mode="aspectFit"></image>
+    <view class="dv-fullscreen-close">
+      <text class="dv-fullscreen-close-icon">×</text>
+    </view>
+  </view>
+
+  <!-- 全屏原图预览 -->
+  <view class="dv-fullscreen-overlay" wx:if="{{resultFullscreen}}" bindtap="closeFullscreenResult">
+    <image class="dv-fullscreen-image" src="{{resultUrl}}" mode="aspectFit"></image>
     <view class="dv-fullscreen-close">
       <text class="dv-fullscreen-close-icon">×</text>
     </view>

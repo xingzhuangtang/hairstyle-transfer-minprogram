@@ -4062,26 +4062,127 @@ def get_latest_sketch():
 def generate_drawing_video():
     """生成手绘视频"""
     try:
+        import os
+        import httpx
         user = g.current_user
         data = request.get_json() or {}
         style = data.get('style', 'pencil')
         mode = data.get('mode', 'programmatic')
+        regenerate_sketch = data.get('regenerate_sketch', False)
+
+        print(f"📹 视频生成 - 收到请求: style={style}, mode={mode}, regenerate_sketch={regenerate_sketch}, sketch_url={data.get('sketch_url', 'N/A')}")
 
         service_type = 'drawing_video_creative' if mode == 'creative' else 'drawing_video'
 
         hair_service = HairService()
         cost = hair_service.calculate_cost(user, service_type)
 
-        if not user.has_enough_hairs(cost):
+        # 重新生成素描时，需要额外扣除 combined 费用
+        combined_cost = 0
+        if regenerate_sketch:
+            combined_cost = hair_service.calculate_cost(user, 'combined')
+
+        total_cost = cost + combined_cost
+
+        if not user.has_enough_hairs(total_cost):
             return jsonify({
                 'success': False,
                 'error': '余额不足',
                 'code': 'INSUFFICIENT_BALANCE',
-                'required': cost,
+                'required': total_cost,
                 'available': user.get_total_hairs()
             }), 402
 
         sketch_url = data.get('sketch_url')
+        new_sketch_url = None
+
+        if regenerate_sketch:
+            import uuid
+            import tempfile as _tf
+            result_local = _tf.mktemp(suffix='.png', prefix='result_')
+            print(f"📹 视频生成 - 需要重新生成素描, style={style}")
+            try:
+                from bailian_sketch_converter import BailianSketchConverter
+                from app import upload_to_oss, get_full_url
+
+                record = HistoryRecord.query.filter(
+                    HistoryRecord.user_id == user.id,
+                    HistoryRecord.service_type.in_(('sketch', 'combined', 'sk_step')),
+                    HistoryRecord.result_url.isnot(None),
+                    HistoryRecord.result_url != ''
+                ).order_by(HistoryRecord.created_at.desc()).first()
+
+                if not record:
+                    return jsonify({
+                        'success': False,
+                        'error': '没有找到原始记录，无法重新生成素描'
+                    }), 404
+
+                result_url = record.result_url
+                print(f"📹 视频生成 - 原图 result_url: {result_url}")
+
+                from urllib.parse import urlparse as _urlparse
+                parsed_r = _urlparse(result_url)
+                result_path = parsed_r.path if parsed_r.scheme else result_url
+
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+
+                if result_path.startswith('/static/'):
+                    local_full = os.path.join(base_dir, result_path.lstrip('/'))
+                    if os.path.exists(local_full):
+                        import shutil
+                        shutil.copy(local_full, result_local)
+                        print(f"📹 视频生成 - 原图已从本地复制: {local_full}")
+                    else:
+                        print(f"📹 视频生成 - 原图本地文件不存在: {local_full}")
+                        return jsonify({'success': False, 'error': '原图文件不存在'}), 400
+                else:
+                    with httpx.Client(verify=False, timeout=60) as client:
+                        resp = client.get(result_url)
+                        resp.raise_for_status()
+                        with open(result_local, 'wb') as f:
+                            f.write(resp.content)
+                    print(f"📹 视频生成 - 原图已下载: {result_local}")
+
+                result_oss_url = upload_to_oss(result_local)
+                print(f"📹 视频生成 - 原图已上传OSS: {result_oss_url}")
+
+                sketch_filename = f"sketch_{uuid.uuid4().hex[:12]}_{style}.png"
+                results_dir = os.path.join(base_dir, 'static', 'results')
+                os.makedirs(results_dir, exist_ok=True)
+                sketch_local_path = os.path.join(results_dir, sketch_filename)
+
+                converter = BailianSketchConverter()
+                sketch_result_url, sketch_info = converter.convert(
+                    image_url=result_oss_url,
+                    style=style,
+                    local_file_path=result_local
+                )
+                print(f"📹 视频生成 - 素描转换完成: result_url={sketch_result_url}, info_success={sketch_info.get('success', False)}")
+
+                if sketch_result_url and sketch_result_url.startswith('http'):
+                    with httpx.Client(verify=False, timeout=60) as client:
+                        resp = client.get(sketch_result_url)
+                        resp.raise_for_status()
+                        with open(sketch_local_path, 'wb') as f:
+                            f.write(resp.content)
+                    new_sketch_url = get_full_url(f"/static/results/{sketch_filename}")
+                    sketch_url = new_sketch_url
+                    print(f"📹 视频生成 - 新素描已保存: {sketch_local_path}, URL: {new_sketch_url}")
+                else:
+                    print(f"📹 视频生成 - 素描转换未返回有效URL: {sketch_result_url}")
+                    return jsonify({'success': False, 'error': '素描转换失败，未返回有效结果'}), 500
+
+            except Exception as e:
+                import traceback
+                print(f"📹 视频生成 - 重新生成素描失败: {e}")
+                traceback.print_exc()
+                return jsonify({'success': False, 'error': f'重新生成素描失败: {str(e)}'}), 500
+            finally:
+                if os.path.exists(result_local):
+                    os.remove(result_local)
+
+        # 如果没有提供 sketch_url，从历史记录获取
         if not sketch_url:
             record = HistoryRecord.query.filter(
                 HistoryRecord.user_id == user.id,
@@ -4098,11 +4199,9 @@ def generate_drawing_video():
                     'error': '没有找到素描记录，请先完成素描'
                 }), 404
         
-        print(f"📹 视频生成 - 收到 sketch_url: {sketch_url}")
+        print(f"📹 视频生成 - 使用 sketch_url: {sketch_url}")
 
-        import requests as http_requests
         import tempfile
-        import os
 
         local_image = tempfile.mktemp(suffix='.png', prefix='sketch_')
         try:
@@ -4142,10 +4241,11 @@ def generate_drawing_video():
             else:
                 # 下载远程文件
                 print(f"📹 视频生成 - 下载远程文件: {sketch_url}")
-                resp = http_requests.get(sketch_url, timeout=60)
-                resp.raise_for_status()
-                with open(local_image, 'wb') as f:
-                    f.write(resp.content)
+                with httpx.Client(verify=False, timeout=60) as client:
+                    resp = client.get(sketch_url)
+                    resp.raise_for_status()
+                    with open(local_image, 'wb') as f:
+                        f.write(resp.content)
                 print(f"📹 视频生成 - 远程文件已下载: {local_image}")
 
             if mode == 'creative':
@@ -4173,13 +4273,27 @@ def generate_drawing_video():
             if not consume_result['success']:
                 return jsonify(consume_result), 400
 
-            return jsonify({
+            # 重新生成素描时，额外扣除 combined 费用
+            if combined_cost > 0:
+                combined_task_id = str(uuid.uuid4())
+                combined_result = hair_service.consume_hairs(
+                    user, 'combined', task_id=combined_task_id,
+                    result_url=video_url, sketch_url=sketch_url
+                )
+                if not combined_result['success']:
+                    return jsonify(combined_result), 400
+                consume_result['remaining_total'] = combined_result['remaining_total']
+
+            resp_data = {
                 'success': True,
                 'video_url': video_url,
-                'cost': cost,
+                'cost': total_cost,
                 'remaining_hairs': consume_result['remaining_total'],
                 'mode': mode
-            })
+            }
+            if new_sketch_url:
+                resp_data['sketch_url'] = new_sketch_url
+            return jsonify(resp_data)
 
         finally:
             if os.path.exists(local_image):

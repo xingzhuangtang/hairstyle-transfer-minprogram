@@ -22,6 +22,12 @@
   background: #fff;
 }
 
+.dv-transition-video {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
 .dv-canvas {
   position: absolute;
   top: 0;
@@ -80,6 +86,15 @@
   gap: 20rpx;
 }
 
+.dv-video-row {
+  margin-bottom: 20rpx;
+}
+
+.dv-images-row {
+  display: flex;
+  gap: 20rpx;
+}
+
 .dv-comparison-item {
   flex: 1;
   background: #fff;
@@ -132,7 +147,6 @@
 .dv-sketch-image {
   width: 100%;
   border-radius: 12rpx;
-  aspect-ratio: 1;
 }
 
 .dv-sketch-tap-hint {
@@ -147,6 +161,33 @@
 }
 
 .dv-sketch-tap-hint text {
+  font-size: 22rpx;
+  color: #fff;
+}
+
+/* 原图 */
+.dv-result-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.dv-result-image {
+  width: 100%;
+  border-radius: 12rpx;
+}
+
+.dv-result-tap-hint {
+  position: absolute;
+  bottom: 12rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  pointer-events: none;
+}
+
+.dv-result-tap-hint text {
   font-size: 22rpx;
   color: #fff;
 }
@@ -192,12 +233,6 @@
   font-size: 48rpx;
   color: #fff;
   line-height: 1;
-}
-
-.dv-sketch-image {
-  width: 100%;
-  border-radius: 12rpx;
-  aspect-ratio: 1;
 }
 
 /* 消耗信息 */
