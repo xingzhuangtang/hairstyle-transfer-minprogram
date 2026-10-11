@@ -22,25 +22,6 @@ Page({
     error: '',
     transitionVideoUrl: `${API_BASE_URL}/static/assets/drawing-transition.mp4`,
 
-    tGenerating: '正在绘制中...',
-    tGeneratingSub: '一笔一画，为您呈现',
-    tVideoTitle: '手绘视频',
-    tSketchTitle: '素描原图',
-    tResultTitle: '原图',
-    tCostPrefix: '消耗',
-    tHairs: '发丝',
-    tRemaining: '剩余',
-    tSaveVideo: '保存视频',
-    tSaveSketch: '保存图片',
-    tSaveResult: '保存原图',
-    tGoHome: '返回首页',
-    tTapToEnlarge: '点击放大',
-    tStyleLabel: '素描风格',
-    tStylePencil: '铅笔素描',
-    tStyleVivid: '淡彩素描',
-    tStyleInk: '水墨风格',
-    tStyleAnime: '日式动漫',
-    tRegenerate: '重新生成',
     videoFullscreen: false,
     sketchFullscreen: false,
     resultFullscreen: false
@@ -99,7 +80,7 @@ Page({
     }
 
     if (!this.data.sketchUrl) {
-      this.setData({ error: '缺少素描图，请先完成素描' })
+      this.setData({ error: this.data.tErrorNoSketch })
       return
     }
 
@@ -133,19 +114,34 @@ Page({
   _loadI18n() {
     const t = (key) => app.t(key)
     this.setData({
-      tGenerating: t('drawingVideo.generating') || '正在绘制中...',
-      tGeneratingSub: t('drawingVideo.generatingSub') || '一笔一画，为您呈现',
-      tVideoTitle: t('drawingVideo.videoTitle') || '手绘视频',
-      tSketchTitle: t('drawingVideo.sketchTitle') || '素描原图',
-      tResultTitle: t('drawingVideo.resultTitle') || '原图',
-      tCostPrefix: t('drawingVideo.costPrefix') || '消耗',
-      tHairs: t('drawingVideo.hairs') || '发丝',
-      tRemaining: t('drawingVideo.remaining') || '剩余',
-      tSaveVideo: t('drawingVideo.saveVideo') || '保存视频',
-      tSaveSketch: t('drawingVideo.saveSketch') || '保存图片',
-      tSaveResult: t('drawingVideo.saveResult') || '保存原图',
-      tGoHome: t('drawingVideo.goHome') || '返回首页',
-      tTapToEnlarge: t('drawingVideo.tapToEnlarge') || '点击放大'
+      tGenerating: t('drawingVideo.generating'),
+      tGeneratingSub: t('drawingVideo.generatingSub'),
+      tVideoTitle: t('drawingVideo.videoTitle'),
+      tSketchTitle: t('drawingVideo.sketchTitle'),
+      tResultTitle: t('drawingVideo.resultTitle'),
+      tCostPrefix: t('drawingVideo.costPrefix'),
+      tHairs: t('drawingVideo.hairs'),
+      tRemaining: t('drawingVideo.remaining'),
+      tSaveVideo: t('drawingVideo.saveVideo'),
+      tSaveSketch: t('drawingVideo.saveSketch'),
+      tSaveResult: t('drawingVideo.saveResult'),
+      tGoHome: t('drawingVideo.goHome'),
+      tTapToEnlarge: t('drawingVideo.tapToEnlarge'),
+      tStyleLabel: t('drawingVideo.styleLabel'),
+      tStylePencil: t('drawingVideo.stylePencil'),
+      tStyleVivid: t('drawingVideo.styleVivid'),
+      tStyleInk: t('drawingVideo.styleInk'),
+      tStyleAnime: t('drawingVideo.styleAnime'),
+      tRegenerate: t('drawingVideo.regenerate'),
+      tSaving: t('drawingVideo.saving'),
+      tSaveSuccess: t('drawingVideo.saveSuccess'),
+      tSaveFail: t('drawingVideo.saveFail'),
+      tDownloadFail: t('drawingVideo.downloadFail'),
+      tImageLoadFail: t('drawingVideo.imageLoadFail'),
+      tNeedPermission: t('drawingVideo.needPermission'),
+      tErrorNoSketch: t('drawingVideo.errorNoSketch'),
+      tErrorGenerateFail: t('drawingVideo.errorGenerateFail'),
+      tTip: t('common.tip')
     })
   },
 
@@ -251,7 +247,7 @@ Page({
       } else {
         this.setData({
           generating: false,
-          error: res.error || '视频生成失败'
+          error: res.error || this.data.tErrorGenerateFail
         })
       }
     } catch (e) {
@@ -262,7 +258,7 @@ Page({
       console.error('生成视频失败:', e)
       this.setData({
         generating: false,
-        error: '视频生成失败，请稍后重试'
+        error: this.data.tErrorGenerateFail
       })
     }
   },
@@ -271,7 +267,7 @@ Page({
     const videoUrl = this.data.videoUrl
     if (!videoUrl) return
 
-    wx.showLoading({ title: '保存中...' })
+    wx.showLoading({ title: this.data.tSaving })
 
     wx.downloadFile({
       url: videoUrl,
@@ -281,31 +277,31 @@ Page({
             filePath: res.tempFilePath,
             success: () => {
               wx.hideLoading()
-              wx.showToast({ title: '保存成功', icon: 'success' })
+              wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
             },
             fail: (err) => {
               wx.hideLoading()
               if (err.errMsg && err.errMsg.includes('auth deny')) {
                 wx.showModal({
-                  title: '提示',
-                  content: '需要授权保存权限，是否前往设置？',
+                  title: this.data.tTip,
+                  content: this.data.tNeedPermission,
                   success: (modalRes) => {
                     if (modalRes.confirm) wx.openSetting()
                   }
                 })
               } else {
-                wx.showToast({ title: '保存失败', icon: 'none' })
+                wx.showToast({ title: this.data.tSaveFail, icon: 'none' })
               }
             }
           })
         } else {
           wx.hideLoading()
-          wx.showToast({ title: '下载失败', icon: 'none' })
+          wx.showToast({ title: this.data.tDownloadFail, icon: 'none' })
         }
       },
       fail: () => {
         wx.hideLoading()
-        wx.showToast({ title: '下载失败', icon: 'none' })
+        wx.showToast({ title: this.data.tDownloadFail, icon: 'none' })
       }
     })
   },
@@ -319,7 +315,7 @@ Page({
       fullUrl = API_BASE_URL + fullUrl
     }
 
-    wx.showLoading({ title: '保存中...' })
+    wx.showLoading({ title: this.data.tSaving })
     wx.getImageInfo({
       src: fullUrl,
       success: (imageRes) => {
@@ -327,17 +323,17 @@ Page({
           filePath: imageRes.path,
           success: () => {
             wx.hideLoading()
-            wx.showToast({ title: '保存成功', icon: 'success' })
+            wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
           },
           fail: () => {
             wx.hideLoading()
-            wx.showToast({ title: '保存失败', icon: 'none' })
+            wx.showToast({ title: this.data.tSaveFail, icon: 'none' })
           }
         })
       },
       fail: () => {
         wx.hideLoading()
-        wx.showToast({ title: '图片加载失败', icon: 'none' })
+        wx.showToast({ title: this.data.tImageLoadFail, icon: 'none' })
       }
     })
   },
@@ -375,7 +371,7 @@ Page({
       fullUrl = API_BASE_URL + fullUrl
     }
 
-    wx.showLoading({ title: '保存中...' })
+    wx.showLoading({ title: this.data.tSaving })
     wx.getImageInfo({
       src: fullUrl,
       success: (imageRes) => {
@@ -383,17 +379,17 @@ Page({
           filePath: imageRes.path,
           success: () => {
             wx.hideLoading()
-            wx.showToast({ title: '保存成功', icon: 'success' })
+            wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
           },
           fail: () => {
             wx.hideLoading()
-            wx.showToast({ title: '保存失败', icon: 'none' })
+            wx.showToast({ title: this.data.tSaveFail, icon: 'none' })
           }
         })
       },
       fail: () => {
         wx.hideLoading()
-        wx.showToast({ title: '图片加载失败', icon: 'none' })
+        wx.showToast({ title: this.data.tImageLoadFail, icon: 'none' })
       }
     })
   },
@@ -405,9 +401,14 @@ Page({
   },
 
   regenerateVideo() {
+    const styleName = this._getStyleName(this.data.style)
+    const content = app.t('drawingVideo.regenerateConfirm', {
+      style: styleName,
+      cost: this.data.totalCost
+    })
     wx.showModal({
-      title: '提示',
-      content: `确定要使用"${this._getStyleName(this.data.style)}"风格重新生成视频吗？将再次消耗${this.data.totalCost}发丝。`,
+      title: this.data.tTip,
+      content: content,
       success: (res) => {
         if (res.confirm) {
           this._startGeneration()
@@ -418,10 +419,10 @@ Page({
 
   _getStyleName(style) {
     const styleNames = {
-      'pencil': '铅笔素描',
-      'vivid': '淡彩素描',
-      'ink': '水墨风格',
-      'anime': '日式动漫'
+      'pencil': app.t('drawingVideo.stylePencil'),
+      'vivid': app.t('drawingVideo.styleVivid'),
+      'ink': app.t('drawingVideo.styleInk'),
+      'anime': app.t('drawingVideo.styleAnime')
     }
     return styleNames[style] || style
   },

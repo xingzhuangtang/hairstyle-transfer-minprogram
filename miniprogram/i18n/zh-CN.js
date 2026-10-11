@@ -183,7 +183,22 @@ module.exports = {
     "saveSketch": "保存素描",
     "saveResult": "保存原图",
     "goHome": "返回首页",
-    "tapToEnlarge": "点击放大"
+    "tapToEnlarge": "点击放大",
+    "styleLabel": "素描风格",
+    "stylePencil": "铅笔素描",
+    "styleVivid": "淡彩素描",
+    "styleInk": "水墨风格",
+    "styleAnime": "日式动漫",
+    "regenerate": "重新生成",
+    "regenerateConfirm": "确定要使用\"{style}\"风格重新生成视频吗？将再次消耗{cost}发丝。",
+    "errorNoSketch": "缺少素描图，请先完成素描",
+    "errorGenerateFail": "视频生成失败，请稍后重试",
+    "saving": "保存中...",
+    "saveSuccess": "保存成功",
+    "saveFail": "保存失败",
+    "downloadFail": "下载失败",
+    "imageLoadFail": "图片加载失败",
+    "needPermission": "需要授权保存权限，是否前往设置？"
   },
   "profile": {
     "guestMode": "您当前是游客模式",
