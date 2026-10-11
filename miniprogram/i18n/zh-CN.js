@@ -974,7 +974,8 @@ module.exports = {
     "reopenAlert": "重新打开",
     "verificationVerified": "已验证",
     "verificationFailed": "验证失败",
-    "verificationPending": "待验证"
+    "verificationPending": "待验证",
+    "fieldRequired": "不能为空"
   },
   "refundAdmin": {
     "title": "退款管理",
