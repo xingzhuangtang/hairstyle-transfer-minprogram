@@ -85,6 +85,7 @@ Page({
 
   onLoad() {
     this._loadI18n()
+    this._updateDynamicLabels()
     this._setupLocaleListener()
     app.setNavTitle(this, 'customerAdmin.title')
     this.loadDashboard()
