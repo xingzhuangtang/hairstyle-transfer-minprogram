@@ -296,6 +296,7 @@ Page({
       tMonVerified: t('monitor.verificationVerified'),
       tMonVerifyFailed: t('monitor.verificationFailed'),
       tMonVerifyPending: t('monitor.verificationPending'),
+      tMonFieldRequired: t('monitor.fieldRequired'),
     })
   },
 
@@ -473,7 +474,7 @@ Page({
     if (!alert) return
     const form = this.data.resolveForm
     if (!form.root_cause.trim()) {
-      wx.showToast({ title: this.data.tMonRootCause + '不能为空', icon: 'none' })
+      wx.showToast({ title: this.data.tMonRootCause + this.data.tMonFieldRequired, icon: 'none' })
       return
     }
     this.setData({ resolveSubmitting: true })

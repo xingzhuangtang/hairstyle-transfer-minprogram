@@ -974,7 +974,8 @@ module.exports = {
     "reopenAlert": "Reopen",
     "verificationVerified": "Verified",
     "verificationFailed": "Verification Failed",
-    "verificationPending": "Pending Verification"
+    "verificationPending": "Pending Verification",
+    "fieldRequired": "cannot be empty"
   },
   "refundAdmin": {
     "title": "Refund Management",
