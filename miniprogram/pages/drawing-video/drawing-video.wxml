@@ -54,7 +54,7 @@
       <view class="dv-comparison-item" wx:if="{{showResult && resultUrl}}">
         <text class="dv-label">{{tResultTitle}}</text>
         <view class="dv-result-wrapper" bindtap="openFullscreenResult">
-          <image class="dv-result-image" src="{{resultUrl}}" mode="widthFix" show-menu-by-longpress></image>
+          <image class="dv-result-image" src="{{resultUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
           <view class="dv-result-tap-hint">
             <text>{{tTapToEnlarge}}</text>
           </view>
@@ -63,7 +63,7 @@
       <view class="dv-comparison-item" wx:if="{{showSketch}}">
         <text class="dv-label">{{tSketchTitle}}</text>
         <view class="dv-sketch-wrapper" bindtap="openFullscreenSketch">
-          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="widthFix" show-menu-by-longpress></image>
+          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
           <view class="dv-sketch-tap-hint">
             <text>{{tTapToEnlarge}}</text>
           </view>
@@ -101,18 +101,22 @@
 
     <!-- 操作按钮 -->
     <view class="dv-actions">
-      <button class="dv-btn secondary" bindtap="saveVideoToAlbum">
-        <text>{{tSaveVideo}}</text>
-      </button>
-      <button class="dv-btn secondary" bindtap="saveResultToAlbum" wx:if="{{resultUrl}}">
-        <text>{{tSaveResult}}</text>
-      </button>
-      <button class="dv-btn secondary" bindtap="saveSketchToAlbum">
-        <text>{{tSaveSketch}}</text>
-      </button>
-      <button class="dv-btn primary" bindtap="goHome">
-        <text>{{tGoHome}}</text>
-      </button>
+      <view class="dv-actions-row">
+        <button class="dv-btn secondary" bindtap="saveVideoToAlbum">
+          <text>{{tSaveVideo}}</text>
+        </button>
+        <button class="dv-btn secondary" bindtap="saveResultToAlbum" wx:if="{{resultUrl}}">
+          <text>{{tSaveResult}}</text>
+        </button>
+      </view>
+      <view class="dv-actions-row">
+        <button class="dv-btn secondary" bindtap="saveSketchToAlbum">
+          <text>{{tSaveSketch}}</text>
+        </button>
+        <button class="dv-btn primary" bindtap="goHome">
+          <text>{{tGoHome}}</text>
+        </button>
+      </view>
     </view>
   </view>
 

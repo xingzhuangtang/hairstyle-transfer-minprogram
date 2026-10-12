@@ -111,6 +111,10 @@ Page({
     console.log('[drawing-video] 视频元数据加载成功:', e.detail)
   },
 
+  onImageError(e) {
+    console.error('[drawing-video] 图片加载失败:', e.detail, 'src:', e.currentTarget?.dataset?.src)
+  },
+
   _loadI18n() {
     const t = (key) => app.t(key)
     this.setData({
@@ -192,9 +196,18 @@ Page({
       }
 
       if (res.success) {
-        let videoUrl = res.video_url
-        if (videoUrl && videoUrl.startsWith('/static/')) {
-          videoUrl = API_BASE_URL + videoUrl
+        const normalizeUrl = (url) => {
+          if (!url) return url
+          if (url.startsWith('/static/')) {
+            return API_BASE_URL + url
+          }
+          if (url.startsWith('http')) {
+            const pathStart = url.indexOf('/', url.indexOf('//') + 2)
+            if (pathStart !== -1) {
+              return API_BASE_URL + url.substring(pathStart)
+            }
+          }
+          return url
         }
 
         const updateData = {
@@ -202,23 +215,21 @@ Page({
           videoReady: true,
           showSketch: false,
           showResult: false,
-          videoUrl: videoUrl,
+          videoUrl: normalizeUrl(res.video_url),
           cost: res.cost,
           remainingHairs: res.remaining_hairs
         }
 
         if (res.sketch_url) {
-          let newSketchUrl = res.sketch_url
-          if (newSketchUrl.startsWith('/static/')) {
-            newSketchUrl = API_BASE_URL + newSketchUrl
-          } else if (newSketchUrl.startsWith('http')) {
-            const pathStart = newSketchUrl.indexOf('/', newSketchUrl.indexOf('//') + 2)
-            if (pathStart !== -1) {
-              newSketchUrl = API_BASE_URL + newSketchUrl.substring(pathStart)
-            }
-          }
+          const newSketchUrl = normalizeUrl(res.sketch_url)
           updateData.sketchUrl = newSketchUrl
           console.log('[drawing-video] 素描已更新:', newSketchUrl)
+        }
+
+        if (res.result_url) {
+          const newResultUrl = normalizeUrl(res.result_url)
+          updateData.resultUrl = newResultUrl
+          console.log('[drawing-video] 原图已更新:', newResultUrl)
         }
 
         this.setData(updateData)
