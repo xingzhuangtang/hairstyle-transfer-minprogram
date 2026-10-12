@@ -10,6 +10,8 @@ Page({
   data: {
     sketchUrl: '',
     resultUrl: '',
+    sketchUrlLocal: '',
+    resultUrlLocal: '',
     style: 'pencil',
     cost: 0,
     totalCost: 0,
@@ -24,7 +26,9 @@ Page({
 
     videoFullscreen: false,
     sketchFullscreen: false,
-    resultFullscreen: false
+    resultFullscreen: false,
+    resultRevealed: false,
+    sketchRevealed: false
   },
 
   _animTimer: null,
@@ -39,27 +43,13 @@ Page({
         let sketchUrl = data.sketchUrl || ''
         let resultUrl = data.resultUrl || ''
 
-        // 统一转换为当前 API_BASE_URL（处理相对路径和旧的内网IP地址）
-        if (sketchUrl) {
-          if (sketchUrl.startsWith('http')) {
-            const pathStart = sketchUrl.indexOf('/', sketchUrl.indexOf('//') + 2)
-            if (pathStart !== -1) {
-              sketchUrl = API_BASE_URL + sketchUrl.substring(pathStart)
-            }
-          } else if (sketchUrl.startsWith('/')) {
-            sketchUrl = API_BASE_URL + sketchUrl
-          }
+        // 只处理相对路径，外部URL（OSS等）保持不变
+        if (sketchUrl && sketchUrl.startsWith('/static/')) {
+          sketchUrl = API_BASE_URL + sketchUrl
         }
 
-        if (resultUrl) {
-          if (resultUrl.startsWith('http')) {
-            const pathStart = resultUrl.indexOf('/', resultUrl.indexOf('//') + 2)
-            if (pathStart !== -1) {
-              resultUrl = API_BASE_URL + resultUrl.substring(pathStart)
-            }
-          } else if (resultUrl.startsWith('/')) {
-            resultUrl = API_BASE_URL + resultUrl
-          }
+        if (resultUrl && resultUrl.startsWith('/static/')) {
+          resultUrl = API_BASE_URL + resultUrl
         }
 
         const isPremium = app.globalData && app.globalData.userInfo && app.globalData.userInfo.member_level === 'vip'
@@ -84,6 +74,12 @@ Page({
       return
     }
 
+    // 下载初始传入的图片到本地（HTTP 图片微信小程序无法直接显示）
+    this._downloadImageToLocal(this.data.sketchUrl, 'sketchUrlLocal')
+    if (this.data.resultUrl) {
+      this._downloadImageToLocal(this.data.resultUrl, 'resultUrlLocal')
+    }
+
     this._loadUserInfo()
     this._startGeneration()
   },
@@ -93,13 +89,13 @@ Page({
       clearInterval(this._animTimer)
       this._animTimer = null
     }
-    if (this._sketchTimer) {
-      clearTimeout(this._sketchTimer)
-      this._sketchTimer = null
-    }
     if (this._resultTimer) {
       clearTimeout(this._resultTimer)
       this._resultTimer = null
+    }
+    if (this._sketchTimer) {
+      clearTimeout(this._sketchTimer)
+      this._sketchTimer = null
     }
   },
 
@@ -113,6 +109,36 @@ Page({
 
   onImageError(e) {
     console.error('[drawing-video] 图片加载失败:', e.detail, 'src:', e.currentTarget?.dataset?.src)
+  },
+
+  _downloadImageToLocal(url, dataKey, callback) {
+    console.log(`[drawing-video] 开始下载图片 ${dataKey}:`, url)
+    if (!url) {
+      console.error('[drawing-video] 图片URL为空:', dataKey)
+      if (callback) callback()
+      return
+    }
+    wx.downloadFile({
+      url: url,
+      success: (res) => {
+        console.log(`[drawing-video] 下载响应 ${dataKey}:`, res.statusCode, res.tempFilePath)
+        if (res.statusCode === 200) {
+          const update = {}
+          update[dataKey] = res.tempFilePath
+          this.setData(update, () => {
+            console.log(`[drawing-video] 图片已设置到data ${dataKey}:`, this.data[dataKey])
+            if (callback) callback()
+          })
+        } else {
+          console.error(`[drawing-video] 下载失败，状态码:`, res.statusCode)
+          if (callback) callback()
+        }
+      },
+      fail: (err) => {
+        console.error(`[drawing-video] 下载失败 ${dataKey}:`, err)
+        if (callback) callback()
+      }
+    })
   },
 
   _loadI18n() {
@@ -170,7 +196,7 @@ Page({
 
   async _startGeneration() {
     const isRegenerate = this.data.videoReady || !!this.data.videoUrl
-    this.setData({ generating: true, error: '' })
+    this.setData({ generating: true, error: '', resultRevealed: false, sketchRevealed: false })
 
     console.log('[drawing-video] _startGeneration - style:', this.data.style, 'sketchUrl:', this.data.sketchUrl, 'regenerate:', isRegenerate)
 
@@ -201,20 +227,12 @@ Page({
           if (url.startsWith('/static/')) {
             return API_BASE_URL + url
           }
-          if (url.startsWith('http')) {
-            const pathStart = url.indexOf('/', url.indexOf('//') + 2)
-            if (pathStart !== -1) {
-              return API_BASE_URL + url.substring(pathStart)
-            }
-          }
           return url
         }
 
         const updateData = {
           generating: false,
           videoReady: true,
-          showSketch: false,
-          showResult: false,
           videoUrl: normalizeUrl(res.video_url),
           cost: res.cost,
           remainingHairs: res.remaining_hairs
@@ -223,18 +241,40 @@ Page({
         if (res.sketch_url) {
           const newSketchUrl = normalizeUrl(res.sketch_url)
           updateData.sketchUrl = newSketchUrl
-          console.log('[drawing-video] 素描已更新:', newSketchUrl)
         }
 
         if (res.result_url) {
           const newResultUrl = normalizeUrl(res.result_url)
           updateData.resultUrl = newResultUrl
-          console.log('[drawing-video] 原图已更新:', newResultUrl)
         }
 
         this.setData(updateData)
 
-        // 清除旧定时器
+        // 立即开始下载图片到本地（微信小程序不允许 HTTP 加载图片）
+        const sketchToDownload = updateData.sketchUrl || this.data.sketchUrl
+        const resultToDownload = updateData.resultUrl || this.data.resultUrl
+        
+        let sketchDownloaded = false
+        let resultDownloaded = false
+        
+        if (sketchToDownload) {
+          this._downloadImageToLocal(sketchToDownload, 'sketchUrlLocal', () => {
+            sketchDownloaded = true
+          })
+        } else {
+          sketchDownloaded = true
+        }
+        
+        if (resultToDownload) {
+          this._downloadImageToLocal(resultToDownload, 'resultUrlLocal', () => {
+            resultDownloaded = true
+          })
+        } else {
+          resultDownloaded = true
+        }
+
+        // 配合视频播放节奏：第10秒显示原图，第20秒显示素描
+        // 需要同时满足：定时器到达 + 图片已下载完成
         if (this._resultTimer) {
           clearTimeout(this._resultTimer)
           this._resultTimer = null
@@ -244,16 +284,42 @@ Page({
           this._sketchTimer = null
         }
 
-        // 10 秒后显示原图
-        if (this.data.resultUrl) {
-          this._resultTimer = setTimeout(() => {
-            this.setData({ showResult: true })
-          }, 10000)
-        }
+        // 第10秒显示原图（带画笔揭示效果）
+        this._resultTimer = setTimeout(() => {
+          console.log('[drawing-video] 第10秒定时器触发, resultDownloaded:', resultDownloaded, 'resultUrlLocal:', this.data.resultUrlLocal)
+          const tryShowResult = () => {
+            if (resultDownloaded) {
+              this.setData({ showResult: true }, () => {
+                console.log('[drawing-video] showResult 已设置为 true')
+                // 延迟触发布画揭示动画
+                setTimeout(() => {
+                  this.setData({ resultRevealed: true })
+                }, 100)
+              })
+            } else {
+              setTimeout(tryShowResult, 500)
+            }
+          }
+          tryShowResult()
+        }, 10000)
 
-        // 20 秒后显示素描图片
+        // 第20秒显示素描（带画笔揭示效果）
         this._sketchTimer = setTimeout(() => {
-          this.setData({ showSketch: true })
+          console.log('[drawing-video] 第20秒定时器触发, sketchDownloaded:', sketchDownloaded, 'sketchUrlLocal:', this.data.sketchUrlLocal)
+          const tryShowSketch = () => {
+            if (sketchDownloaded) {
+              this.setData({ showSketch: true }, () => {
+                console.log('[drawing-video] showSketch 已设置为 true, sketchUrlLocal:', this.data.sketchUrlLocal)
+                // 延迟触发布画揭示动画
+                setTimeout(() => {
+                  this.setData({ sketchRevealed: true })
+                }, 100)
+              })
+            } else {
+              setTimeout(tryShowSketch, 500)
+            }
+          }
+          tryShowSketch()
         }, 20000)
       } else {
         this.setData({
