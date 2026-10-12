@@ -35,19 +35,17 @@ backend/test_smart_decision.py
 task-*.md
 backend/task-*.md
 
-# 静态文件
+# 静态文件（用户上传的临时文件）
 backend/static/uploads/
 backend/static/results/
 backend/static/hair_extracted/
 backend/results/
-backend/static/assets/
-miniprogram/assets/
 
 # 独立部署包（已有独立仓库）
 self_healing_standalone/
 
-# 空目录
-static/
+# 空目录（根目录下的 static/）
+/static/
 
 # 微信小程序
 miniprogram/node_modules/
