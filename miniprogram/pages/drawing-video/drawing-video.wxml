@@ -19,6 +19,7 @@
         binderror="onVideoError"
         bindloadedmetadata="onVideoLoaded">
       </video>
+      <cover-view class="dv-video-overlay" wx:if="{{generating}}"></cover-view>
     </view>
     <view class="dv-generating-info">
       <text class="dv-generating-text">{{tGenerating}}</text>
@@ -51,19 +52,33 @@
 
     <!-- 原图 + 素描（第二行，并排） -->
     <view class="dv-images-row">
-      <view class="dv-comparison-item" wx:if="{{showResult && resultUrl}}">
+      <view class="dv-comparison-item" wx:if="{{showResult && (resultUrlLocal || resultUrl)}}">
         <text class="dv-label">{{tResultTitle}}</text>
         <view class="dv-result-wrapper" bindtap="openFullscreenResult">
-          <image class="dv-result-image" src="{{resultUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
+          <image class="dv-result-image" src="{{resultUrlLocal || resultUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
+          <view class="dv-brush-reveal {{resultRevealed ? 'revealed' : ''}}">
+            <view class="dv-brush-stripe" style="animation-delay: 0s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.2s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.4s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.6s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.8s"></view>
+          </view>
           <view class="dv-result-tap-hint">
             <text>{{tTapToEnlarge}}</text>
           </view>
         </view>
       </view>
-      <view class="dv-comparison-item" wx:if="{{showSketch}}">
+      <view class="dv-comparison-item" wx:if="{{showSketch && (sketchUrlLocal || sketchUrl)}}">
         <text class="dv-label">{{tSketchTitle}}</text>
         <view class="dv-sketch-wrapper" bindtap="openFullscreenSketch">
-          <image class="dv-sketch-image" src="{{sketchUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
+          <image class="dv-sketch-image" src="{{sketchUrlLocal || sketchUrl}}" mode="aspectFit" show-menu-by-longpress binderror="onImageError"></image>
+          <view class="dv-brush-reveal {{sketchRevealed ? 'revealed' : ''}}">
+            <view class="dv-brush-stripe" style="animation-delay: 0s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.2s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.4s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.6s"></view>
+            <view class="dv-brush-stripe" style="animation-delay: 0.8s"></view>
+          </view>
           <view class="dv-sketch-tap-hint">
             <text>{{tTapToEnlarge}}</text>
           </view>
@@ -144,7 +159,7 @@
 
   <!-- 全屏图片预览 -->
   <view class="dv-fullscreen-overlay" wx:if="{{sketchFullscreen}}" bindtap="closeFullscreenSketch">
-    <image class="dv-fullscreen-image" src="{{sketchUrl}}" mode="aspectFit"></image>
+    <image class="dv-fullscreen-image" src="{{sketchUrlLocal || sketchUrl}}" mode="aspectFit"></image>
     <view class="dv-fullscreen-close">
       <text class="dv-fullscreen-close-icon">×</text>
     </view>
@@ -152,7 +167,7 @@
 
   <!-- 全屏原图预览 -->
   <view class="dv-fullscreen-overlay" wx:if="{{resultFullscreen}}" bindtap="closeFullscreenResult">
-    <image class="dv-fullscreen-image" src="{{resultUrl}}" mode="aspectFit"></image>
+    <image class="dv-fullscreen-image" src="{{resultUrlLocal || resultUrl}}" mode="aspectFit"></image>
     <view class="dv-fullscreen-close">
       <text class="dv-fullscreen-close-icon">×</text>
     </view>

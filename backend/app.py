@@ -152,7 +152,8 @@ def get_full_url(relative_path):
         else:
             # 本地开发环境使用 HTTP，生产环境使用 HTTPS
             host = request.host
-            if 'localhost' in host or '127.0.0.1' in host:
+            # 本地地址（localhost、127.0.0.1、局域网 IP）使用 HTTP
+            if 'localhost' in host or '127.0.0.1' in host or host.startswith('192.168.') or host.startswith('10.') or host.startswith('172.'):
                 protocol = 'http'
             else:
                 protocol = 'https'
