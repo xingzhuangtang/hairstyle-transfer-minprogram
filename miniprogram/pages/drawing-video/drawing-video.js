@@ -28,7 +28,11 @@ Page({
     sketchFullscreen: false,
     resultFullscreen: false,
     resultRevealed: false,
-    sketchRevealed: false
+    sketchRevealed: false,
+    videoRevealed: false,
+    apiCompleted: false,
+    transitionVideoLoaded: false,
+    revealCells: []
   },
 
   _animTimer: null,
@@ -97,14 +101,110 @@ Page({
       clearTimeout(this._sketchTimer)
       this._sketchTimer = null
     }
+    if (this._transitionCheckTimer) {
+      clearTimeout(this._transitionCheckTimer)
+      this._transitionCheckTimer = null
+    }
   },
 
   onVideoError(e) {
     console.error('[drawing-video] 视频加载失败:', e.detail)
   },
 
+  _checkTransitionComplete() {
+    // 只需要 API 完成 + 过渡视频至少播放 5 秒（由调用方定时器保证）
+    // 不再等待 videoCanPlay，因为结果视频只在 !generating 时才渲染
+    if (this.data.apiCompleted && this.data.generating) {
+      console.log('[drawing-video] API 已完成，过渡视频播放足够时间，切换到结果界面')
+      this.setData({ generating: false }, () => {
+        // 结果界面显示后，启动画笔揭示动画
+        this.onResultSectionReady()
+      })
+    }
+  },
+
   onVideoLoaded(e) {
     console.log('[drawing-video] 视频元数据加载成功:', e.detail)
+  },
+
+  onTransitionVideoLoaded(e) {
+    console.log('[drawing-video] 过渡视频元数据加载成功:', e.detail)
+    this.setData({ transitionVideoLoaded: true })
+  },
+
+  // 结果视频区域显示后，启动画笔揭示动画
+  onResultSectionReady() {
+    const GRID = 10
+    const TOTAL_CELLS = GRID * GRID
+    const DURATION = 3000 // 总动画时长 3 秒
+    const FADE_DURATION = 400 // 每个格子淡出时长
+
+    // 初始化所有格子为不透明（白色遮罩）
+    const cells = Array(TOTAL_CELLS).fill(1)
+    this.setData({ revealCells: cells, videoRevealed: false })
+
+    // 预计算每个格子的开始时间（对角线波：row + col 越小越早开始）
+    const cellStartTimes = []
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+      const row = Math.floor(i / GRID)
+      const col = i % GRID
+      const wavePos = (row + col) / ((GRID - 1) * 2) // 0 ~ 1
+      cellStartTimes.push(wavePos * (DURATION - FADE_DURATION))
+    }
+
+    // 按帧分组：哪些格子在哪个时间点需要更新
+    const FRAME_INTERVAL = 50 // 每 50ms 更新一次（20fps，减少 setData 次数）
+    const totalFrames = Math.ceil(DURATION / FRAME_INTERVAL)
+    const frameBatches = {} // frameIndex -> [cellIndex, ...]
+
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+      const startTime = cellStartTimes[i]
+      const endTime = startTime + FADE_DURATION
+      const startFrame = Math.floor(startTime / FRAME_INTERVAL)
+      const endFrame = Math.floor(endTime / FRAME_INTERVAL)
+
+      for (let f = startFrame; f <= endFrame && f < totalFrames; f++) {
+        if (!frameBatches[f]) frameBatches[f] = []
+        frameBatches[f].push(i)
+      }
+    }
+
+    let currentFrame = 0
+    const animate = () => {
+      if (currentFrame >= totalFrames) {
+        // 动画完成
+        this.setData({ videoRevealed: true })
+        return
+      }
+
+      const batch = frameBatches[currentFrame]
+      if (batch && batch.length > 0) {
+        const elapsed = currentFrame * FRAME_INTERVAL
+        const newCells = [...this.data.revealCells]
+        let changed = false
+
+        for (const idx of batch) {
+          const t = cellStartTimes[idx]
+          const progress = Math.max(0, Math.min(1, (elapsed - t) / FADE_DURATION))
+          const easedProgress = 1 - Math.pow(1 - progress, 3) // ease-out
+          const newOpacity = 1 - easedProgress
+
+          if (newCells[idx] !== newOpacity) {
+            newCells[idx] = newOpacity
+            changed = true
+          }
+        }
+
+        if (changed) {
+          this.setData({ revealCells: newCells })
+        }
+      }
+
+      currentFrame++
+      this._videoRevealTimer = setTimeout(animate, FRAME_INTERVAL)
+    }
+
+    animate()
   },
 
   onImageError(e) {
@@ -196,17 +296,31 @@ Page({
 
   async _startGeneration() {
     const isRegenerate = this.data.videoReady || !!this.data.videoUrl
-    this.setData({ generating: true, error: '', resultRevealed: false, sketchRevealed: false })
+    this.setData({
+      generating: true,
+      error: '',
+      resultRevealed: false,
+      sketchRevealed: false,
+      videoRevealed: false,
+      apiCompleted: false,
+      transitionVideoLoaded: false,
+      revealCells: Array(100).fill(1)
+    })
 
     console.log('[drawing-video] _startGeneration - style:', this.data.style, 'sketchUrl:', this.data.sketchUrl, 'regenerate:', isRegenerate)
 
-    setTimeout(() => {
-      const videoCtx = wx.createVideoContext('transitionVideo', this)
-      if (videoCtx) {
-        videoCtx.play()
-        console.log('[drawing-video] 过渡视频开始播放')
-      }
-    }, 300)
+    // 启动过渡视频
+    // 直接播放过渡视频，不延迟
+    const videoCtx = wx.createVideoContext('transitionVideo', this)
+    if (videoCtx) {
+      videoCtx.play()
+      console.log('[drawing-video] 过渡视频开始播放')
+    }
+
+    // 设置过渡视频播放完成检查（至少播放5秒）
+    this._transitionCheckTimer = setTimeout(() => {
+      this._checkTransitionComplete()
+    }, 5000)
 
     try {
       const res = await generateDrawingVideo({
@@ -231,11 +345,11 @@ Page({
         }
 
         const updateData = {
-          generating: false,
           videoReady: true,
           videoUrl: normalizeUrl(res.video_url),
           cost: res.cost,
-          remainingHairs: res.remaining_hairs
+          remainingHairs: res.remaining_hairs,
+          apiCompleted: true
         }
 
         if (res.sketch_url) {
@@ -249,6 +363,9 @@ Page({
         }
 
         this.setData(updateData)
+
+        // 检查是否应该立即切换到结果界面
+        this._checkTransitionComplete()
 
         // 立即开始下载图片到本地（微信小程序不允许 HTTP 加载图片）
         const sketchToDownload = updateData.sketchUrl || this.data.sketchUrl

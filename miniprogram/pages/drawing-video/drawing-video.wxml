@@ -15,11 +15,13 @@
         controls="{{false}}"
         enable-play-gesture="{{false}}"
         show-fullscreen-btn="{{false}}"
-        object-fit="contain"
+        object-fit="cover"
         binderror="onVideoError"
-        bindloadedmetadata="onVideoLoaded">
+        bindloadedmetadata="onTransitionVideoLoaded">
       </video>
-      <cover-view class="dv-video-overlay" wx:if="{{generating}}"></cover-view>
+      <cover-view class="dv-transition-placeholder" wx:if="{{!transitionVideoLoaded}}">
+        <cover-view class="dv-spinner"></cover-view>
+      </cover-view>
     </view>
     <view class="dv-generating-info">
       <text class="dv-generating-text">{{tGenerating}}</text>
@@ -36,16 +38,27 @@
         <view class="dv-video-wrapper" bindtap="openFullscreenVideo">
           <video
             class="dv-video"
+            id="resultVideo"
             src="{{videoUrl}}"
             autoplay
             loop
             show-center-play-btn
             object-fit="contain"
-            poster="{{sketchUrl}}">
+            poster="{{sketchUrlLocal || sketchUrl}}"
+            binderror="onVideoError">
           </video>
-          <view class="dv-video-tap-hint">
-            <text>{{tTapToEnlarge}}</text>
-          </view>
+          <!-- 画笔揭示遮罩：10x10 白色格子，逐个消失 -->
+          <cover-view class="dv-reveal-grid" wx:if="{{!videoRevealed}}">
+            <cover-view
+              wx:for="{{revealCells}}"
+              wx:key="index"
+              class="dv-reveal-cell"
+              style="opacity:{{item}}">
+            </cover-view>
+          </cover-view>
+          <cover-view class="dv-video-tap-hint" wx:if="{{videoRevealed}}">
+            <cover-view>{{tTapToEnlarge}}</cover-view>
+          </cover-view>
         </view>
       </view>
     </view>
