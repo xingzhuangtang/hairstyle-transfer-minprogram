@@ -4096,6 +4096,7 @@ def generate_drawing_video():
 
         sketch_url = data.get('sketch_url')
         new_sketch_url = None
+        original_result_url = None  # 保存原始图片 URL（重新生成时需要返回给前端）
 
         if regenerate_sketch:
             import uuid
@@ -4120,6 +4121,7 @@ def generate_drawing_video():
                     }), 404
 
                 result_url = record.result_url
+                original_result_url = result_url  # 保存原始图片 URL，用于返回给前端
                 print(f"📹 视频生成 - 原图 result_url: {result_url}")
 
                 from urllib.parse import urlparse as _urlparse
@@ -4296,8 +4298,8 @@ def generate_drawing_video():
                 resp_data['sketch_url'] = new_sketch_url
             
             # 重新生成时，返回原始图片 URL（前端需要显示原图）
-            if regenerate_sketch and sketch_url:
-                resp_data['result_url'] = sketch_url
+            if regenerate_sketch and original_result_url:
+                resp_data['result_url'] = original_result_url
             
             return jsonify(resp_data)
 
