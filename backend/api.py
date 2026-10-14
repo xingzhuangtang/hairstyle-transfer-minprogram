@@ -4294,6 +4294,11 @@ def generate_drawing_video():
             }
             if new_sketch_url:
                 resp_data['sketch_url'] = new_sketch_url
+            
+            # 重新生成时，返回原始图片 URL（前端需要显示原图）
+            if regenerate_sketch and sketch_url:
+                resp_data['result_url'] = sketch_url
+            
             return jsonify(resp_data)
 
         finally:
