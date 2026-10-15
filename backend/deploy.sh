@@ -139,7 +139,7 @@ verify_deploy_paths() {
             if [[ "$RUNNING_PATH" == *"/backend/app.py" ]]; then
                 log_error "❌ 进程从 backend/ 子目录运行，但 deploy.sh 同步到根目录！"
                 log_error "  修复方案: 在服务器上执行以下命令统一路径:"
-                log_error "    cd $DEPLOY_PATH && kill \$(lsof -ti:$BACKEND_PORT) && nohup python3 app.py &"
+                log_error "    cd $DEPLOY_PATH/backend && kill \$(lsof -ti:$BACKEND_PORT) && nohup python3 app.py &"
                 if [[ "$FORCE_MODE" != "--force" ]]; then
                     log_info "  使用 --force 参数跳过此检查"
                     exit 1
@@ -432,11 +432,11 @@ restart_services() {
     log_info "清理缓存并重启服务..."
 
     # 清理 Python 缓存
-    remote_exec "cd $DEPLOY_PATH && rm -rf __pycache__ && find . -name '*.pyc' -delete"
+    remote_exec "cd $DEPLOY_PATH/backend && rm -rf __pycache__ && find . -name '*.pyc' -delete"
     log_info "  已清理 Python 缓存"
 
     # 重启后端
-    remote_exec "cd $DEPLOY_PATH && kill \$(lsof -ti:$BACKEND_PORT) 2>/dev/null || true; sleep 2; nohup python3 app.py > /tmp/backend.log 2>&1 </dev/null &"
+    remote_exec "cd $DEPLOY_PATH/backend && kill \$(lsof -ti:$BACKEND_PORT) 2>/dev/null || true; sleep 2; nohup python3 app.py > /tmp/backend.log 2>&1 </dev/null &"
     sleep 3
 
     # 检查后端是否启动成功
@@ -466,7 +466,7 @@ check_db_schema() {
     log_info "检查数据库表结构完整性..."
 
     # 在远程服务器执行检查
-    CHECK_RESULT=$(remote_exec "cd $DEPLOY_PATH && python3 -c \"
+    CHECK_RESULT=$(remote_exec "cd $DEPLOY_PATH/backend && python3 -c \"
 import sys
 from app import app, db
 from sqlalchemy import inspect
@@ -515,7 +515,7 @@ monitor_financial() {
     log_info "检查财务流水记录完整性..."
 
     # 在远程服务器执行检查
-    remote_exec "cd $DEPLOY_PATH && python3 -c \"
+    remote_exec "cd $DEPLOY_PATH/backend && python3 -c \"
 from app import app, db
 from models import RechargeRecord, MemberOrder, FinancialRecord
 from sqlalchemy import func
@@ -574,7 +574,7 @@ health_check() {
     done
 
     # 检查数据库连接
-    if remote_exec "cd $DEPLOY_PATH && python3 -c 'from models import db; print(db.session.execute(db.text(\"SELECT 1\")).fetchone())' 2>/dev/null" | grep -q "1"; then
+    if remote_exec "cd $DEPLOY_PATH/backend && python3 -c 'from models import db; print(db.session.execute(db.text(\"SELECT 1\")).fetchone())' 2>/dev/null" | grep -q "1"; then
         log_info "  ✅ 数据库连接正常"
         PASS=$((PASS + 1))
     else
@@ -630,7 +630,7 @@ verify_sync() {
     for file in "${CORE_FILES[@]}"; do
         if [[ -f "$BACKEND_DIR/$file" ]]; then
             local_md5=$(md5 -q "$BACKEND_DIR/$file" 2>/dev/null || md5sum "$BACKEND_DIR/$file" | awk '{print $1}')
-            remote_md5=$(remote_exec "md5sum $DEPLOY_PATH/$file" 2>/dev/null | awk '{print $1}')
+            remote_md5=$(remote_exec "md5sum $DEPLOY_PATH/backend/$file" 2>/dev/null | awk '{print $1}')
 
             if [[ "$local_md5" == "$remote_md5" ]]; then
                 log_info "  ✅ $file"
@@ -700,7 +700,7 @@ main() {
     echo ""
 
     # 财务记录检查（不阻塞部署，只输出结果）
-    remote_exec "cd $DEPLOY_PATH && python3 fix_financial_records.py" 2>&1 || log_warn "财务记录检查失败"
+    remote_exec "cd $DEPLOY_PATH/backend && python3 fix_financial_records.py" 2>&1 || log_warn "财务记录检查失败"
 
     echo ""
     log_info "============================================"
