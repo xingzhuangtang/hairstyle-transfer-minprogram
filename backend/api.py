@@ -4281,7 +4281,7 @@ def generate_drawing_video():
                 combined_task_id = str(uuid.uuid4())
                 combined_result = hair_service.consume_hairs(
                     user, 'combined', task_id=combined_task_id,
-                    result_url=video_url, sketch_url=sketch_url
+                    result_url=original_result_url, sketch_url=sketch_url
                 )
                 if not combined_result['success']:
                     return jsonify(combined_result), 400
