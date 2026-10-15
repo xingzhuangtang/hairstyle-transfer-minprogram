@@ -386,8 +386,8 @@ check_domain_whitelist() {
     DOMAINS_TO_CHECK=()
 
     # 从 .env 读取 OSS 配置
-    if [[ -f "$DEPLOY_PATH/.env" ]]; then
-        OSS_ENDPOINT=$(remote_exec "grep '^OSS_ENDPOINT=' $DEPLOY_PATH/.env | cut -d= -f2" 2>/dev/null | tr -d '[:space:]')
+    if [[ -f "$DEPLOY_PATH/backend/.env" ]]; then
+        OSS_ENDPOINT=$(remote_exec "grep '^OSS_ENDPOINT=' $DEPLOY_PATH/backend/.env | cut -d= -f2" 2>/dev/null | tr -d '[:space:]')
         if [[ -n "$OSS_ENDPOINT" ]]; then
             DOMAINS_TO_CHECK+=("$OSS_ENDPOINT")
         fi
