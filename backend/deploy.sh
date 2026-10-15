@@ -296,7 +296,7 @@ check_env_completeness() {
     MISSING_VARS=()
 
     for var in "${REQUIRED_VARS[@]}"; do
-        if ! remote_exec "grep -q '^${var}=' $DEPLOY_PATH/.env 2>/dev/null"; then
+        if ! remote_exec "grep -q '^${var}=' $DEPLOY_PATH/backend/.env 2>/dev/null"; then
             MISSING_VARS+=("$var")
         fi
     done
