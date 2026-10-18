@@ -463,8 +463,21 @@ Page({
 
     wx.showLoading({ title: this.data.tSaving })
 
+    // OSS 域名不在小程序白名单中，需通过服务器代理下载
+    let downloadUrl = videoUrl
+    const header = {}
+    if (!videoUrl.startsWith('/static/') && !videoUrl.startsWith(API_BASE_URL)) {
+      downloadUrl = `${API_BASE_URL}/api/proxy/resource?url=${encodeURIComponent(videoUrl)}`
+      const { getToken } = require('../../utils/storage.js')
+      const token = getToken()
+      if (token) {
+        header['Authorization'] = `Bearer ${token}`
+      }
+    }
+
     wx.downloadFile({
-      url: videoUrl,
+      url: downloadUrl,
+      header: header,
       success: (res) => {
         if (res.statusCode === 200) {
           wx.saveVideoToPhotosAlbum({
