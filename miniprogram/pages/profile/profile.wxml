@@ -38,6 +38,12 @@
         <text wx:if="{{isPremium && daysRemaining > 0}}" class="expire-text">
           {{tProfileRemainingDays}}
         </text>
+        <text wx:elif="{{isPremium && hoursRemaining > 0}}" class="expire-text">
+          {{tProfileRemainingHours}}
+        </text>
+        <text wx:elif="{{isPremium}}" class="expire-text expired">
+          {{tProfileExpired}}
+        </text>
       </view>
     </view>
 

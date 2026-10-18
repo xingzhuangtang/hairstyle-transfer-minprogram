@@ -15,6 +15,7 @@ Page({
     memberLevelName: '普通用户',
     totalHairs: 0,
     daysRemaining: 0,
+    hoursRemaining: 0,
     toggleLoading: false,
     resetLoading: false,
     chatUnreadCount: 0,
@@ -26,6 +27,8 @@ Page({
     tProfileNoNickname: '未设置昵称',
     tProfileNoPhone: '未绑定手机',
     tProfileRemainingDays: '还剩{days}天',
+    tProfileRemainingHours: '还剩{hours}小时',
+    tProfileExpired: '已过期',
     tProfileScissorHairs: '剪刀发丝',
     tProfileCombHairs: '梳子发丝',
     tProfileHistory: '历史记录',
@@ -84,9 +87,16 @@ Page({
 
   onShow() {
     this._loadI18n()
-    this.loadUserInfo()
+    this.loadUserInfo().then(() => {
+      // 用户信息加载完成后，重新渲染 i18n 文本（使用最新的 daysRemaining）
+      this._loadI18n()
+    })
     this.loadChatUnreadCount()
     this._updateNavTitle()
+  },
+
+  onUnload() {
+    this.stopCountdownTimer()
   },
 
   _setupLocaleListener() {
@@ -106,6 +116,7 @@ Page({
     const t = (key) => app.t(key)
     const userInfo = this.data.userInfo || {}
     const days = this.data.daysRemaining
+    const hours = this.data.hoursRemaining
 
     this.setData({
       tProfileGuestMode: t('profile.guestMode'),
@@ -114,6 +125,8 @@ Page({
       tProfileNoNickname: t('profile.noNickname'),
       tProfileNoPhone: t('profile.noPhone'),
       tProfileRemainingDays: t('profile.remainingDays').replace('{days}', String(days)),
+      tProfileRemainingHours: t('profile.remainingHours').replace('{hours}', String(hours)),
+      tProfileExpired: t('profile.expired'),
       tProfileScissorHairs: t('profile.scissorHairs'),
       tProfileCombHairs: t('profile.combHairs'),
       tProfileHistory: t('profile.history'),
@@ -181,13 +194,15 @@ Page({
         const isDeveloper = isDeveloperAccount()
         const totalHairs = (userInfo.scissor_hairs || 0) + (userInfo.comb_hairs || 0)
 
-        // 计算剩余天数
+        // 计算剩余天数和小时数
         let daysRemaining = 0
+        let hoursRemaining = 0
         if (isPremium && userInfo.member_expire_at) {
           const expireTime = new Date(userInfo.member_expire_at)
           const now = new Date()
           const diffTime = expireTime - now
-          daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          daysRemaining = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+          hoursRemaining = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
         }
 
         this.setData({
@@ -197,8 +212,12 @@ Page({
           memberLevelName: userInfo.member_level === 'vip' ? getApp().t('member.companionVip') : this.data.tProfileNormalUser,
           totalHairs: totalHairs,
           daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+          hoursRemaining: hoursRemaining > 0 ? hoursRemaining : 0,
           refundEnabled: userInfo.refund_enabled || false
         })
+
+        // 启动倒计时
+        this.startCountdownTimer()
       } else {
         // 未登录，显示默认状态（不跳转登录页）
         this.setData({
@@ -208,6 +227,7 @@ Page({
           memberLevelName: this.data.tCommonGuest,
           totalHairs: 0,
           daysRemaining: 0,
+          hoursRemaining: 0,
           refundEnabled: false
         })
       }
@@ -221,9 +241,58 @@ Page({
         memberLevelName: this.data.tCommonGuest,
         totalHairs: 0,
         daysRemaining: 0,
+        hoursRemaining: 0,
         refundEnabled: false
       })
     }
+  },
+
+  /**
+   * 启动倒计时定时器
+   */
+  startCountdownTimer() {
+    this.stopCountdownTimer()
+    this.countdownTimer = setInterval(() => {
+      this.updateCountdown()
+    }, 60 * 60 * 1000) // 每小时更新一次
+  },
+
+  /**
+   * 停止倒计时定时器
+   */
+  stopCountdownTimer() {
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer)
+      this.countdownTimer = null
+    }
+  },
+
+  /**
+   * 更新倒计时显示
+   */
+  updateCountdown() {
+    const userInfo = this.data.userInfo
+    if (!userInfo || !userInfo.member_expire_at) return
+
+    const expireTime = new Date(userInfo.member_expire_at)
+    const now = new Date()
+    const diffTime = expireTime - now
+
+    if (diffTime <= 0) {
+      this.setData({ daysRemaining: 0, hoursRemaining: 0 })
+      return
+    }
+
+    const daysRemaining = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    const hoursRemaining = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+    this.setData({
+      daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+      hoursRemaining: hoursRemaining > 0 ? hoursRemaining : 0
+    })
+
+    // 更新 i18n 文本
+    this._loadI18n()
   },
 
   /**

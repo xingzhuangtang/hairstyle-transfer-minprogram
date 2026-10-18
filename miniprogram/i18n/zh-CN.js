@@ -207,6 +207,8 @@ module.exports = {
     "noNickname": "未设置昵称",
     "noPhone": "未绑定手机",
     "remainingDays": "还剩{days}天",
+    "remainingHours": "还剩{hours}小时",
+    "expired": "已过期",
     "scissorHairs": "剪刀发丝",
     "combHairs": "梳子发丝",
     "history": "历史记录",
