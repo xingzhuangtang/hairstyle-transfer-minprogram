@@ -4,6 +4,7 @@ import {
   getFixList, executeFix, getFixHistory, getApprovals, approveFix, rejectFix,
   getDefenseRules, runEvolutionAnalysis, getEvolutionReport, getHealthScore,
   verifyAlertResolution, getSimilarBugs,
+  getBugs, getBugDetail, archiveBug, searchBugs,
 } from '../../api/monitor.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
@@ -12,7 +13,7 @@ const app = getApp()
 Page({
   data: {
     activeTab: 0,
-    tabs: ['告警', '健康', '修复', '进化'],
+    tabs: ['告警', '健康', '修复', '进化', 'Bug'],
 
     alerts: [],
     alertStats: null,
@@ -143,6 +144,45 @@ Page({
     severityValues: ['low', 'medium', 'high', 'critical'],
     severityIndex: 1,
     similarBugs: [],
+
+    // Bug 知识库
+    bugs: [],
+    bugLoading: false,
+    bugPage: 1,
+    bugNoMore: false,
+    bugFilterCategory: '',
+    bugSearchKeyword: '',
+    showBugDetail: false,
+    currentBug: null,
+    bugDetailLoading: false,
+    bugCategoryOptions: ['全部分类', '数据类型', '部署', '安全', '性能', '逻辑'],
+    bugCategoryValues: ['', 'data_type', 'deployment', 'security', 'performance', 'logic'],
+    bugCategoryIndex: 0,
+    bugStats: null,
+
+    // Bug 知识库 i18n
+    tMonTabBugs: 'Bug',
+    tMonBugKnowledge: 'Bug 知识库',
+    tMonNoBugs: '暂无 Bug 记录',
+    tMonBugCategoryAll: '全部分类',
+    tMonBugSearch: '搜索 Bug...',
+    tMonBugId: 'Bug ID',
+    tMonBugTitle: '标题',
+    tMonBugCategoryL: '分类',
+    tMonBugSeverityL: '严重程度',
+    tMonBugRootCauseL: '根因',
+    tMonBugFixL: '修复方案',
+    tMonBugPreventionL: '预防',
+    tMonBugAffectedFiles: '受影响文件',
+    tMonBugCreatedAt: '发现时间',
+    tMonBugFixedAt: '修复时间',
+    tMonBugArchive: '归档',
+    tMonBugArchived: '已归档',
+    tMonBugActive: '活跃',
+    tMonBugClose: '关闭',
+    tMonBugLoadFail: '加载失败',
+    tMonBugArchiveSuccess: '已归档',
+    tMonBugArchiveFail: '归档失败',
 
     // 解法记录 i18n
     tMonResolveRecordTitle: '记录修复方案',
@@ -302,7 +342,7 @@ Page({
 
   _updateDynamicLabels() {
     this.setData({
-      tabs: [this.data.tMonTabAlerts, this.data.tMonTabHealth, this.data.tMonTabFix, this.data.tMonTabEvolution],
+      tabs: [this.data.tMonTabAlerts, this.data.tMonTabHealth, this.data.tMonTabFix, this.data.tMonTabEvolution, this.data.tMonTabBugs],
       statusOptions: [this.data.tMonStatusAll, this.data.tMonStatusNew, this.data.tMonStatusAcknowledged, this.data.tMonStatusResolved, this.data.tMonStatusIgnored],
       severityOptions: [this.data.tMonSeverityAll, this.data.tMonSeverityCritical, this.data.tMonSeverityHigh, this.data.tMonSeverityMedium, this.data.tMonSeverityLow]
     })
@@ -325,6 +365,8 @@ Page({
       this.loadFixData()
     } else if (tab === 3) {
       this.loadEvolutionData()
+    } else if (tab === 4) {
+      this.loadBugs(true)
     }
   },
 
@@ -718,6 +760,147 @@ Page({
       this.loadFixData(); wx.stopPullDownRefresh()
     } else if (tab === 3) {
       this.loadEvolutionData(); wx.stopPullDownRefresh()
+    } else if (tab === 4) {
+      this.loadBugs(true); wx.stopPullDownRefresh()
+    }
+  },
+
+  // Bug 知识库方法
+  async loadBugs(refresh = false) {
+    if (this.data.bugLoading) return
+    this.setData({ bugLoading: true })
+    if (refresh) this.setData({ bugPage: 1, bugNoMore: false, bugs: [] })
+
+    try {
+      const { bugPage, bugFilterCategory } = this.data
+      const params = { page: bugPage, page_size: 20 }
+      if (bugFilterCategory) params.category = bugFilterCategory
+
+      const res = await getBugs(params)
+      if (res.success) {
+        const items = (res.data.items || res.data || []).map(b => this._formatBug(b))
+        this.setData({
+          bugs: refresh ? items : [...this.data.bugs, ...items],
+          bugNoMore: items.length < 20,
+          bugPage: bugPage + 1,
+        })
+      }
+    } catch (e) {
+      console.error('加载 Bug 列表失败:', e)
+      wx.showToast({ title: this.data.tMonBugLoadFail, icon: 'none' })
+    } finally {
+      this.setData({ bugLoading: false })
+    }
+  },
+
+  _formatBug(b) {
+    const severityColors = { critical: '#ff4d4f', high: '#fa8c16', medium: '#fadb14', low: '#52c41a' }
+    const severityLabels = {
+      critical: this.data.tMonSeverityCritical,
+      high: this.data.tMonSeverityHigh,
+      medium: this.data.tMonSeverityMedium,
+      low: this.data.tMonSeverityLow
+    }
+    const categoryLabels = {
+      data_type: '数据类型',
+      deployment: '部署',
+      security: '安全',
+      performance: '性能',
+      logic: '逻辑'
+    }
+    const statusLabels = {
+      active: this.data.tMonBugActive,
+      archived: this.data.tMonBugArchived
+    }
+    return {
+      ...b,
+      severityColor: severityColors[b.severity] || '#999',
+      severityLabel: severityLabels[b.severity] || b.severity,
+      categoryLabel: categoryLabels[b.category] || b.category,
+      statusLabel: statusLabels[b.status] || b.status,
+      titleShort: b.title && b.title.length > 35 ? b.title.substring(0, 35) + '...' : (b.title || ''),
+      timeText: this._formatRelativeTime(b.discovered_at || b.created_at),
+    }
+  },
+
+  async onBugTap(e) {
+    const bugId = e.currentTarget.dataset.id
+    this.setData({ showBugDetail: true, bugDetailLoading: true, currentBug: null })
+    try {
+      const res = await getBugDetail(bugId)
+      if (res.success) {
+        const bug = this._formatBug(res.data)
+        // 解析 affected_files JSON
+        if (bug.affected_files && typeof bug.affected_files === 'string') {
+          try {
+            bug.affected_files_list = JSON.parse(bug.affected_files)
+          } catch (e) {
+            bug.affected_files_list = []
+          }
+        }
+        this.setData({ currentBug: bug, bugDetailLoading: false })
+      }
+    } catch (e) {
+      console.error('加载 Bug 详情失败:', e)
+      this.setData({ bugDetailLoading: false })
+    }
+  },
+
+  closeBugDetail() {
+    this.setData({ showBugDetail: false, currentBug: null })
+  },
+
+  async onArchiveBug() {
+    const bug = this.data.currentBug
+    if (!bug) return
+    try {
+      const res = await archiveBug(bug.bug_id)
+      if (res.success) {
+        wx.showToast({ title: this.data.tMonBugArchiveSuccess, icon: 'success' })
+        this.closeBugDetail()
+        this.loadBugs(true)
+      }
+    } catch (e) {
+      wx.showToast({ title: this.data.tMonBugArchiveFail, icon: 'none' })
+    }
+  },
+
+  onBugCategoryFilterChange(e) {
+    const idx = parseInt(e.detail.value)
+    this.setData({
+      bugCategoryIndex: idx,
+      bugFilterCategory: this.data.bugCategoryValues[idx],
+    })
+    this.loadBugs(true)
+  },
+
+  onBugSearchInput(e) {
+    this.setData({ bugSearchKeyword: e.detail.value })
+  },
+
+  async onBugSearch() {
+    const keyword = this.data.bugSearchKeyword.trim()
+    if (!keyword) {
+      this.loadBugs(true)
+      return
+    }
+    this.setData({ bugLoading: true })
+    try {
+      const res = await searchBugs(keyword)
+      if (res.success) {
+        const items = (res.data || []).map(b => this._formatBug(b))
+        this.setData({ bugs: items, bugNoMore: true })
+      }
+    } catch (e) {
+      wx.showToast({ title: this.data.tMonBugLoadFail, icon: 'none' })
+    } finally {
+      this.setData({ bugLoading: false })
+    }
+  },
+
+  loadMoreBugs() {
+    if (!this.data.bugNoMore && !this.data.bugLoading) {
+      this.loadBugs(false)
     }
   },
 

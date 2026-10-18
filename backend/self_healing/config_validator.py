@@ -158,8 +158,17 @@ class ConfigValidator:
             )
 
     def _record_config_alert(self, title, description, severity, category, fix_suggestion):
-        """记录配置告警"""
-        # 记录到告警系统
+        """记录配置告警（去重：相同标题且状态为 new 的告警已存在则跳过）"""
+        if self.alert_manager and self.db:
+            from .models import SystemAlert
+            existing = self.db.session.query(SystemAlert).filter(
+                SystemAlert.title == title,
+                SystemAlert.status == 'new',
+            ).first()
+            if existing:
+                logger.debug(f'配置告警已存在，跳过: {title}')
+                return
+
         if self.alert_manager:
             self.alert_manager.record_alert(
                 alert_type='warning',

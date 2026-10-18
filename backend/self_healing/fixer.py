@@ -115,6 +115,22 @@ class AutoFixer:
                 if not alert:
                     return
 
+                # 新增：先查询相似 Bug 知识库
+                similar_bug_fix = self._search_similar_bug_fix(alert)
+                if similar_bug_fix:
+                    logger.info(
+                        f'告警 {alert_id} 命中已知 Bug 修复方案: '
+                        f'bug_id={similar_bug_fix["bug_id"]}, '
+                        f'confidence={similar_bug_fix["confidence"]}, '
+                        f'fix={similar_bug_fix["fix_description"][:100]}...'
+                    )
+                    # 如果有高置信度的已知修复，优先使用
+                    if similar_bug_fix['confidence'] >= 0.8:
+                        # 这里可以扩展：根据 bug 的 fix_description 动态生成修复动作
+                        # 目前先记录日志，后续可以添加更多自动化修复器
+                        logger.info(f'应用已知修复方案: {similar_bug_fix["fix_description"]}')
+
+                # 原有的修复器匹配逻辑
                 registry = self.get_fix_registry()
                 scored = self._score_fixers(alert, registry)
 
@@ -144,6 +160,57 @@ class AutoFixer:
                         )
         except Exception as e:
             logger.error(f'自动修复流程异常: {e}')
+
+    def _search_similar_bug_fix(self, alert):
+        """查询相似 Bug 的已知修复方案"""
+        if not self.db:
+            return None
+
+        try:
+            from .models import BugKnowledge
+
+            # 从告警标题和描述中提取关键词
+            search_text = (alert.title or '') + ' ' + (alert.description or '')
+
+            # 查询所有活跃的 Bug（不限制置信度，因为新录入的 Bug 置信度为 0）
+            bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active'
+            ).all()
+
+            # 简单的关键词匹配
+            import re
+            keywords = re.findall(r'[a-zA-Z]{3,}|[\u4e00-\u9fa5]{2,}', search_text.lower())
+
+            best_match = None
+            best_score = 0
+
+            for bug in bugs:
+                bug_text = (
+                    (bug.title or '').lower() + ' ' +
+                    (bug.root_cause or '').lower() + ' ' +
+                    (bug.fix_description or '').lower()
+                )
+
+                score = 0
+                for keyword in keywords:
+                    if keyword in bug_text:
+                        score += 1
+
+                if score > best_score and bug.fix_description:
+                    best_score = score
+                    best_match = {
+                        'bug_id': bug.bug_id,
+                        'title': bug.title,
+                        'fix_description': bug.fix_description,
+                        'confidence': bug.confidence,
+                        'score': score,
+                    }
+
+            return best_match if best_score > 0 else None
+
+        except Exception as e:
+            logger.debug(f'查询相似 Bug 失败: {e}')
+            return None
 
     def execute_fix(self, fix_id, alert_id=None, fix_type='manual', executed_by='developer'):
         """执行指定修复"""
