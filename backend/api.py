@@ -2617,7 +2617,7 @@ def proxy_resource():
             return jsonify({'error': '域名不在白名单中'}), 403
 
         import requests as req
-        resp = req.get(target_url, timeout=10)
+        resp = req.get(target_url, timeout=120)
         if resp.status_code != 200:
             return jsonify({'error': '资源获取失败'}), 500
 
