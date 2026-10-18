@@ -38,6 +38,7 @@ class MemberService:
         return {
             'member_level': user.member_level,
             'is_premium': is_premium,
+            'is_vip': is_premium,
             'is_expired': is_expired,
             'expire_at': user.member_expire_at.isoformat() if user.member_expire_at else None,
             'remaining_days': remaining_days,
