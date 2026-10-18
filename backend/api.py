@@ -4077,11 +4077,7 @@ def generate_drawing_video():
 
         hair_service = HairService()
         cost = hair_service.calculate_cost(user, service_type)
-
-        # 重新生成素描时，需要额外扣除 combined 费用
-        combined_cost = 0
-        if regenerate_sketch:
-            combined_cost = hair_service.calculate_cost(user, 'combined')
+        combined_cost = hair_service.calculate_cost(user, 'combined')
 
         total_cost = cost + combined_cost
 
@@ -4276,16 +4272,15 @@ def generate_drawing_video():
             if not consume_result['success']:
                 return jsonify(consume_result), 400
 
-            # 重新生成素描时，额外扣除 combined 费用
-            if combined_cost > 0:
-                combined_task_id = str(uuid.uuid4())
-                combined_result = hair_service.consume_hairs(
-                    user, 'combined', task_id=combined_task_id,
-                    result_url=original_result_url, sketch_url=sketch_url
-                )
-                if not combined_result['success']:
-                    return jsonify(combined_result), 400
-                consume_result['remaining_total'] = combined_result['remaining_total']
+            # 扣除 combined 费用（素描生成部分）
+            combined_task_id = str(uuid.uuid4())
+            combined_result = hair_service.consume_hairs(
+                user, 'combined', task_id=combined_task_id,
+                result_url=original_result_url or sketch_url, sketch_url=sketch_url
+            )
+            if not combined_result['success']:
+                return jsonify(combined_result), 400
+            consume_result['remaining_total'] = combined_result['remaining_total']
 
             resp_data = {
                 'success': True,
