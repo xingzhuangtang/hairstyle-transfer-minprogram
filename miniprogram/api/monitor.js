@@ -94,3 +94,20 @@ export function verifyAlertResolution(id, data) {
 export function getSimilarBugs(id) {
   return get(`/api/dev/monitor/alerts/${id}/similar-bugs`)
 }
+
+// Bug 知识库
+export function getBugs(params) {
+  return get('/api/dev/monitor/bugs', params)
+}
+
+export function getBugDetail(bugId) {
+  return get(`/api/dev/monitor/bugs/${bugId}`)
+}
+
+export function archiveBug(bugId) {
+  return put(`/api/dev/monitor/bugs/${bugId}/archive`)
+}
+
+export function searchBugs(keyword) {
+  return get('/api/dev/monitor/bugs/search', { keyword })
+}

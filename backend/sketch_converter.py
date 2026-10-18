@@ -246,11 +246,25 @@ class SketchConverter:
                 blur_sigma=kwargs.get('blur_sigma', 21),
                 sharpen=kwargs.get('sharpen', True)
             )
-        elif style == 'color':
+        elif style in ('color', 'vivid'):
             sketch = self.color_sketch(
                 image,
                 blur_sigma=kwargs.get('blur_sigma', 21),
                 color_intensity=kwargs.get('color_intensity', 0.3)
+            )
+        elif style == 'anime':
+            # 动漫风格：使用彩色素描，提高色彩强度
+            sketch = self.color_sketch(
+                image,
+                blur_sigma=kwargs.get('blur_sigma', 18),
+                color_intensity=kwargs.get('color_intensity', 0.5)
+            )
+        elif style == 'ink':
+            # 水墨风格：使用艺术素描，降低模糊强度
+            sketch = self.artistic_sketch(
+                image,
+                blur_sigma=kwargs.get('blur_sigma', 25),
+                sharpen=kwargs.get('sharpen', False)
             )
         else:
             raise ValueError(f"未知的素描风格: {style}")

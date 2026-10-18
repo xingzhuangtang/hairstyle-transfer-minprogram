@@ -28,7 +28,7 @@ class EvolutionAnalyzer:
             return {'error': '数据库未配置'}
 
         try:
-            from .models import SystemAlert, FixExecution
+            from .models import SystemAlert, FixExecution, BugKnowledge
 
             since = datetime.now() - timedelta(days=days)
 
@@ -56,6 +56,9 @@ class EvolutionAnalyzer:
 
             resolved = sum(1 for a in alerts if a.status == 'resolved')
 
+            # 新增：Bug 知识库分析
+            bug_stats = self._analyze_bug_trends(since)
+
             return {
                 'period_days': days,
                 'total_alerts': len(alerts),
@@ -70,6 +73,7 @@ class EvolutionAnalyzer:
                     'success_rate': round(fix_success / fix_total * 100, 1) if fix_total > 0 else 0,
                 },
                 'resolution_rate': round(resolved / len(alerts) * 100, 1) if alerts else 0,
+                'bug_stats': bug_stats,  # 新增
                 'analyzed_at': datetime.now().isoformat(),
             }
 
@@ -77,13 +81,58 @@ class EvolutionAnalyzer:
             logger.error(f'模式分析失败: {e}')
             return {'error': str(e)}
 
+    def _analyze_bug_trends(self, since):
+        """分析 Bug 知识库趋势"""
+        try:
+            from .models import BugKnowledge
+
+            # 统计各分类的 Bug 数量
+            bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active'
+            ).all()
+
+            by_category = Counter(b.category for b in bugs)
+            by_severity = Counter(b.severity for b in bugs)
+
+            # 统计高置信度 Bug（可自动生成防御规则）
+            high_confidence = sum(1 for b in bugs if b.confidence >= 0.7)
+
+            # 统计近期发现的 Bug
+            recent_bugs = [b for b in bugs if b.discovered_at and b.discovered_at >= since]
+
+            # 找出复发率高的 Bug（验证次数多但成功率低）
+            recurring_bugs = []
+            for bug in bugs:
+                if bug.verification_count and bug.verification_count >= 3:
+                    success_rate = (bug.success_count or 0) / bug.verification_count
+                    if success_rate < 0.5:
+                        recurring_bugs.append({
+                            'bug_id': bug.bug_id,
+                            'title': bug.title,
+                            'verification_count': bug.verification_count,
+                            'success_rate': round(success_rate * 100, 1),
+                        })
+
+            return {
+                'total_active': len(bugs),
+                'by_category': dict(by_category),
+                'by_severity': dict(by_severity),
+                'high_confidence_count': high_confidence,
+                'recent_count': len(recent_bugs),
+                'recurring_bugs': recurring_bugs[:5],  # 最多返回 5 个
+            }
+
+        except Exception as e:
+            logger.debug(f'Bug 趋势分析失败: {e}')
+            return {}
+
     def calculate_health_score(self):
         """计算综合健康评分 0-100"""
         if not self.db:
             return {'score': 0, 'error': '数据库未配置'}
 
         try:
-            from .models import SystemAlert, FixExecution, DefenseRule
+            from .models import SystemAlert, FixExecution, DefenseRule, BugKnowledge
 
             now = datetime.now()
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -126,8 +175,12 @@ class EvolutionAnalyzer:
                 .filter(DefenseRule.enabled == 1).count()
             defense_score = round(enabled_rules / total_rules * 100) if total_rules > 0 else 50
 
-            total = (alert_score * 0.3 + fix_score * 0.25 +
-                     system_score * 0.25 + defense_score * 0.2)
+            # 新增：Bug 知识库健康度评分
+            bug_score = self._calculate_bug_health_score()
+
+            # 调整权重，加入 Bug 知识库指标
+            total = (alert_score * 0.25 + fix_score * 0.25 +
+                     system_score * 0.25 + defense_score * 0.15 + bug_score * 0.1)
             total = round(max(0, min(100, total)))
 
             level = 'excellent' if total >= 90 else 'good' if total >= 70 else 'warning' if total >= 50 else 'critical'
@@ -140,6 +193,7 @@ class EvolutionAnalyzer:
                     'fix_score': round(fix_score, 1),
                     'system_score': round(system_score, 1),
                     'defense_score': round(defense_score, 1),
+                    'bug_score': round(bug_score, 1),  # 新增
                 },
                 'summary': {
                     'today_alerts': today_alerts,
@@ -153,6 +207,53 @@ class EvolutionAnalyzer:
         except Exception as e:
             logger.error(f'健康评分计算失败: {e}')
             return {'score': 0, 'error': str(e)}
+
+    def _calculate_bug_health_score(self):
+        """计算 Bug 知识库健康度评分"""
+        try:
+            from .models import BugKnowledge
+
+            total_bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active'
+            ).count()
+
+            if total_bugs == 0:
+                return 100  # 没有 Bug 记录，满分
+
+            # 高置信度 Bug 比例（越高越好，说明知识库质量高）
+            high_confidence = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.confidence >= 0.7,
+            ).count()
+            confidence_ratio = high_confidence / total_bugs
+
+            # 复发率低的 Bug 比例（越高越好）
+            recurring_bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.verification_count >= 3,
+            ).all()
+
+            low_recurrence_count = 0
+            for bug in recurring_bugs:
+                if bug.verification_count > 0:
+                    success_rate = (bug.success_count or 0) / bug.verification_count
+                    if success_rate >= 0.7:
+                        low_recurrence_count += 1
+
+            recurrence_ratio = low_recurrence_count / len(recurring_bugs) if recurring_bugs else 1.0
+
+            # 综合评分：置信度占 60%，复发率占 40%
+            score = confidence_ratio * 60 + recurrence_ratio * 40
+
+            # 惩罚：如果 Bug 总数过多，扣分
+            if total_bugs > 50:
+                score -= (total_bugs - 50) * 0.5
+
+            return max(0, min(100, score))
+
+        except Exception as e:
+            logger.debug(f'Bug 健康度评分计算失败: {e}')
+            return 50  # 默认中等分数
 
     def predict_risks(self):
         """基于趋势预测潜在风险"""
@@ -226,6 +327,10 @@ class EvolutionAnalyzer:
                     'message': f'有 {unresolved} 条告警未处理，建议及时清理',
                 })
 
+            # 新增：Bug 知识库风险预测
+            bug_risks = self._predict_bug_related_risks()
+            risks.extend(bug_risks)
+
             if not risks:
                 risks.append({
                     'level': 'low',
@@ -242,6 +347,75 @@ class EvolutionAnalyzer:
         except Exception as e:
             logger.error(f'风险预测失败: {e}')
             return {'error': str(e)}
+
+    def _predict_bug_related_risks(self):
+        """基于 Bug 知识库预测风险"""
+        risks = []
+
+        try:
+            from .models import BugKnowledge
+
+            # 1. 检查复发率高的 Bug
+            recurring_bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.verification_count >= 3,
+            ).all()
+
+            high_recurrence = []
+            for bug in recurring_bugs:
+                if bug.verification_count > 0:
+                    success_rate = (bug.success_count or 0) / bug.verification_count
+                    if success_rate < 0.5:
+                        high_recurrence.append(bug)
+
+            if high_recurrence:
+                risks.append({
+                    'level': 'high',
+                    'message': f'发现 {len(high_recurrence)} 个高复发率 Bug（修复成功率 < 50%），需要重新审视修复方案',
+                    'bug_count': len(high_recurrence),
+                    'bugs': [{'bug_id': b.bug_id, 'title': b.title} for b in high_recurrence[:3]],
+                })
+
+            # 2. 检查低置信度的 Bug（可能是误判或修复不彻底）
+            low_confidence = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.confidence < 0.5,
+            ).count()
+
+            if low_confidence >= 5:
+                risks.append({
+                    'level': 'medium',
+                    'message': f'有 {low_confidence} 个低置信度 Bug（< 0.5），建议复查根因分析',
+                    'count': low_confidence,
+                })
+
+            # 3. 检查特定分类的 Bug 集中度
+            recent_bugs = self.db.session.query(BugKnowledge).filter(
+                BugKnowledge.status == 'active',
+                BugKnowledge.discovered_at >= datetime.now() - timedelta(days=30),
+            ).all()
+
+            category_counts = Counter(b.category for b in recent_bugs)
+            for category, count in category_counts.most_common(3):
+                if count >= 5:
+                    category_names = {
+                        'data_type': '数据类型',
+                        'deployment': '部署',
+                        'security': '安全',
+                        'performance': '性能',
+                        'logic': '逻辑',
+                    }
+                    risks.append({
+                        'level': 'medium',
+                        'message': f'近 30 天 [{category_names.get(category, category)}] 类 Bug 集中出现 {count} 次，可能存在系统性问题',
+                        'category': category,
+                        'count': count,
+                    })
+
+        except Exception as e:
+            logger.debug(f'Bug 风险预测失败: {e}')
+
+        return risks
 
     def generate_report(self):
         """生成进化报告并写入 EvolutionLog"""

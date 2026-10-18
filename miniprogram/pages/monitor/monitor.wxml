@@ -10,6 +10,7 @@
     <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" data-tab="1" bindtap="onTabChange"><text>{{tMonTabHealth}}</text></view>
     <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" data-tab="2" bindtap="onTabChange"><text>{{tMonTabFix}}</text></view>
     <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" data-tab="3" bindtap="onTabChange"><text>{{tMonTabEvolution}}</text></view>
+    <view class="tab-item {{activeTab === 4 ? 'active' : ''}}" data-tab="4" bindtap="onTabChange"><text>{{tMonTabBugs}}</text></view>
   </view>
 
   <!-- Tab 0: 告警列表 -->
@@ -239,6 +240,11 @@
             <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.defense_score}}%"></view></view>
             <text class="breakdown-value">{{healthScore.breakdown.defense_score}}</text>
           </view>
+          <view class="breakdown-item" wx:if="{{healthScore.breakdown.bug_score !== undefined}}">
+            <text class="breakdown-label">Bug 知识库</text>
+            <view class="breakdown-bar"><view class="bar-fill" style="width: {{healthScore.breakdown.bug_score}}%"></view></view>
+            <text class="breakdown-value">{{healthScore.breakdown.bug_score}}</text>
+          </view>
         </view>
         <view class="score-summary">
           <text>{{tMonTodaySummary}}: {{healthScore.summary.today_alerts}} | {{tMonWeekSummary}}: {{healthScore.summary.week_alerts}} | {{tMonWeekFixes}}: {{healthScore.summary.week_fixes}}</text>
@@ -275,6 +281,93 @@
       </view>
     </view>
   </scroll-view>
+
+  <!-- Tab 4: Bug 知识库 -->
+  <scroll-view scroll-y class="tab-content" wx:if="{{activeTab === 4}}" bindscrolltolower="loadMoreBugs">
+    <view class="filter-section">
+      <view class="filter-row">
+        <text class="filter-label">分类：</text>
+        <picker mode="selector" range="{{bugCategoryOptions}}" value="{{bugCategoryIndex}}" bindchange="onBugCategoryFilterChange">
+          <view class="picker-value">{{bugCategoryOptions[bugCategoryIndex]}} ▼</view>
+        </picker>
+      </view>
+      <view class="search-row">
+        <input class="search-input" placeholder="{{tMonBugSearch}}" value="{{bugSearchKeyword}}" bindinput="onBugSearchInput" bindconfirm="onBugSearch" />
+      </view>
+    </view>
+
+    <view class="alert-list" wx:if="{{bugs.length > 0}}">
+      <view class="alert-card" wx:for="{{bugs}}" wx:key="bug_id" bindtap="onBugTap" data-id="{{item.bug_id}}">
+        <view class="alert-header">
+          <view class="severity-dot" style="background-color: {{item.severityColor}}"></view>
+          <text class="alert-title">{{item.titleShort}}</text>
+        </view>
+        <view class="alert-meta">
+          <text class="bug-id-tag">{{item.bug_id}}</text>
+          <text class="severity-tag" style="color: {{item.severityColor}}; border-color: {{item.severityColor}}">{{item.severityLabel}}</text>
+          <text class="category-tag">{{item.categoryLabel}}</text>
+          <text class="status-tag {{item.status}}">{{item.statusLabel}}</text>
+          <text class="alert-time">{{item.timeText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="load-more" wx:if="{{!bugNoMore && bugs.length > 0}}">
+      <text class="load-more-text" wx:if="{{bugLoading}}">{{tMonLoading}}</text>
+      <text class="load-more-text" wx:else bindtap="loadMoreBugs">{{tMonClickLoadMore}}</text>
+    </view>
+    <view class="empty-state" wx:if="{{bugs.length === 0 && !bugLoading}}">
+      <text class="empty-icon">🐛</text><text class="empty-text">{{tMonNoBugs}}</text>
+    </view>
+  </scroll-view>
+
+  <!-- Bug 详情弹窗 -->
+  <view class="detail-mask" wx:if="{{showBugDetail}}" bindtap="closeBugDetail">
+    <view class="detail-panel" catchtap>
+      <view class="detail-header">
+        <text class="detail-title">{{tMonBugKnowledge}}</text>
+        <text class="detail-close" bindtap="closeBugDetail">×</text>
+      </view>
+      <scroll-view scroll-y class="detail-body">
+        <view class="detail-loading" wx:if="{{bugDetailLoading}}"><text>{{tMonLoading}}</text></view>
+        <block wx:if="{{currentBug && !bugDetailLoading}}">
+          <view class="detail-row"><text class="detail-label">{{tMonBugId}}</text><text class="detail-value">{{currentBug.bug_id}}</text></view>
+          <view class="detail-row"><text class="detail-label">{{tMonBugTitle}}</text><text class="detail-value">{{currentBug.title}}</text></view>
+          <view class="detail-row">
+            <text class="detail-label">{{tMonBugCategoryL}}</text>
+            <text class="detail-value"><text class="category-tag">{{currentBug.categoryLabel}}</text></text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label">{{tMonBugSeverityL}}</text>
+            <text class="detail-value" style="color: {{currentBug.severityColor}}">{{currentBug.severityLabel}}</text>
+          </view>
+          <view class="detail-row"><text class="detail-label">{{tMonBugCreatedAt}}</text><text class="detail-value">{{currentBug.discovered_at || currentBug.created_at}}</text></view>
+          <view class="detail-row" wx:if="{{currentBug.fixed_at}}"><text class="detail-label">{{tMonBugFixedAt}}</text><text class="detail-value">{{currentBug.fixed_at}}</text></view>
+          <view class="detail-section" wx:if="{{currentBug.root_cause}}">
+            <text class="section-title">{{tMonBugRootCauseL}}</text>
+            <text class="section-content">{{currentBug.root_cause}}</text>
+          </view>
+          <view class="detail-section" wx:if="{{currentBug.fix_description}}">
+            <text class="section-title">{{tMonBugFixL}}</text>
+            <text class="section-content">{{currentBug.fix_description}}</text>
+          </view>
+          <view class="detail-section" wx:if="{{currentBug.prevention}}">
+            <text class="section-title">{{tMonBugPreventionL}}</text>
+            <text class="section-content">{{currentBug.prevention}}</text>
+          </view>
+          <view class="detail-section" wx:if="{{currentBug.affected_files_list && currentBug.affected_files_list.length > 0}}">
+            <text class="section-title">{{tMonBugAffectedFiles}}</text>
+            <view class="file-list">
+              <text class="file-item" wx:for="{{currentBug.affected_files_list}}" wx:key="*this">{{item}}</text>
+            </view>
+          </view>
+          <view class="detail-actions" wx:if="{{currentBug.status === 'active'}}">
+            <button class="action-btn resolve" bindtap="onArchiveBug">{{tMonBugArchive}}</button>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
 
   <!-- 告警详情弹窗 -->
   <view class="detail-mask" wx:if="{{showDetail}}" bindtap="closeDetail">
