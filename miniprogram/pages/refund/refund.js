@@ -1,7 +1,7 @@
-import { applyRefund } from '../../api/refund.js'
-import { getToken } from '../../utils/storage.js'
-import { API_BASE_URL } from '../../utils/constants.js'
-import { onLocaleChange } from '../../utils/i18n.js'
+const { applyRefund } = require('../../api/refund.js')
+const { getToken } = require('../../utils/storage.js')
+const { API_BASE_URL } = require('../../utils/constants.js')
+const { onLocaleChange } = require('../../utils/i18n.js')
 
 const app = getApp()
 
