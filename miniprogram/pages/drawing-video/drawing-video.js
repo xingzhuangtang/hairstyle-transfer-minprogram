@@ -1,12 +1,9 @@
 // pages/drawing-video/drawing-video.js
-import { generateDrawingVideo } from '../../api/hair.js'
-import { refreshUserInfo } from '../../utils/auth.js'
-import { API_BASE_URL, PRICING } from '../../utils/constants.js'
-import { onLocaleChange } from '../../utils/i18n.js'
-import { getToken } from '../../utils/storage.js'
-import { getToken } from '../../utils/storage.js'
-import { getToken } from '../../utils/storage.js'
-import { getToken } from '../../utils/storage.js'
+const { generateDrawingVideo } = require('../../api/hair.js')
+const { refreshUserInfo } = require('../../utils/auth.js')
+const { API_BASE_URL, PRICING } = require('../../utils/constants.js')
+const { onLocaleChange } = require('../../utils/i18n.js')
+const { getToken } = require('../../utils/storage.js')
 
 const app = getApp()
 
@@ -465,6 +462,8 @@ Page({
     const videoUrl = this.data.videoUrl
     if (!videoUrl) return
 
+    console.log('[saveVideoToAlbum] Original videoUrl:', videoUrl)
+
     wx.showLoading({ title: this.data.tSaving })
 
     // OSS 域名不在小程序白名单中，需通过服务器代理下载
@@ -478,48 +477,76 @@ Page({
       }
     }
 
+    console.log('[saveVideoToAlbum] Download URL:', downloadUrl)
+    console.log('[saveVideoToAlbum] Has token:', !!header['Authorization'])
+
     wx.downloadFile({
       url: downloadUrl,
       header: header,
       success: (res) => {
-        if (res.statusCode === 200) {
-          // 确保文件有 .mp4 扩展名，否则 saveVideoToPhotosAlbum 可能无法识别
-          let filePath = res.tempFilePath
-          if (!filePath.endsWith('.mp4')) {
-            const newPath = filePath + '.mp4'
-            wx.getFileSystemManager().renameSync(filePath, newPath)
-            filePath = newPath
-          }
+        console.log('[saveVideoToAlbum] Download response:', {
+          statusCode: res.statusCode,
+          tempFilePath: res.tempFilePath,
+          header: res.header
+        })
 
-          wx.saveVideoToPhotosAlbum({
-            filePath: filePath,
-            success: () => {
-              wx.hideLoading()
-              wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
-            },
-            fail: (err) => {
-              wx.hideLoading()
-              if (err.errMsg && err.errMsg.includes('auth deny')) {
-                wx.showModal({
-                  title: this.data.tTip,
-                  content: this.data.tNeedPermission,
-                  success: (modalRes) => {
-                    if (modalRes.confirm) wx.openSetting()
-                  }
-                })
-              } else {
-                wx.showToast({ title: this.data.tSaveFail, icon: 'none' })
-              }
-            }
-          })
+        if (res.statusCode === 200) {
+          let filePath = res.tempFilePath
+          console.log('[saveVideoToAlbum] Downloaded successfully, path:', filePath)
+          this._doSaveVideo(filePath)
         } else {
+          console.error('[saveVideoToAlbum] Download failed with status:', res.statusCode)
           wx.hideLoading()
           wx.showToast({ title: this.data.tDownloadFail, icon: 'none' })
         }
       },
-      fail: () => {
+      fail: (err) => {
+        console.error('[saveVideoToAlbum] Download failed:', err)
         wx.hideLoading()
         wx.showToast({ title: this.data.tDownloadFail, icon: 'none' })
+      }
+    })
+  },
+
+  _doSaveVideo(filePath) {
+    const fs = wx.getFileSystemManager()
+
+    const doSave = (path) => {
+      wx.saveVideoToPhotosAlbum({
+        filePath: path,
+        success: () => {
+          wx.hideLoading()
+          wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
+        },
+        fail: (err) => {
+          wx.hideLoading()
+          if (err.errMsg && err.errMsg.includes('auth deny')) {
+            wx.showModal({
+              title: this.data.tTip,
+              content: this.data.tNeedPermission,
+              success: (modalRes) => {
+                if (modalRes.confirm) wx.openSetting()
+              }
+            })
+          } else {
+            console.error('[saveVideoToAlbum] Save failed:', err)
+            wx.showToast({ title: this.data.tSaveFail, icon: 'none' })
+          }
+        }
+      })
+    }
+
+    const targetPath = `${wx.env.USER_DATA_PATH}/drawing_video_${Date.now()}.mp4`
+    fs.saveFile({
+      tempFilePath: filePath,
+      filePath: targetPath,
+      success: (saveRes) => {
+        console.log('[saveVideoToAlbum] Saved to local:', targetPath)
+        doSave(targetPath)
+      },
+      fail: (err) => {
+        console.error('[saveVideoToAlbum] saveFile failed:', err, ', trying direct save')
+        doSave(filePath)
       }
     })
   },

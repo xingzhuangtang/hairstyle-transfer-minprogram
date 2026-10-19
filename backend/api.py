@@ -2604,6 +2604,7 @@ def proxy_resource():
             return jsonify({'error': '缺少 url 参数'}), 400
 
         target_url = unquote(target_url)
+        print(f'[Proxy] Requesting URL: {target_url[:100]}...')
 
         # 安全检查：只允许代理白名单中的域名
         allowed_domains = [
@@ -2614,11 +2615,13 @@ def proxy_resource():
         from urllib.parse import urlparse
         parsed = urlparse(target_url)
         if parsed.hostname not in allowed_domains:
+            print(f'[Proxy] Domain not in whitelist: {parsed.hostname}')
             return jsonify({'error': '域名不在白名单中'}), 403
 
         import requests as req
         resp = req.get(target_url, timeout=120)
         if resp.status_code != 200:
+            print(f'[Proxy] OSS request failed with status: {resp.status_code}')
             return jsonify({'error': '资源获取失败'}), 500
 
         content_type = resp.headers.get('Content-Type', 'application/octet-stream')
@@ -2632,9 +2635,11 @@ def proxy_resource():
                 if url_path.endswith(ext):
                     content_type = ct
                     break
+        print(f'[Proxy] Returning content: {len(resp.content)} bytes, Content-Type: {content_type}')
         return resp.content, 200, {'Content-Type': content_type}
 
     except Exception as e:
+        print(f'[Proxy] Error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 
