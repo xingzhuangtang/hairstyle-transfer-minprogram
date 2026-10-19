@@ -129,8 +129,10 @@ Page({
 
         this.setData({ isVip, remainingDays, expireAt })
 
+        // 无论是否 VIP 都加载订单，以便查看待支付订单
+        this.loadMemberOrders()
+
         if (isVip) {
-          this.loadMemberOrders()
           this.updateCountdown()
         }
       }
