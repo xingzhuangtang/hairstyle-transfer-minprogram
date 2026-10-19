@@ -480,8 +480,16 @@ Page({
       header: header,
       success: (res) => {
         if (res.statusCode === 200) {
+          // 确保文件有 .mp4 扩展名，否则 saveVideoToPhotosAlbum 可能无法识别
+          let filePath = res.tempFilePath
+          if (!filePath.endsWith('.mp4')) {
+            const newPath = filePath + '.mp4'
+            wx.getFileSystemManager().renameSync(filePath, newPath)
+            filePath = newPath
+          }
+
           wx.saveVideoToPhotosAlbum({
-            filePath: res.tempFilePath,
+            filePath: filePath,
             success: () => {
               wx.hideLoading()
               wx.showToast({ title: this.data.tSaveSuccess, icon: 'success' })
