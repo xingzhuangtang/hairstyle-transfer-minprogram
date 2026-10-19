@@ -152,40 +152,6 @@ def get_config(env=None):
     return config.get(env, DevelopmentConfig)
 
 
-# 充值规则配置
-RECHARGE_RULES = {
-    10: {"scissor_hairs": 1000, "comb_hairs": 0},
-    20: {"scissor_hairs": 2000, "comb_hairs": 88},
-    50: {"scissor_hairs": 5000, "comb_hairs": 588},
-    100: {"scissor_hairs": 10000, "comb_hairs": 1688},
-}
-
-
-# 收费规则配置
-PRICING_RULES = {
-    "normal": {
-        "hair_segment": 4,
-        "face_merge": 4,
-        "sketch": 84,  # 单独素描收费（独立）
-        "combined": 88,  # 综合处理（发型迁移 + 素描）
-        "face_merge_step": 4,  # 分步模式第1步：仅发型迁移
-        "sketch_step": 88,  # 分步模式第2步：基于第1步结果生成素描
-    },
-    "premium": {
-        "hair_segment": 2,
-        "face_merge": 2,
-        "sketch": 42,  # 单独素描收费（会员50%）
-        "combined": 46,  # 综合处理（会员50%）
-        "face_merge_step": 2,  # 分步模式第1步（会员50%）
-        "sketch_step": 44,  # 分步模式第2步（会员50%）
-    },
-}
-
-
-# 会员配置
-MEMBER_CONFIG = {"vip": {"price": 99, "duration_days": 365, "bonus_hairs": 1000}}
-
-
 # ============================================
 # 充值规则配置
 # ============================================
@@ -266,8 +232,7 @@ MEMBER_CONFIG = {
     "vip": {
         "price": 99,                    # ¥99/年
         "duration_days": 365,           # 365 天
-        "purchase_bonus": {"comb_hairs": 1000},  # 购买即赠
-        "renew_bonus": {"comb_hairs": 1000},     # 续费/重新购买也赠
+        "purchase_bonus": {"comb_hairs": 1000},  # 购买/续费即赠
         "privileges": {
             "service_discount": 0.5,           # 50% 折扣
             "history_retention_days": 45,      # 历史记录保留

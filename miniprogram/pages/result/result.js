@@ -24,8 +24,8 @@ Page({
     tResultProcessSuccess: '处理成功',
     tResultOriginal: '原图',
     tResultSketch: '素描',
-    tResultCombSlot: '梳子槽',
-    tResultScissorSlot: '剪刀槽',
+    tResultCombSlot: '梳子发丝',
+    tResultScissorSlot: '剪刀发丝',
     tResultRemaining: '剩余发丝',
     tResultSaveOriginal: '保存原图',
     tResultSaveSketch: '保存素描',
@@ -194,7 +194,7 @@ Page({
     const userInfo = getUserInfo() || {}
     const isPremium = userInfo.member_level === 'vip'
 
-    // 会员 50% 优惠
+    // 会员折扣
     const actualCost = isPremium ? Math.ceil(cost / 2) : cost
 
     // 优先从梳子槽扣费

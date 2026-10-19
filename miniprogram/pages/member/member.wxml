@@ -33,7 +33,7 @@
     <view class="section-title">{{tMemberPrivileges}}</view>
     <view class="privileges-list">
       <view class="privilege-item">
-        <view class="privilege-icon">5</view>
+        <view class="privilege-icon">折</view>
         <view class="privilege-info">
           <text class="privilege-title">{{tMemberPriv50off}}</text>
           <text class="privilege-desc">{{tMemberPriv50desc}}</text>
