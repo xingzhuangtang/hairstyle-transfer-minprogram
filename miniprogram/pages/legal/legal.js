@@ -1,5 +1,5 @@
 // pages/legal/legal.js
-const { onLocaleChange } = require('../../utils/i18n.js')
+import { onLocaleChange } from '../../utils/i18n.js'
 
 const app = getApp()
 

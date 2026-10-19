@@ -1,6 +1,6 @@
 // pages/referral/referral.js
-const { post, get } = require('../../utils/request.js')
-const { onLocaleChange } = require('../../utils/i18n.js')
+import { post, get } from '../../utils/request.js'
+import { onLocaleChange } from '../../utils/i18n.js'
 
 const app = getApp()
 
