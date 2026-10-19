@@ -278,6 +278,7 @@ class MemberService:
         orders = query.offset((page - 1) * page_size).limit(page_size).all()
         
         return {
+            'success': True,
             'orders': [o.to_dict() for o in orders],
             'total': total,
             'page': page,
