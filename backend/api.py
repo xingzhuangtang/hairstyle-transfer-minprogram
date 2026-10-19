@@ -2622,9 +2622,16 @@ def proxy_resource():
             return jsonify({'error': '资源获取失败'}), 500
 
         content_type = resp.headers.get('Content-Type', 'application/octet-stream')
-        # 确保视频文件返回正确的 Content-Type
-        if target_url.lower().endswith('.mp4') and 'video' not in content_type:
+        # 从 URL 路径检测文件类型（兼容带查询参数的 OSS URL）
+        url_path = parsed.path.lower()
+        if url_path.endswith('.mp4') and 'video' not in content_type:
             content_type = 'video/mp4'
+        elif url_path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) and 'image' not in content_type:
+            ext_map = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
+            for ext, ct in ext_map.items():
+                if url_path.endswith(ext):
+                    content_type = ct
+                    break
         return resp.content, 200, {'Content-Type': content_type}
 
     except Exception as e:
