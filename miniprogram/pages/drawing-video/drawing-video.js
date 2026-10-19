@@ -3,6 +3,10 @@ import { generateDrawingVideo } from '../../api/hair.js'
 import { refreshUserInfo } from '../../utils/auth.js'
 import { API_BASE_URL, PRICING } from '../../utils/constants.js'
 import { onLocaleChange } from '../../utils/i18n.js'
+import { getToken } from '../../utils/storage.js'
+import { getToken } from '../../utils/storage.js'
+import { getToken } from '../../utils/storage.js'
+import { getToken } from '../../utils/storage.js'
 
 const app = getApp()
 
@@ -468,7 +472,6 @@ Page({
     const header = {}
     if (!videoUrl.startsWith('/static/') && !videoUrl.startsWith(API_BASE_URL)) {
       downloadUrl = `${API_BASE_URL}/api/proxy/resource?url=${encodeURIComponent(videoUrl)}`
-      const { getToken } = require('../../utils/storage.js')
       const token = getToken()
       if (token) {
         header['Authorization'] = `Bearer ${token}`
