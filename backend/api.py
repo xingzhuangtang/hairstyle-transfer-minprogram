@@ -2622,6 +2622,9 @@ def proxy_resource():
             return jsonify({'error': '资源获取失败'}), 500
 
         content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        # 确保视频文件返回正确的 Content-Type
+        if target_url.lower().endswith('.mp4') and 'video' not in content_type:
+            content_type = 'video/mp4'
         return resp.content, 200, {'Content-Type': content_type}
 
     except Exception as e:
