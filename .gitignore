@@ -28,6 +28,9 @@ temp_*.png
 
 # 调试和测试脚本（本地使用）
 backend/fix_admin_account.py
+backend/fix_financial_records.py
+backend/fix_member_level.py
+backend/manual_fix_recharge.py
 backend/record_*.py
 backend/test_smart_decision.py
 
