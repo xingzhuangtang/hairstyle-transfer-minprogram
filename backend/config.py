@@ -64,7 +64,7 @@ class Config:
     WECHAT_PAY_API_V3_KEY = os.getenv("WECHAT_PAY_API_V3_KEY")  # API v3密钥(32字节)
     WECHAT_NOTIFY_URL = os.getenv("WECHAT_NOTIFY_URL")
 
-    # 微信虚拟支付配置（iOS端）
+    # 微信虚拟支付配置（全平台）
     WECHAT_VIRTUAL_PAY_MCH_ID = os.getenv("WECHAT_VIRTUAL_PAY_MCH_ID", "")  # 虚拟支付商户号
     WECHAT_VIRTUAL_PAY_NOTIFY_URL = os.getenv("WECHAT_VIRTUAL_PAY_NOTIFY_URL", "")  # 虚拟支付回调URL
     VIRTUAL_OFFER_ID = os.getenv("VIRTUAL_OFFER_ID", "")  # 虚拟支付 OfferID

@@ -1,6 +1,6 @@
 /**
  * 平台检测工具
- * 用于区分 iOS 和 Android 端，适配微信虚拟支付
+ * 用于检测当前运行平台
  */
 
 let _platform = null
@@ -67,11 +67,12 @@ function isDevTools() {
 
 /**
  * 是否需要使用虚拟支付
- * iOS 必须使用虚拟支付（遵守 Apple IAP 规定）
- * Android 使用普通微信支付
+ * 虚拟商品全平台（iOS/Android/鸿蒙）统一使用虚拟支付
  */
 function needsVirtualPay() {
-  return isIOS()
+  const platform = getPlatform()
+  // 开发者工具也走虚拟支付流程（方便调试）
+  return platform === 'ios' || platform === 'android' || platform === 'devtools'
 }
 
 /**

@@ -62,6 +62,7 @@ Page({
     tLoginMergeFail: '合并失败',
     tLoginCodeSent: '验证码已发送',
     tLoginSendFail: '发送失败',
+    tLoginSkipGuest: '跳过，以游客身份体验',
     tLoginPhoneFormatError: '手机号格式不正确',
     tLoginPleaseInputPhone: '请输入手机号',
     tLoginPleaseInputCode: '请输入验证码',
@@ -129,6 +130,7 @@ Page({
       tLoginMergeFail: t('login.mergeFail'),
       tLoginCodeSent: t('common.verifyCodeSent'),
       tLoginSendFail: t('common.sendFail'),
+      tLoginSkipGuest: t('login.skipGuest'),
       tLoginPhoneFormatError: t('login.phoneFormatError'),
       tLoginPleaseInputPhone: t('login.pleaseInputPhone'),
       tLoginPleaseInputCode: t('login.pleaseInputCode'),
@@ -445,6 +447,15 @@ Page({
 
     this.setData({
       timer: timer
+    })
+  },
+
+  /**
+   * 跳过登录，以游客身份体验
+   */
+  skipLogin() {
+    wx.switchTab({
+      url: '/pages/index/index'
     })
   },
 

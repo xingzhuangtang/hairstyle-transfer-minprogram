@@ -100,7 +100,8 @@ module.exports = {
     "tip2": "Registered users can log in with phone number",
     "tip3": "Members enjoy 50%～80% off & privileges",
     "bindPhonePlaceholder": "Enter phone number",
-    "bindCodePlaceholder": "Enter verification code"
+    "bindCodePlaceholder": "Enter verification code",
+    "skipGuest": "Skip, browse as guest"
   },
   "index": {
     "comb": "Comb",

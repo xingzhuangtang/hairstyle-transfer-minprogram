@@ -128,4 +128,9 @@
     <text class="tip-text">{{tLoginTip2}}</text>
     <text class="tip-text">{{tLoginTip3}}</text>
   </view>
+
+  <!-- 跳过登录，以游客身份体验 -->
+  <view class="skip-login">
+    <button class="skip-btn" bindtap="skipLogin">{{tLoginSkipGuest}}</button>
+  </view>
 </view>

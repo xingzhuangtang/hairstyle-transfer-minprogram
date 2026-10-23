@@ -91,7 +91,10 @@ Page({
       // 用户信息加载完成后，重新渲染 i18n 文本（使用最新的 daysRemaining）
       this._loadI18n()
     })
-    this.loadChatUnreadCount()
+    // 只有已登录用户才加载未读消息数，避免 401 跳转登录页
+    if (wx.getStorageSync('token')) {
+      this.loadChatUnreadCount()
+    }
     this._updateNavTitle()
   },
 

@@ -18,7 +18,7 @@ export function getRechargeOrders(page = 1, page_size = 20) {
   return get('/api/recharge/orders', { page, page_size })
 }
 
-// ==================== 微信虚拟支付（iOS端）====================
+// ==================== 微信虚拟支付（全平台）====================
 
 /**
  * 通过 wx.login 获取 code，换取 session_key（虚拟支付签名用）
@@ -70,11 +70,11 @@ export function getVirtualPayOrderStatus(orderNo) {
 }
 
 /**
- * 调起微信虚拟支付（iOS 端）
+ * 调起微信虚拟支付（全平台）
  * @param {Object} payParams - 后端返回的虚拟支付参数
  * 参数格式：{ signData, pay_sig, signature, mode }
  */
-function requestVirtualPay(payParams) {
+export function requestVirtualPay(payParams) {
   return new Promise((resolve, reject) => {
     wx.requestVirtualPayment({
       signData: payParams.signData,
@@ -91,63 +91,11 @@ function requestVirtualPay(payParams) {
   })
 }
 
-// ==================== 普通微信支付（Android端）====================
-
-/**
- * 创建普通微信支付订单（Android 端）
- * @param {number} amount - 金额（元）
- * @param {string} paymentMethod - 支付方式 'wxpay'
- */
-export function createWechatPayOrder(amount, paymentMethod = 'wxpay') {
-  return post('/api/recharge/create-order', {
-    amount: amount,
-    payment_method: paymentMethod
-  })
-}
-
-/**
- * 获取充值微信支付参数（Android 端）
- * @param {string} orderNo - 订单号
- * @param {string} paymentMethod - 支付方式 'wxpay'
- */
-export function payRechargeOrder(orderNo, paymentMethod = 'wxpay') {
-  return post('/api/recharge/pay', {
-    order_no: orderNo,
-    payment_method: paymentMethod
-  })
-}
-
-/**
- * 调起普通微信支付（Android 端）
- * @param {Object} payParams - 后端返回的微信支付参数
- * 参数格式：{ timeStamp, nonceStr, package, signType, paySign }
- */
-export function requestWechatPay(payParams) {
-  return new Promise((resolve, reject) => {
-    wx.requestPayment({
-      timeStamp: payParams.timeStamp,
-      nonceStr: payParams.nonceStr,
-      package: payParams.package,
-      signType: payParams.signType || 'MD5',
-      paySign: payParams.paySign,
-      success: (res) => {
-        resolve({ success: true, data: res })
-      },
-      fail: (err) => {
-        reject(err)
-      }
-    })
-  })
-}
-
 export default {
   getRechargeRules,
   getRechargeOrders,
   getSessionKey,
   createVirtualPayOrder,
   getVirtualPayOrderStatus,
-  requestVirtualPay,
-  createWechatPayOrder,
-  payRechargeOrder,
-  requestWechatPay
+  requestVirtualPay
 }

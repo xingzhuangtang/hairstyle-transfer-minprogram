@@ -31,8 +31,10 @@ App({
     // 检查本地是否已有登录信息
     const token = wx.getStorageSync('token')
     if (!token) {
-      // 无登录信息，自动游客静默登录
-      this.guestAutoLogin()
+      // 无登录信息，自动游客静默登录（不阻塞页面加载）
+      this.guestAutoLogin().catch(e => {
+        console.log('游客自动登录最终失败:', e)
+      })
     } else {
       // 已有 token，检查是否需要刷新用户信息
       this.refreshUserInfo()
@@ -185,8 +187,10 @@ App({
   /**
    * 游客自动静默登录
    * 首次进入自动调用微信登录，获取固定的用户 ID（用于追踪客户）
+   * 支持重试，最多重试 2 次
    */
-  async guestAutoLogin() {
+  async guestAutoLogin(retryCount = 0) {
+    const maxRetries = 2
     try {
       const loginRes = await wx.login()
       if (!loginRes.code) {
@@ -205,7 +209,8 @@ App({
         data: {
           code: loginRes.code,
           device_info: deviceInfo
-        }
+        },
+        allowGuest: true  // 登录接口不应触发 401 跳转
       })
 
       if (res.success && res.user) {
@@ -222,6 +227,12 @@ App({
       }
     } catch (e) {
       console.log('游客自动登录失败:', e)
+      // 重试逻辑
+      if (retryCount < maxRetries) {
+        console.log(`游客自动登录重试 (${retryCount + 1}/${maxRetries})...`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await this.guestAutoLogin(retryCount + 1)
+      }
     }
   },
 
