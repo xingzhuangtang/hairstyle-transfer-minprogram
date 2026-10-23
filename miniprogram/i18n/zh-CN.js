@@ -100,7 +100,8 @@ module.exports = {
     "tip2": "已注册用户可使用手机号登录",
     "tip3": "会员享受50%～80%折扣和特权",
     "bindPhonePlaceholder": "请输入手机号",
-    "bindCodePlaceholder": "请输入验证码"
+    "bindCodePlaceholder": "请输入验证码",
+    "skipGuest": "跳过，以游客身份体验"
   },
   "index": {
     "comb": "梳子",

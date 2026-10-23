@@ -2314,7 +2314,7 @@ def admin_refund_applications():
 @api_bp.route("/virtual-pay/create-order", methods=["POST"])
 @login_required
 def create_virtual_pay_order():
-    """创建虚拟支付订单（iOS端），用于购买头发丝充值或VIP会员"""
+    """创建虚拟支付订单（全平台），用于购买头发丝充值或VIP会员"""
     try:
         import uuid
         from datetime import timedelta
@@ -2460,6 +2460,7 @@ def virtual_pay_callback():
     try:
         from virtual_payment_service import WeChatVirtualPayService
         from payment_service import PaymentService
+        from models import MemberOrder
 
         virtual_pay_service = WeChatVirtualPayService()
         payment_service = PaymentService()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-微信虚拟支付服务（iOS端）
+微信虚拟支付服务（全平台）
 用于小程序内虚拟商品购买（头发丝充值、VIP会员）
 """
 
@@ -71,7 +71,7 @@ class WeChatVirtualPayService:
             "attach": body
         }
 
-        sign_data_str = json.dumps(sign_data, separators=(',', ':'))
+        sign_data_str = json.dumps(sign_data, sort_keys=True, separators=(',', ':'))
 
         # 生成支付签名（pay_sig）- 使用 HMAC-SHA256，密钥是 session_key
         pay_sig = self._generate_pay_sig(sign_data_str, session_key)
