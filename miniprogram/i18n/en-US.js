@@ -315,6 +315,7 @@ module.exports = {
     "createOrderFail": "Failed to create order",
     "createVirtualOrderFail": "Failed to create virtual payment order",
     "getPayParamsFail": "Failed to get payment parameters",
+    "virtualPayFail": "Failed to initiate payment",
     "simulatedPay": "Simulated Payment",
     "virtualPayContent": "Initiating WeChat virtual payment ¥{amount}",
     "payCancelled": "Payment cancelled",

@@ -188,8 +188,13 @@ Page({
   async handleVirtualPayFlow(amount) {
     const goodsKey = getVirtualGoodsKey('recharge', amount)
 
+    // 开发者工具/预览模式使用沙箱环境（env=1），真机体验版/正式版使用正式环境（env=0）
+    const accountInfo = wx.getAccountInfoSync()
+    const miniProgramEnv = accountInfo.miniProgram.envVersion
+    const env = miniProgramEnv === 'release' ? 0 : 1
+
     const sessionKey = await getSessionKey()
-    const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey, sessionKey)
+    const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey, sessionKey, env)
 
     if (!orderRes.success) {
       throw new Error(orderRes.error || app.t('balance.createOrderFail'))
@@ -215,6 +220,9 @@ Page({
     if (!payParams) {
       throw new Error(this.data.tBalanceGetPayParamsFail)
     }
+
+    console.log('虚拟支付参数:', payParams)
+    console.log('signData:', payParams.signData)
 
     wx.hideLoading()
 

@@ -41,7 +41,14 @@ export function getSessionKey() {
           })
           .catch(reject)
       },
-      fail: (err) => reject(err)
+      fail: (err) => {
+        const errMsg = err.errMsg || ''
+        if (errMsg.includes('INVALID_LOGIN') || errMsg.includes('access_token expired')) {
+          reject(new Error('微信登录态已过期，请关闭并重新打开微信开发者工具'))
+        } else {
+          reject(err)
+        }
+      }
     })
   })
 }
@@ -52,13 +59,15 @@ export function getSessionKey() {
  * @param {number} amount - 金额（元）
  * @param {string} goodsKey - 虚拟商品键
  * @param {string} sessionKey - 从 wx.login 换取的 session_key
+ * @param {number} env - 0=正式环境, 1=沙箱环境（开发者工具默认用沙箱）
  */
-export function createVirtualPayOrder(orderType, amount, goodsKey, sessionKey) {
+export function createVirtualPayOrder(orderType, amount, goodsKey, sessionKey, env = 0) {
   return post('/api/virtual-pay/create-order', {
     order_type: orderType,
     amount: amount,
     goods_key: goodsKey,
-    session_key: sessionKey
+    session_key: sessionKey,
+    env: env
   })
 }
 
@@ -78,7 +87,7 @@ export function requestVirtualPay(payParams) {
   return new Promise((resolve, reject) => {
     wx.requestVirtualPayment({
       signData: payParams.signData,
-      pay_sig: payParams.pay_sig,
+      paySig: payParams.pay_sig,
       signature: payParams.signature,
       mode: payParams.mode || 'short_series_goods',
       success: (res) => {

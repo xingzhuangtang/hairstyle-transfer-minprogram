@@ -2332,6 +2332,7 @@ def create_virtual_pay_order():
         amount = data.get("amount")  # 金额（元）
         goods_key = data.get("goods_key")  # 商品键，如 recharge_10, member_vip
         session_key = data.get("session_key")  # 用户 session_key（从 wx.login 获取）
+        env = data.get("env", 0)  # 0=正式环境, 1=沙箱环境
 
         if not order_type or not amount or not goods_key or not session_key:
             return jsonify({"error": "参数不完整，需要 session_key"}), 400
@@ -2439,6 +2440,7 @@ def create_virtual_pay_order():
             goods_id=goods_id,
             body=body,
             session_key=session_key,
+            env=env,
         )
 
         return jsonify({
@@ -2458,6 +2460,7 @@ def create_virtual_pay_order():
 def virtual_pay_callback():
     """虚拟支付回调接口，微信服务器在用户完成支付后调用"""
     try:
+        import logging
         from virtual_payment_service import WeChatVirtualPayService
         from payment_service import PaymentService
         from models import MemberOrder
@@ -2465,45 +2468,47 @@ def virtual_pay_callback():
         virtual_pay_service = WeChatVirtualPayService()
         payment_service = PaymentService()
 
-        callback_data = request.get_json()
+        callback_data = request.get_json(silent=True) or {}
+        logging.info(f"虚拟支付回调原始数据: {callback_data}")
 
-        # 验证回调签名
         verified_data = virtual_pay_service.verify_callback(callback_data)
-        if not verified_data:
-            return jsonify({"return_code": "FAIL", "return_msg": "签名验证失败"}), 400
 
-        order_no = verified_data.get("out_trade_no")
+        order_no = verified_data.get("out_trade_no") or verified_data.get("outTradeNo")
         if not order_no:
+            logging.error(f"虚拟支付回调缺少订单号，数据: {verified_data}")
             return jsonify({"return_code": "FAIL", "return_msg": "订单号缺失"}), 400
 
-        # 检查支付状态
-        pay_status = verified_data.get("result_code")  # SUCCESS 或 FAIL
+        # 微信虚拟支付回调的支付状态字段可能是 result_code 或 status
+        pay_status = verified_data.get("result_code") or verified_data.get("status")
 
-        if pay_status == "SUCCESS":
-            # 查找订单并处理成功
-            transaction_id = verified_data.get("transaction_id", f"VIRTUAL_{order_no}")
+        if pay_status in ("SUCCESS", "success", "0"):
+            transaction_id = verified_data.get("transaction_id") or verified_data.get("transactionId") or f"VIRTUAL_{order_no}"
             order = RechargeRecord.query.filter_by(order_no=order_no).first()
             if order:
                 payment_service.process_recharge_success(order_no, transaction_id)
+                logging.info(f"虚拟支付充值回调成功: {order_no}")
             else:
                 order = MemberOrder.query.filter_by(order_no=order_no).first()
                 if order:
                     payment_service.process_member_success(order_no, transaction_id)
+                    logging.info(f"虚拟支付会员回调成功: {order_no}")
+                else:
+                    logging.error(f"虚拟支付回调找不到订单: {order_no}")
 
             return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
         else:
-            # 支付失败，更新状态
             order = RechargeRecord.query.filter_by(order_no=order_no).first() or \
                     MemberOrder.query.filter_by(order_no=order_no).first()
             if order:
                 order.payment_status = "failed"
                 db.session.commit()
+                logging.warning(f"虚拟支付回调支付失败: {order_no}, status={pay_status}")
 
             return jsonify({"return_code": "FAIL", "return_msg": "支付失败"})
 
     except Exception as e:
         import logging
-        logging.error(f"虚拟支付回调处理失败: {e}")
+        logging.error(f"虚拟支付回调处理失败: {e}", exc_info=True)
         return jsonify({"return_code": "FAIL", "return_msg": str(e)}), 500
 
 

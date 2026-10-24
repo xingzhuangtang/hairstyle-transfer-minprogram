@@ -1244,5 +1244,12 @@ Page({
       title: app.t('index.imageLoadFail'),
       icon: 'none'
     })
+  },
+
+  onShareAppMessage() {
+    return {
+      title: app.t('app.name') || '发型迁移',
+      path: '/pages/index/index'
+    }
   }
 })

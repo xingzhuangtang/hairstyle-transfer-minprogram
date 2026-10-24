@@ -317,6 +317,7 @@ module.exports = {
     "createOrderFail": "创建订单失败",
     "createVirtualOrderFail": "创建虚拟支付订单失败",
     "getPayParamsFail": "获取支付参数失败",
+    "virtualPayFail": "调起支付失败",
     "simulatedPay": "模拟支付",
     "virtualPayContent": "正在调起微信虚拟支付 ¥{amount}",
     "payCancelled": "已取消支付",

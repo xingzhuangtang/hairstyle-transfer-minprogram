@@ -183,9 +183,12 @@ Page({
   async handleVirtualPayFlow() {
     const goodsKey = getVirtualGoodsKey('member', 99)
 
+    // 开发者工具使用沙箱环境（env=1），真机使用正式环境（env=0）
+    const env = require('../../utils/platform.js').isDevTools() ? 1 : 0
+
     const sessionKey = await getSessionKey()
 
-    const orderRes = await createVirtualPayOrder('member', 99, goodsKey, sessionKey)
+    const orderRes = await createVirtualPayOrder('member', 99, goodsKey, sessionKey, env)
     if (!orderRes.success) throw new Error(orderRes.error)
 
     const orderNo = orderRes.order_no
