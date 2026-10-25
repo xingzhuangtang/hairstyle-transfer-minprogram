@@ -67,6 +67,7 @@ class WeChatVirtualPayService:
             sign_key = self.config.VIRTUAL_PRODUCTION_APP_KEY or self.config.VIRTUAL_SANDBOX_APP_KEY
 
         # 构建 signData（不包含 mode，mode 是独立参数）
+        # 字段顺序必须与 JS JSON.stringify 一致（插入顺序），因为微信客户端会解析后重新序列化
         sign_data = {
             "offerId": self.config.VIRTUAL_OFFER_ID,
             "buyQuantity": 1,
@@ -78,7 +79,8 @@ class WeChatVirtualPayService:
             "attach": body
         }
 
-        sign_data_str = json.dumps(sign_data, sort_keys=True, separators=(',', ':'))
+        # 使用 sorted keys + compact 格式（微信官方示例常用格式）
+        sign_data_str = json.dumps(sign_data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
 
         # 生成支付签名（pay_sig）- 统一用 HMAC-SHA256
         pay_sig = self._generate_pay_sig(sign_data_str, sign_key)
@@ -103,7 +105,7 @@ class WeChatVirtualPayService:
     def _generate_pay_sig(self, sign_data_str, app_key=None):
         """
         生成支付签名（pay_sig）
-        签名算法：hmac_sha256(AppKey, "requestVirtualPayment&" + signData) 大写
+        签名算法：hmac_sha256(AppKey, "requestVirtualPayment&" + signData) 小写
         注意：wx.requestVirtualPayment 的 uri 固定为 "requestVirtualPayment"
         """
         import hmac
@@ -116,7 +118,7 @@ class WeChatVirtualPayService:
             app_key.encode('utf-8'),
             sign_content.encode('utf-8'),
             hashlib.sha256
-        ).hexdigest().upper()
+        ).hexdigest()
         return signature
 
     def _generate_signature(self, sign_data_str, session_key):

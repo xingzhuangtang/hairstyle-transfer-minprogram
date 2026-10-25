@@ -188,10 +188,8 @@ Page({
   async handleVirtualPayFlow(amount) {
     const goodsKey = getVirtualGoodsKey('recharge', amount)
 
-    // 开发者工具/预览模式使用沙箱环境（env=1），真机体验版/正式版使用正式环境（env=0）
-    const accountInfo = wx.getAccountInfoSync()
-    const miniProgramEnv = accountInfo.miniProgram.envVersion
-    const env = miniProgramEnv === 'release' ? 0 : 1
+    // 临时强制使用生产环境测试
+    const env = 0
 
     const sessionKey = await getSessionKey()
     const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey, sessionKey, env)
