@@ -67,7 +67,7 @@ class WeChatVirtualPayService:
             sign_key = self.config.VIRTUAL_PRODUCTION_APP_KEY or self.config.VIRTUAL_SANDBOX_APP_KEY
 
         # 构建 signData（不包含 mode，mode 是独立参数）
-        # 字段顺序必须与 JS JSON.stringify 一致（插入顺序），因为微信客户端会解析后重新序列化
+        # 使用 sort_keys=True 保证跨语言序列化一致性
         sign_data = {
             "offerId": self.config.VIRTUAL_OFFER_ID,
             "buyQuantity": 1,

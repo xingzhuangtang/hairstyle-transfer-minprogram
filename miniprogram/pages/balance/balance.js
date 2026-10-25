@@ -188,8 +188,8 @@ Page({
   async handleVirtualPayFlow(amount) {
     const goodsKey = getVirtualGoodsKey('recharge', amount)
 
-    // 临时强制使用生产环境测试
-    const env = 0
+    // 开发者工具使用沙箱环境（env=1），真机使用正式环境（env=0）
+    const env = require('../../utils/platform.js').isDevTools() ? 1 : 0
 
     const sessionKey = await getSessionKey()
     const orderRes = await createVirtualPayOrder('recharge', amount, goodsKey, sessionKey, env)
@@ -218,9 +218,6 @@ Page({
     if (!payParams) {
       throw new Error(this.data.tBalanceGetPayParamsFail)
     }
-
-    console.log('虚拟支付参数:', payParams)
-    console.log('signData:', payParams.signData)
 
     wx.hideLoading()
 
