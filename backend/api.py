@@ -2485,11 +2485,21 @@ def virtual_pay_callback():
             transaction_id = verified_data.get("transaction_id") or verified_data.get("transactionId") or f"VIRTUAL_{order_no}"
             order = RechargeRecord.query.filter_by(order_no=order_no).first()
             if order:
+                # 金额校验
+                callback_amount = float(verified_data.get("total_fee", 0)) / 100
+                if abs(order.amount - callback_amount) > 0.01:
+                    logging.error(f"充值回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
+                    return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
                 payment_service.process_recharge_success(order_no, transaction_id)
                 logging.info(f"虚拟支付充值回调成功: {order_no}")
             else:
                 order = MemberOrder.query.filter_by(order_no=order_no).first()
                 if order:
+                    # 金额校验
+                    callback_amount = float(verified_data.get("total_fee", 0)) / 100
+                    if abs(order.amount - callback_amount) > 0.01:
+                        logging.error(f"会员回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
+                        return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
                     payment_service.process_member_success(order_no, transaction_id)
                     logging.info(f"虚拟支付会员回调成功: {order_no}")
                 else:
