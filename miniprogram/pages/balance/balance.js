@@ -141,6 +141,16 @@ Page({
   },
 
   /**
+   * 手动刷新余额
+   */
+  async refreshBalance() {
+    wx.showLoading({ title: '刷新中...' })
+    await this.loadUserInfo()
+    wx.hideLoading()
+    wx.showToast({ title: '刷新成功', icon: 'success' })
+  },
+
+  /**
    * 选择充值金额
    */
   selectAmount(e) {
@@ -240,7 +250,7 @@ Page({
     wx.showLoading({ title: this.data.tBalanceProcessing })
 
     let count = 0
-    const maxCount = 15
+    const maxCount = 60  // 延长到 60 次（120 秒）
     const timer = setInterval(async () => {
       count++
 
@@ -276,9 +286,12 @@ Page({
             clearInterval(timer)
             wx.hideLoading()
 
-            wx.showToast({
-              title: this.data.tBalancePayTimeout,
-              icon: 'none'
+            // 超时后提示用户可以稍后查看或手动刷新
+            wx.showModal({
+              title: '支付处理中',
+              content: '支付结果确认中，请稍后在"我的"页面查看余额，或下拉刷新',
+              showCancel: false,
+              confirmText: '知道了'
             })
           }
         }
@@ -293,10 +306,5 @@ Page({
         })
       }
     }, 2000)
-
-    setTimeout(() => {
-      clearInterval(timer)
-      wx.hideLoading()
-    }, 30000)
   }
 })

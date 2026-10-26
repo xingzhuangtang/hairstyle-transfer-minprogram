@@ -2469,7 +2469,7 @@ def virtual_pay_callback():
         payment_service = PaymentService()
 
         callback_data = request.get_json(silent=True) or {}
-        logging.info(f"虚拟支付回调原始数据: {callback_data}")
+        logging.info(f"虚拟支付回调: IP={request.remote_addr}, data={callback_data}")
 
         verified_data = virtual_pay_service.verify_callback(callback_data)
 
@@ -2490,8 +2490,13 @@ def virtual_pay_callback():
                 if abs(order.amount - callback_amount) > 0.01:
                     logging.error(f"充值回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
                     return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
-                payment_service.process_recharge_success(order_no, transaction_id)
-                logging.info(f"虚拟支付充值回调成功: {order_no}")
+                result = payment_service.process_recharge_success(order_no, transaction_id)
+                if result['success']:
+                    logging.info(f"虚拟支付充值回调成功: {order_no}")
+                    return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
+                else:
+                    logging.error(f"虚拟支付充值回调处理失败: {order_no}, error={result.get('error')}")
+                    return jsonify({"return_code": "FAIL", "return_msg": result.get('error', '处理失败')}), 500
             else:
                 order = MemberOrder.query.filter_by(order_no=order_no).first()
                 if order:
@@ -2500,10 +2505,16 @@ def virtual_pay_callback():
                     if abs(order.amount - callback_amount) > 0.01:
                         logging.error(f"会员回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
                         return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
-                    payment_service.process_member_success(order_no, transaction_id)
-                    logging.info(f"虚拟支付会员回调成功: {order_no}")
+                    result = payment_service.process_member_success(order_no, transaction_id)
+                    if result['success']:
+                        logging.info(f"虚拟支付会员回调成功: {order_no}")
+                        return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
+                    else:
+                        logging.error(f"虚拟支付会员回调处理失败: {order_no}, error={result.get('error')}")
+                        return jsonify({"return_code": "FAIL", "return_msg": result.get('error', '处理失败')}), 500
                 else:
                     logging.error(f"虚拟支付回调找不到订单: {order_no}")
+                    return jsonify({"return_code": "FAIL", "return_msg": "订单不存在"}), 404
 
             return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
         else:
@@ -2548,6 +2559,86 @@ def get_virtual_pay_order_status(order_no):
         })
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route("/virtual-pay/query/<order_no>", methods=["GET"])
+@login_required
+def query_virtual_pay_order(order_no):
+    """主动查询虚拟支付订单状态（补偿机制）"""
+    try:
+        import logging
+        from datetime import datetime, timedelta
+        from models import RechargeRecord, MemberOrder
+        from payment_service import PaymentService
+
+        user = g.current_user
+
+        # 查找订单
+        order = RechargeRecord.query.filter_by(order_no=order_no, user_id=user.id).first()
+        if not order:
+            order = MemberOrder.query.filter_by(order_no=order_no, user_id=user.id).first()
+
+        if not order:
+            return jsonify({"error": "订单不存在"}), 404
+
+        # 如果订单已经是 success，直接返回
+        if order.payment_status == 'success':
+            return jsonify({
+                "success": True,
+                "payment_status": "success",
+                "source": "local"
+            })
+
+        # 如果订单是 pending 且创建超过 2 分钟，尝试主动查询
+        if order.payment_status == 'pending' and order.created_at:
+            time_diff = datetime.now() - order.created_at
+            if time_diff > timedelta(minutes=2):
+                logging.info(f"主动查询虚拟支付订单: {order_no}, 创建时间: {order.created_at}")
+
+                # 对于普通微信支付订单，可以调用微信 API 查询
+                if order.payment_method == 'wechat':
+                    try:
+                        from payment_service import WeChatPayService
+                        wechat_service = WeChatPayService()
+                        result = wechat_service.wechat_pay.query_order(order_no)
+
+                        if result.get('success'):
+                            trade_state = result.get('trade_state')
+                            if trade_state == 'SUCCESS':
+                                payment_service = PaymentService()
+                                transaction_id = result.get('transaction_id', f"QUERY_{order_no}")
+                                process_result = payment_service.process_recharge_success(order_no, transaction_id)
+
+                                if process_result['success']:
+                                    return jsonify({
+                                        "success": True,
+                                        "payment_status": "success",
+                                        "source": "wechat_query"
+                                    })
+                            elif trade_state in ['CLOSED', 'REVOKED', 'PAYERROR']:
+                                order.payment_status = 'failed'
+                                db.session.commit()
+                                return jsonify({
+                                    "success": True,
+                                    "payment_status": "failed",
+                                    "source": "wechat_query"
+                                })
+                    except Exception as e:
+                        logging.error(f"查询微信支付订单失败: {order_no}, error={e}")
+
+        return jsonify({
+            "success": True,
+            "order_no": order.order_no,
+            "payment_status": order.payment_status,
+            "amount": float(order.amount),
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "source": "local"
+        })
+
+    except Exception as e:
+        import logging
+        logging.error(f"查询虚拟支付订单失败: {order_no}, error={e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -4134,22 +4225,51 @@ def generate_drawing_video():
                 from bailian_sketch_converter import BailianSketchConverter
                 from app import upload_to_oss, get_full_url
 
-                record = HistoryRecord.query.filter(
-                    HistoryRecord.user_id == user.id,
-                    HistoryRecord.service_type.in_(('sketch', 'combined', 'sk_step')),
-                    HistoryRecord.result_url.isnot(None),
-                    HistoryRecord.result_url != ''
-                ).order_by(HistoryRecord.created_at.desc()).first()
+                result_url = data.get('result_url')
+                source_label = '前端传入'
 
-                if not record:
-                    return jsonify({
-                        'success': False,
-                        'error': '没有找到原始记录，无法重新生成素描'
-                    }), 404
+                def _is_valid_source(url):
+                    if not url:
+                        return False
+                    lower = url.lower()
+                    if lower.endswith('.mp4') or lower.endswith('.mov') or lower.endswith('.avi'):
+                        return False
+                    return True
 
-                result_url = record.result_url
-                original_result_url = result_url  # 保存原始图片 URL，用于返回给前端
-                print(f"📹 视频生成 - 原图 result_url: {result_url}")
+                if not _is_valid_source(result_url):
+                    result_url = None
+
+                if not result_url:
+                    record = HistoryRecord.query.filter(
+                        HistoryRecord.user_id == user.id,
+                        HistoryRecord.service_type == 'combined',
+                        HistoryRecord.result_url.isnot(None),
+                        HistoryRecord.result_url != ''
+                    ).order_by(HistoryRecord.created_at.desc()).first()
+
+                    if not record:
+                        record = HistoryRecord.query.filter(
+                            HistoryRecord.user_id == user.id,
+                            HistoryRecord.service_type.in_(('sketch', 'sk_step')),
+                            HistoryRecord.result_url.isnot(None),
+                            HistoryRecord.result_url != ''
+                        ).order_by(HistoryRecord.created_at.desc()).first()
+
+                    if not record:
+                        return jsonify({
+                            'success': False,
+                            'error': '没有找到原始记录，无法重新生成素描'
+                        }), 404
+
+                    result_url = record.result_url
+                    source_label = f'历史记录(id={record.id}, type={record.service_type})'
+
+                if not _is_valid_source(result_url):
+                    print(f"📹 视频生成 - 源文件不是图片: {result_url}")
+                    return jsonify({'success': False, 'error': '原始记录文件类型错误，请重新进行发型迁移'}), 400
+
+                original_result_url = result_url
+                print(f"📹 视频生成 - 原图来源: {source_label}, result_url: {result_url}")
 
                 from urllib.parse import urlparse as _urlparse
                 parsed_r = _urlparse(result_url)
@@ -4162,7 +4282,8 @@ def generate_drawing_video():
                     if os.path.exists(local_full):
                         import shutil
                         shutil.copy(local_full, result_local)
-                        print(f"📹 视频生成 - 原图已从本地复制: {local_full}")
+                        file_size = os.path.getsize(local_full)
+                        print(f"📹 视频生成 - 原图已从本地复制: {local_full} ({file_size} bytes)")
                     else:
                         print(f"📹 视频生成 - 原图本地文件不存在: {local_full}")
                         return jsonify({'success': False, 'error': '原图文件不存在'}), 400

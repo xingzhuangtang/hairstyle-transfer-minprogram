@@ -327,6 +327,7 @@ Page({
       const res = await generateDrawingVideo({
         style: this.data.style,
         sketch_url: this.data.sketchUrl,
+        result_url: this.data.resultUrl || '',
         mode: 'programmatic',
         regenerate_sketch: isRegenerate
       })

@@ -71,8 +71,9 @@
 
   <!-- 手机号绑定弹窗（微信登录后如果没有手机号则弹出） -->
   <view class="bind-phone-modal" wx:if="{{showBindPhoneModal}}">
-    <view class="modal-mask"></view>
+    <view class="modal-mask" bindtap="closeBindPhoneModal"></view>
     <view class="modal-content">
+      <view class="modal-close" bindtap="closeBindPhoneModal">✕</view>
       <view class="modal-title">{{tLoginBindPhone}}</view>
       <view class="modal-desc">{{tLoginBindPhoneDesc}}</view>
       <view class="input-group">

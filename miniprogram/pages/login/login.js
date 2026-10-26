@@ -451,6 +451,17 @@ Page({
   },
 
   /**
+   * 关闭绑定手机号弹窗
+   */
+  closeBindPhoneModal() {
+    this.setData({
+      showBindPhoneModal: false,
+      pendingToken: '',
+      pendingUserInfo: null
+    })
+  },
+
+  /**
    * 跳过登录，以游客身份体验
    */
   skipLogin() {

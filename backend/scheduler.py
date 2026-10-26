@@ -137,6 +137,140 @@ def configure_scheduler(celery, app):
             if success_count > 0:
                 print(f"✅ 本次检查共发放 {success_count} 笔普通用户/会员续赠，跳过 {skip_count} 笔")
 
+    # 每 5 分钟检查待支付订单（补偿回调丢失）
+    @celery.task
+    def check_pending_recharge_orders():
+        """检查待支付订单，主动查询微信支付状态"""
+        with app.app_context():
+            from models import RechargeRecord, MemberOrder, db
+            from payment_service import PaymentService, WeChatPayService
+            from datetime import datetime, timedelta
+
+            # 查找2分钟前创建的待支付订单（给回调一些时间）
+            cutoff_time = datetime.now() - timedelta(minutes=2)
+
+            pending_recharge_orders = RechargeRecord.query.filter(
+                RechargeRecord.payment_status == 'pending',
+                RechargeRecord.created_at <= cutoff_time
+            ).all()
+
+            pending_member_orders = MemberOrder.query.filter(
+                MemberOrder.payment_status == 'pending',
+                MemberOrder.created_at <= cutoff_time
+            ).all()
+
+            if not pending_recharge_orders and not pending_member_orders:
+                return
+
+            payment_service = PaymentService()
+            fixed_count = 0
+            queried_count = 0
+
+            # 检查充值订单
+            for order in pending_recharge_orders:
+                try:
+                    time_diff = datetime.now() - order.created_at
+
+                    # 对于普通微信支付订单，主动查询微信 API
+                    if order.payment_method == 'wechat' and time_diff > timedelta(minutes=2):
+                        try:
+                            wechat_service = WeChatPayService()
+                            result = wechat_service.wechat_pay.query_order(order.order_no)
+
+                            if result.get('success'):
+                                trade_state = result.get('trade_state')
+                                queried_count += 1
+
+                                if trade_state == 'SUCCESS':
+                                    # 支付成功，处理订单
+                                    transaction_id = result.get('transaction_id', f"QUERY_{order.order_no}")
+                                    process_result = payment_service.process_recharge_success(
+                                        order.order_no, transaction_id
+                                    )
+                                    if process_result['success']:
+                                        print(f"✅ 补偿成功（微信查询）: {order.order_no}")
+                                        fixed_count += 1
+                                    else:
+                                        print(f"❌ 补偿处理失败: {order.order_no}, error={process_result.get('error')}")
+                                elif trade_state in ['CLOSED', 'REVOKED', 'PAYERROR']:
+                                    # 支付失败或关闭
+                                    order.payment_status = 'failed'
+                                    print(f"⚠️ 订单支付失败: {order.order_no}, state={trade_state}")
+                                    fixed_count += 1
+                                # else: 仍在支付中，不处理
+                        except Exception as e:
+                            print(f"❌ 查询微信支付订单失败 {order.order_no}: {e}")
+
+                    # 对于虚拟支付订单，暂时无法主动查询，延长超时时间到 60 分钟
+                    elif order.payment_method == 'wechat_virtual':
+                        if time_diff > timedelta(minutes=60):
+                            order.payment_status = 'failed'
+                            print(f"️ 虚拟支付订单超时自动关闭: {order.order_no}")
+                            fixed_count += 1
+
+                    # 其他支付方式，30 分钟超时
+                    else:
+                        if time_diff > timedelta(minutes=30):
+                            order.payment_status = 'failed'
+                            print(f"️ 订单超时自动关闭: {order.order_no}")
+                            fixed_count += 1
+
+                except Exception as e:
+                    print(f"❌ 检查订单失败 {order.order_no}: {e}")
+
+            # 检查会员订单
+            for order in pending_member_orders:
+                try:
+                    time_diff = datetime.now() - order.created_at
+
+                    # 对于普通微信支付订单，主动查询
+                    if order.payment_method == 'wechat' and time_diff > timedelta(minutes=2):
+                        try:
+                            wechat_service = WeChatPayService()
+                            result = wechat_service.wechat_pay.query_order(order.order_no)
+
+                            if result.get('success'):
+                                trade_state = result.get('trade_state')
+                                queried_count += 1
+
+                                if trade_state == 'SUCCESS':
+                                    transaction_id = result.get('transaction_id', f"QUERY_{order.order_no}")
+                                    process_result = payment_service.process_member_success(
+                                        order.order_no, transaction_id
+                                    )
+                                    if process_result['success']:
+                                        print(f"✅ 会员订单补偿成功（微信查询）: {order.order_no}")
+                                        fixed_count += 1
+                                    else:
+                                        print(f"❌ 会员订单补偿处理失败: {order.order_no}, error={process_result.get('error')}")
+                                elif trade_state in ['CLOSED', 'REVOKED', 'PAYERROR']:
+                                    order.payment_status = 'failed'
+                                    print(f"⚠️ 会员订单支付失败: {order.order_no}, state={trade_state}")
+                                    fixed_count += 1
+                        except Exception as e:
+                            print(f"❌ 查询微信会员订单失败 {order.order_no}: {e}")
+
+                    # 虚拟支付订单，60 分钟超时
+                    elif order.payment_method == 'wechat_virtual':
+                        if time_diff > timedelta(minutes=60):
+                            order.payment_status = 'failed'
+                            print(f"⚠️ 虚拟支付会员订单超时自动关闭: {order.order_no}")
+                            fixed_count += 1
+
+                    # 其他支付方式，30 分钟超时
+                    else:
+                        if time_diff > timedelta(minutes=30):
+                            order.payment_status = 'failed'
+                            print(f"⚠️ 会员订单超时自动关闭: {order.order_no}")
+                            fixed_count += 1
+
+                except Exception as e:
+                    print(f" 检查会员订单失败 {order.order_no}: {e}")
+
+            if fixed_count > 0 or queried_count > 0:
+                db.session.commit()
+                print(f"✅ 本次检查共处理 {fixed_count} 个订单，查询 {queried_count} 个微信订单")
+
     # 配置定时任务
     celery.conf.beat_schedule = {
         # 每天凌晨 2 点检查会员到期提醒
@@ -163,6 +297,11 @@ def configure_scheduler(celery, app):
         'check-registered-bonus': {
             'task': 'scheduler.check_registered_bonus',
             'schedule': crontab(minute='*/30'),
+        },
+        # 每 5 分钟检查待支付订单（补偿回调丢失）
+        'check-pending-recharge-orders': {
+            'task': 'scheduler.check_pending_recharge_orders',
+            'schedule': crontab(minute='*/5'),
         },
     }
 
