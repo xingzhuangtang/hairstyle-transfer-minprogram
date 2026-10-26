@@ -259,7 +259,7 @@ module.exports = {
     "notBound": "Not bound",
     "change": "Change",
     "userId": "User ID",
-    "dbUserId": "User ID",
+    "dbUserId": "Account ID",
     "tipText": "After changing your nickname, other users will see the new name",
     "changePhone": "Change Phone Number",
     "changePhoneDesc": "Enter new phone number and verify",

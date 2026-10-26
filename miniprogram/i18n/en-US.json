@@ -207,7 +207,7 @@
     "unknown": "Unknown",
     "profileTip": "Other users will see your new nickname after saving",
     "title": "Settings",
-    "dbUserId": "User ID"
+    "dbUserId": "Account ID"
   },
   "result": {
     "sketchSuccess": "Sketch optimized",
