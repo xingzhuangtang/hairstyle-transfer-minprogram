@@ -2,7 +2,7 @@
 
 基于 AI 技术的微信小程序发型迁移应用，支持发型虚拟试戴、素描风格转换等功能。
 
-[![Version](https://img.shields.io/badge/version-V1.20-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
+[![Version](https://img.shields.io/badge/version-V1.24.3-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
 [![Security Audit](https://img.shields.io/badge/security-audited-green)](docs/SECURITY_AUDIT.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![WeChat](https://img.shields.io/badge/platform-WeChat-07c160)](https://developers.weixin.qq.com/miniprogram/dev/framework/)
@@ -400,6 +400,33 @@ MIT License
 
 ## 📝 更新日志
 
+### V1.24.3 (2026-10-26)
+
+**设置页面增强**
+- ✅ 新增"用户识别 ID"显示：展示数据库中的用户 ID，方便锁定客户账号
+- ✅ "用户 ID"更名为"设备 ID"：更准确反映其含义（前端生成的设备标识）
+- ✅ 修复国际化翻译键：补充 `settings.title` 和 `settings.dbUserId` 翻译
+- ✅ 英文翻译优化：`dbUserId` 译为 "Account ID" 以区分设备 ID
+- ✅ 恢复意外删除的 `currentVipStatus` 翻译键
+- ✅ 修复 JSON 文件末尾换行符问题
+- ✅ L3 深度安全扫描通过，未发现安全问题
+
+### V1.24.2 (2026-10-26)
+
+**设置页面增强**
+- ✅ 新增"用户识别 ID"显示区域
+- ✅ "用户 ID"更名为"设备 ID"
+- ✅ 修复国际化翻译键缺失问题
+
+### V1.24.1 (2026-10-23)
+
+**视频重新生成修复**
+- ✅ 修复非 VIP 用户无法重新生成视频的问题（前端直接传递 result_url）
+- ✅ 修复重新生成后显示错误人物/图片的问题（优先查询 combined 记录）
+- ✅ 添加源文件验证：拒绝视频文件作为图片源
+- ✅ 修复虚拟支付回调处理失败仍返回 SUCCESS 的问题
+- ✅ 增强调度器补偿机制
+
 ### V1.20 (2026-10-11)
 
 **智能决策系统升级**
@@ -469,4 +496,4 @@ MIT License
 
 ---
 
-*最后更新：2026-10-11*
+*最后更新：2026-10-26*
