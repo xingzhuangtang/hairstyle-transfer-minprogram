@@ -44,11 +44,19 @@
     </view>
   </view>
 
-  <!-- 用户ID（只读，不可修改） -->
+  <!-- 设备ID（只读，不可修改） -->
   <view class="settings-section">
     <view class="section-title">{{tSettingsUserId}}</view>
     <view class="setting-item user-id-item">
       <text class="user-id-text">{{userId || tSettingsUnknown}}</text>
+    </view>
+  </view>
+
+  <!-- 用户识别 ID（只读，不可修改） -->
+  <view class="settings-section">
+    <view class="section-title">{{tSettingsDbUserId}}</view>
+    <view class="setting-item user-id-item">
+      <text class="user-id-text">{{dbUserId || tSettingsUnknown}}</text>
     </view>
   </view>
 

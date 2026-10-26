@@ -172,7 +172,6 @@
     "userType": "User Type: ",
     "registered": "Regular User",
     "clearData": "Clear Data & Restart (Simulate New Customer)",
-    "currentVipStatus": "Current Member Status: ",
     "vipMember": "VIP Member",
     "expireTime": "Expires: ",
     "permanent": "Permanent",
@@ -190,11 +189,11 @@
   "settings": {
     "language": "Language",
     "avatar": "Avatar",
-    "clickChange": "Tap to Change",
+    "clickChange": "Tap to change",
     "nickname": "Nickname",
     "nicknamePlaceholder": "Enter nickname (max 20 characters)",
     "phone": "Phone",
-    "notBound": "Not Bound",
+    "notBound": "Not bound",
     "change": "Change",
     "userId": "User ID",
     "tipText": "After changing your nickname, other users will see the new name",
@@ -205,13 +204,10 @@
     "noEdit": "No changes",
     "phoneSame": "Same as current phone number",
     "nicknameEmpty": "Nickname cannot be empty",
-    "avatar": "Avatar",
-    "clickChange": "Tap to change",
-    "userId": "User ID",
     "unknown": "Unknown",
-    "notBound": "Not bound",
-    "change": "Change",
-    "profileTip": "Other users will see your new nickname after saving"
+    "profileTip": "Other users will see your new nickname after saving",
+    "title": "Settings",
+    "dbUserId": "User ID"
   },
   "result": {
     "sketchSuccess": "Sketch optimized",
@@ -289,108 +285,6 @@
     "orderPaid": "Paid",
     "orderPending": "Pending",
     "orderFailed": "Payment Failed"
-  },
-  "history": {
-    "title": "History",
-    "empty": "No history yet",
-    "emptyTip": "Your hairstyle transfer records will appear here"
-  },
-  "consumption": {
-    "title": "Consumption Records",
-    "empty": "No records yet",
-    "emptyTip": "Your consumption records will appear here"
-  },
-  "chat": {
-    "title": "Online Support",
-    "placeholder": "Type a message...",
-    "send": "Send",
-    "empty": "No messages yet",
-    "sendSuccess": "Sent",
-    "sendFail": "Send failed"
-  },
-  "message": {
-    "title": "Messages",
-    "placeholder": "Enter your message...",
-    "submit": "Submit",
-    "submitSuccess": "Message submitted",
-    "submitFail": "Submission failed",
-    "empty": "No messages yet",
-    "emptyTip": "You haven't left any messages yet"
-  },
-  "messageAdmin": {
-    "title": "Message Management",
-    "empty": "No messages yet",
-    "loading": "Loading...",
-    "loadFail": "Load failed",
-    "noAccess": "Access denied, only developers can view",
-    "phoneCopied": "Phone number copied"
-  },
-  "about": {
-    "title": "About Us",
-    "version": "Version",
-    "delta": "🔺",
-    "intro": "HairStyle Transfer is an AI-powered virtual try-on app that lets you preview hairstyles before committing.",
-    "contact": "Contact Us",
-    "email": "Email",
-    "phone": "Phone"
-  },
-  "device": {
-    "title": "Device Management",
-    "currentDevice": "Current Device",
-    "deviceInfo": "Device Info",
-    "loginDevices": "Logged-in Devices",
-    "remove": "Remove",
-    "removeSuccess": "Removed",
-    "removeFail": "Remove failed"
-  },
-  "referral": {
-    "title": "My Surprise",
-    "myCode": "My Referral Code",
-    "shareTip": "Share with friends, both of you get rewarded",
-    "scanCode": "Scan to Share",
-    "saveCode": "Save Code",
-    "myCommission": "My Commission Details",
-    "empty": "No referral records yet",
-    "emptyTip": "Share your referral code to earn rewards",
-    "saveSuccess": "Code saved to album",
-    "saveFail": "Save failed"
-  },
-  "refund": {
-    "title": "Refund Request",
-    "orderNo": "Order Number",
-    "amount": "Amount",
-    "reason": "Reason",
-    "reasonPlaceholder": "Enter refund reason",
-    "submit": "Submit Request",
-    "submitSuccess": "Refund request submitted",
-    "submitFail": "Submission failed",
-    "empty": "No refund requests yet",
-    "myRefunds": "My Refunds"
-  },
-  "legal": {
-    "loading": "Loading...",
-    "loadFail": "Load failed",
-    "networkError": "Network error",
-    "defaultTitle": "Agreement Content"
-  },
-  "result": {
-    "sketchSuccess": "Sketch optimized",
-    "processSuccess": "Processing successful",
-    "original": "Original",
-    "sketch": "Sketch",
-    "combSlot": "Comb Slot",
-    "scissorSlot": "Scissor Slot",
-    "remaining": "Remaining Hairs",
-    "saveOriginal": "Save Original",
-    "saveSketch": "Save Sketch",
-    "saveAlbum": "Save to Album",
-    "goHome": "Back to Home",
-    "tip1": "Tap image to enlarge",
-    "tip2": "History can be viewed in \"Profile\" (Members only)",
-    "saveSuccessModal": "Saved",
-    "needPermission": "Save permission needed. Go to Settings?",
-    "devToolLimit": "Developer tool limitation. Please test on phone or long-press image to save.",
-    "imageLoadFailTip": "Image load failed. Try long-pressing the image and selecting save."
   },
   "history": {
     "title": "History",
@@ -516,6 +410,23 @@
     "contentTooLong": "Message is too long (max 500 characters)",
     "networkFail": "Network request failed"
   },
+  "messageAdmin": {
+    "title": "Message Management",
+    "empty": "No messages yet",
+    "loading": "Loading...",
+    "loadFail": "Load failed",
+    "noAccess": "Access denied, only developers can view",
+    "phoneCopied": "Phone number copied"
+  },
+  "about": {
+    "title": "About Us",
+    "version": "Version",
+    "delta": "🔺",
+    "intro": "HairStyle Transfer is an AI-powered virtual try-on app that lets you preview hairstyles before committing.",
+    "contact": "Contact Us",
+    "email": "Email",
+    "phone": "Phone"
+  },
   "device": {
     "title": "Device Management",
     "myDevices": "My Devices",
@@ -623,5 +534,11 @@
     "submitFail": "Submission failed",
     "networkError": "Network error, please try again later",
     "empty": "No refund requests yet"
+  },
+  "legal": {
+    "loading": "Loading...",
+    "loadFail": "Load failed",
+    "networkError": "Network error",
+    "defaultTitle": "Agreement Content"
   }
 }

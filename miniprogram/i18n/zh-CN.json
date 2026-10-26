@@ -172,7 +172,6 @@
     "userType": "用户类型：",
     "registered": "普通用户",
     "clearData": "清除数据，重新测试（模拟新客户）",
-    "currentVipStatus": "当前会员状态：",
     "vipMember": "VIP 会员",
     "expireTime": "到期时间：",
     "permanent": "永久",
@@ -196,7 +195,7 @@
     "phone": "手机号",
     "notBound": "未绑定",
     "change": "修改",
-    "userId": "用户ID",
+    "userId": "设备ID",
     "tipText": "昵称修改后，其他用户可以看到您的新昵称",
     "changePhone": "修改手机号",
     "changePhoneDesc": "请输入新手机号并验证",
@@ -205,13 +204,10 @@
     "noEdit": "暂无修改",
     "phoneSame": "与当前手机号相同，无需修改",
     "nicknameEmpty": "昵称不能为空",
-    "avatar": "头像",
-    "clickChange": "点击更换",
-    "userId": "用户ID",
     "unknown": "未知",
-    "notBound": "未绑定",
-    "change": "修改",
-    "profileTip": "昵称修改后，其他用户可以看到您的新昵称"
+    "profileTip": "昵称修改后，其他用户可以看到您的新昵称",
+    "title": "设置",
+    "dbUserId": "用户识别 ID"
   },
   "result": {
     "sketchSuccess": "素描优化成功",
@@ -289,108 +285,6 @@
     "orderPaid": "已支付",
     "orderPending": "待支付",
     "orderFailed": "支付失败"
-  },
-  "history": {
-    "title": "历史记录",
-    "empty": "暂无历史记录",
-    "emptyTip": "您的发型迁移记录将在这里显示"
-  },
-  "consumption": {
-    "title": "消费记录",
-    "empty": "暂无消费记录",
-    "emptyTip": "您的消费记录将在这里显示"
-  },
-  "chat": {
-    "title": "在线客服",
-    "placeholder": "请输入消息...",
-    "send": "发送",
-    "empty": "暂无聊天记录",
-    "sendSuccess": "发送成功",
-    "sendFail": "发送失败"
-  },
-  "message": {
-    "title": "客户留言",
-    "placeholder": "请输入您的留言内容...",
-    "submit": "提交留言",
-    "submitSuccess": "留言提交成功",
-    "submitFail": "留言提交失败",
-    "empty": "暂无留言",
-    "emptyTip": "您还没有留过言"
-  },
-  "messageAdmin": {
-    "title": "留言管理",
-    "empty": "暂无留言",
-    "loading": "加载中...",
-    "loadFail": "加载失败",
-    "noAccess": "无权访问，仅开发者可查看",
-    "phoneCopied": "电话已复制"
-  },
-  "about": {
-    "title": "关于我们",
-    "version": "版本号",
-    "delta": "🔺",
-    "intro": "发型迁移是一款基于 AI 技术的虚拟试戴应用，让您在购买发型前就能看到效果。",
-    "contact": "联系我们",
-    "email": "邮箱",
-    "phone": "电话"
-  },
-  "device": {
-    "title": "设备管理",
-    "currentDevice": "当前设备",
-    "deviceInfo": "设备信息",
-    "loginDevices": "登录设备",
-    "remove": "移除",
-    "removeSuccess": "移除成功",
-    "removeFail": "移除失败"
-  },
-  "referral": {
-    "title": "我的惊喜",
-    "myCode": "我的推广码",
-    "shareTip": "分享给好友，双方都能获得奖励",
-    "scanCode": "扫码分享",
-    "saveCode": "保存推广码",
-    "myCommission": "我的佣金明细",
-    "empty": "暂无推广记录",
-    "emptyTip": "分享推广码即可获得奖励",
-    "saveSuccess": "推广码已保存到相册",
-    "saveFail": "保存失败"
-  },
-  "refund": {
-    "title": "退款申请",
-    "orderNo": "订单号",
-    "amount": "金额",
-    "reason": "退款原因",
-    "reasonPlaceholder": "请输入退款原因",
-    "submit": "提交申请",
-    "submitSuccess": "退款申请已提交",
-    "submitFail": "提交失败",
-    "empty": "暂无退款申请",
-    "myRefunds": "我的退款"
-  },
-  "legal": {
-    "loading": "加载中...",
-    "loadFail": "加载失败",
-    "networkError": "网络错误",
-    "defaultTitle": "协议内容"
-  },
-  "result": {
-    "sketchSuccess": "素描优化成功",
-    "processSuccess": "处理成功",
-    "original": "原图",
-    "sketch": "素描",
-    "combSlot": "梳子槽",
-    "scissorSlot": "剪刀槽",
-    "remaining": "剩余发丝",
-    "saveOriginal": "保存原图",
-    "saveSketch": "保存素描",
-    "saveAlbum": "保存相册",
-    "goHome": "返回首页",
-    "tip1": "点击图片可放大查看",
-    "tip2": "历史记录可在\"我的\"中查看（会员专享）",
-    "saveSuccessModal": "保存成功",
-    "needPermission": "需要授权保存权限，是否前往设置？",
-    "devToolLimit": "开发者工具限制，请在手机上测试或长按图片保存",
-    "imageLoadFailTip": "图片加载失败，请尝试长按图片选择保存到手机"
   },
   "history": {
     "title": "历史记录",
@@ -516,6 +410,23 @@
     "contentTooLong": "留言内容最多500个字符",
     "networkFail": "网络请求失败"
   },
+  "messageAdmin": {
+    "title": "留言管理",
+    "empty": "暂无留言",
+    "loading": "加载中...",
+    "loadFail": "加载失败",
+    "noAccess": "无权访问，仅开发者可查看",
+    "phoneCopied": "电话已复制"
+  },
+  "about": {
+    "title": "关于我们",
+    "version": "版本号",
+    "delta": "🔺",
+    "intro": "发型迁移是一款基于 AI 技术的虚拟试戴应用，让您在购买发型前就能看到效果。",
+    "contact": "联系我们",
+    "email": "邮箱",
+    "phone": "电话"
+  },
   "device": {
     "title": "设备管理",
     "myDevices": "我的设备",
@@ -623,5 +534,11 @@
     "submitFail": "提交失败",
     "networkError": "网络错误，请稍后重试",
     "empty": "暂无退款申请"
+  },
+  "legal": {
+    "loading": "加载中...",
+    "loadFail": "加载失败",
+    "networkError": "网络错误",
+    "defaultTitle": "协议内容"
   }
 }

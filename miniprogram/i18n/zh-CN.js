@@ -251,6 +251,7 @@ module.exports = {
     "switchFail": "切换失败"
   },
   "settings": {
+    "title": "设置",
     "language": "语言",
     "avatar": "头像",
     "clickChange": "点击更换",
@@ -259,7 +260,8 @@ module.exports = {
     "phone": "手机号",
     "notBound": "未绑定",
     "change": "修改",
-    "userId": "用户ID",
+    "userId": "设备ID",
+    "dbUserId": "用户识别 ID",
     "tipText": "昵称修改后，其他用户可以看到您的新昵称",
     "changePhone": "修改手机号",
     "changePhoneDesc": "请输入新手机号并验证",

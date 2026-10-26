@@ -14,6 +14,7 @@ Page({
     saving: false,
     hasChanged: false,
     userId: '',
+    dbUserId: '',
     phone: '',
     showChangePhoneModal: false,
     changePhone: '',
@@ -63,6 +64,7 @@ Page({
     tSettingsNicknamePlaceholder: '',
     tSettingsPhone: '',
     tSettingsUserId: '',
+    tSettingsDbUserId: '',
     tSettingsUnknown: '',
     tSettingsNotBound: '',
     tSettingsChange: '',
@@ -151,6 +153,7 @@ Page({
       tSettingsAvatar: t('settings.avatar'),
       tSettingsClickChange: t('settings.clickChange'),
       tSettingsUserId: t('settings.userId'),
+      tSettingsDbUserId: t('settings.dbUserId'),
       tSettingsUnknown: t('common.unknown'),
       tSettingsNotBound: t('settings.notBound'),
       tSettingsChange: t('settings.change'),
@@ -211,6 +214,7 @@ Page({
           originalAvatarUrl: user.avatar_url || '',
           originalNickname: user.nickname || '',
           userId: user.device_id || '',
+          dbUserId: user.id || '',
           phone: user.phone || ''
         })
       }

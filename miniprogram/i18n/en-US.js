@@ -249,6 +249,7 @@ module.exports = {
     "switchFail": "Switch failed"
   },
   "settings": {
+    "title": "Settings",
     "language": "Language",
     "avatar": "Avatar",
     "clickChange": "Tap to change",
@@ -258,6 +259,7 @@ module.exports = {
     "notBound": "Not bound",
     "change": "Change",
     "userId": "User ID",
+    "dbUserId": "User ID",
     "tipText": "After changing your nickname, other users will see the new name",
     "changePhone": "Change Phone Number",
     "changePhoneDesc": "Enter new phone number and verify",
