@@ -207,6 +207,8 @@ module.exports = {
     "loginSync": "登录后可同步数据、享受会员折扣和更多功能",
     "noNickname": "未设置昵称",
     "noPhone": "未绑定手机",
+    "deviceLabel": "设备 ID：",
+    "dbUserIdLabel": "用户识别 ID：",
     "remainingDays": "还剩{days}天",
     "remainingHours": "还剩{hours}小时",
     "expired": "已过期",

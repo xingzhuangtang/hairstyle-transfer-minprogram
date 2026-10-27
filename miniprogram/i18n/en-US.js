@@ -207,6 +207,8 @@ module.exports = {
     "loginSync": "Log in to sync data, enjoy member discounts and more features",
     "noNickname": "No nickname set",
     "noPhone": "Phone not bound",
+    "deviceLabel": "Device ID: ",
+    "dbUserIdLabel": "Account ID: ",
     "remainingDays": "{days} days left",
     "scissorHairs": "Scissor Hairs",
     "combHairs": "Comb Hairs",
