@@ -22,7 +22,10 @@
             <image wx:if="{{isPremium}}" class="vip-badge" src="/images/icons/vip.png"></image>
           </view>
           <view class="detail-row">
-            <text class="user-id">ID: {{userInfo.device_id || tCommonUnknown}}</text>
+            <text class="user-id">{{tProfileDeviceLabel}}{{userInfo.device_id || tCommonUnknown}}</text>
+          </view>
+          <view class="detail-row">
+            <text class="user-id">{{tProfileDbUserIdLabel}}{{userInfo.id || tCommonUnknown}}</text>
           </view>
           <view class="detail-row">
             <text class="phone">{{userInfo.phone || tProfileNoPhone}}</text>
