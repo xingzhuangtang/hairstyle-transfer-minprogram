@@ -535,6 +535,97 @@ class TestSchedulerCompensation(VirtualPayCallbackTestBase):
         self.assertEqual(order.payment_status, 'pending')
 
 
+class TestFrontendNotifySuccess(VirtualPayCallbackTestBase):
+    """测试10: 前端支付成功通知接口"""
+
+    def setUp(self):
+        super().setUp()
+        # 生成 JWT Token 用于认证
+        from auth import AuthService
+        auth_service = AuthService()
+        token = auth_service.generate_token(self.test_user.id)
+        self.client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {token}'
+
+    def _notify_success(self, order_no, transaction_id=None):
+        payload = {'order_no': order_no}
+        if transaction_id:
+            payload['transaction_id'] = transaction_id
+        return self.client.post(
+            '/api/virtual-pay/notify-success',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+    def test_notify_success_recharge_order(self):
+        """前端通知充值订单支付成功"""
+        order = self.create_test_order(amount=10.00, order_no='TEST_NOTIFY_001')
+
+        resp = self._notify_success(order.order_no, 'WX_NOTIFY_001')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get('success'))
+
+        db.session.refresh(order)
+        self.assertEqual(order.payment_status, 'success')
+        self.assertEqual(order.transaction_id, 'WX_NOTIFY_001')
+
+    def test_notify_success_member_order(self):
+        """前端通知会员订单支付成功"""
+        from datetime import timedelta
+        order = self.create_test_member_order(amount=30.00, order_no='TEST_NOTIFY_MEM_001')
+
+        resp = self._notify_success(order.order_no, 'WX_NOTIFY_MEM_001')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get('success'))
+
+        db.session.refresh(order)
+        self.assertEqual(order.payment_status, 'success')
+
+    def test_notify_success_idempotent(self):
+        """重复通知不会重复增加余额"""
+        order = self.create_test_order(amount=10.00, order_no='TEST_NOTIFY_IDEM_001')
+
+        # 第一次通知
+        resp1 = self._notify_success(order.order_no, 'WX_NOTIFY_IDEM_001')
+        self.assertEqual(resp1.status_code, 200)
+
+        # 第二次通知
+        resp2 = self._notify_success(order.order_no, 'WX_NOTIFY_IDEM_001')
+        self.assertEqual(resp2.status_code, 200)
+
+        # 验证余额只增加一次
+        db.session.refresh(self.test_user)
+        expected_scissor = self.initial_scissor + 1000
+        self.assertEqual(self.test_user.scissor_hairs, expected_scissor)
+
+    def test_notify_success_missing_order_no(self):
+        """缺少订单号返回400"""
+        resp = self.client.post(
+            '/api/virtual-pay/notify-success',
+            data=json.dumps({}),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_notify_success_order_not_found(self):
+        """订单不存在返回404"""
+        resp = self._notify_success('NONEXISTENT_ORDER')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_notify_success_already_processed(self):
+        """已处理的订单直接返回成功"""
+        order = self.create_test_order(amount=10.00, order_no='TEST_NOTIFY_DONE_001')
+        order.payment_status = 'success'
+        db.session.commit()
+
+        resp = self._notify_success(order.order_no)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get('success'))
+        self.assertEqual(data.get('message'), '订单已处理')
+
+
 class TestRegressionPreviousBug(VirtualPayCallbackTestBase):
     """测试9: 回归测试 - 确保之前的 bug 不再发生"""
 
