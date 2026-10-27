@@ -2,7 +2,7 @@
 
 基于 AI 技术的微信小程序发型迁移应用，支持发型虚拟试戴、素描风格转换等功能。
 
-[![Version](https://img.shields.io/badge/version-V1.24.3-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
+[![Version](https://img.shields.io/badge/version-V1.24.5-blue)](https://github.com/xingzhuangtang/hairstyle-transfer-minprogram)
 [![Security Audit](https://img.shields.io/badge/security-audited-green)](docs/SECURITY_AUDIT.md)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![WeChat](https://img.shields.io/badge/platform-WeChat-07c160)](https://developers.weixin.qq.com/miniprogram/dev/framework/)
@@ -399,6 +399,18 @@ MIT License
 ---
 
 ## 📝 更新日志
+
+### V1.24.5 (2026-10-27)
+
+**虚拟支付回调修复**
+- ✅ 修复微信虚拟支付回调字段名不匹配问题（支持 PascalCase/camelCase/snake_case）
+- ✅ 修复金额校验逻辑：Fee 字段缺失时不再阻断回调
+- ✅ 修复 Status=0 时未识别为成功的问题
+- ✅ 增加 PayInfo 嵌套数据解析支持
+- ✅ 增加 Form-data 格式回调支持
+- ✅ 修复 Decimal/float 类型比较错误
+- ✅ 添加全面测试套件（30 个测试用例）
+- ✅ 修复客户 15001190323 充值未到账问题
 
 ### V1.24.3 (2026-10-26)
 

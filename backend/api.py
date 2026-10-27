@@ -2469,30 +2469,38 @@ def virtual_pay_callback():
         payment_service = PaymentService()
 
         callback_data = request.get_json(silent=True) or {}
+        if not callback_data and request.form:
+            callback_data = request.form.to_dict()
         logging.info(f"虚拟支付回调: IP={request.remote_addr}, data={callback_data}")
 
         verified_data = virtual_pay_service.verify_callback(callback_data)
 
-        order_no = verified_data.get("out_trade_no") or verified_data.get("outTradeNo")
+        if "PayInfo" in verified_data and isinstance(verified_data["PayInfo"], dict):
+            verified_data.update(verified_data["PayInfo"])
+
+        order_no = (verified_data.get("OutTradeNo") or verified_data.get("out_trade_no")
+                    or verified_data.get("outTradeNo"))
         if not order_no:
             logging.error(f"虚拟支付回调缺少订单号，数据: {verified_data}")
             return jsonify({"return_code": "FAIL", "return_msg": "订单号缺失"}), 400
 
-        # 微信虚拟支付回调的支付状态字段可能是 result_code 或 status
-        pay_status = verified_data.get("result_code") or verified_data.get("status")
+        pay_status = verified_data.get("Status")
+        if pay_status is None:
+            pay_status = verified_data.get("result_code") or verified_data.get("status")
 
-        if pay_status in ("SUCCESS", "success", "0"):
-            transaction_id = verified_data.get("transaction_id") or verified_data.get("transactionId") or f"VIRTUAL_{order_no}"
+        if pay_status in ("SUCCESS", "success", "0", 0):
+            transaction_id = (verified_data.get("TransactionId") or verified_data.get("transaction_id")
+                              or verified_data.get("transactionId") or f"VIRTUAL_{order_no}")
             order = RechargeRecord.query.filter_by(order_no=order_no).first()
             if order:
-                # 金额校验
-                callback_amount = float(verified_data.get("total_fee", 0)) / 100
-                if abs(order.amount - callback_amount) > 0.01:
-                    logging.error(f"充值回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
+                callback_fee = (verified_data.get("Fee") or verified_data.get("total_fee") or 0)
+                callback_amount = float(callback_fee) / 100
+                if callback_amount > 0 and abs(float(order.amount) - callback_amount) > 0.01:
+                    logging.error(f"充值回调金额不匹配：订单={order.amount}, 回调={callback_amount}, raw_fee={callback_fee}")
                     return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
                 result = payment_service.process_recharge_success(order_no, transaction_id)
                 if result['success']:
-                    logging.info(f"虚拟支付充值回调成功: {order_no}")
+                    logging.info(f"虚拟支付充值回调成功: {order_no}, 金额={order.amount}")
                     return jsonify({"return_code": "SUCCESS", "return_msg": "OK"})
                 else:
                     logging.error(f"虚拟支付充值回调处理失败: {order_no}, error={result.get('error')}")
@@ -2500,10 +2508,10 @@ def virtual_pay_callback():
             else:
                 order = MemberOrder.query.filter_by(order_no=order_no).first()
                 if order:
-                    # 金额校验
-                    callback_amount = float(verified_data.get("total_fee", 0)) / 100
-                    if abs(order.amount - callback_amount) > 0.01:
-                        logging.error(f"会员回调金额不匹配：订单={order.amount}, 回调={callback_amount}")
+                    callback_fee = (verified_data.get("Fee") or verified_data.get("total_fee") or 0)
+                    callback_amount = float(callback_fee) / 100
+                    if callback_amount > 0 and abs(float(order.amount) - callback_amount) > 0.01:
+                        logging.error(f"会员回调金额不匹配：订单={order.amount}, 回调={callback_amount}, raw_fee={callback_fee}")
                         return jsonify({"return_code": "FAIL", "return_msg": "金额不匹配"}), 400
                     result = payment_service.process_member_success(order_no, transaction_id)
                     if result['success']:
