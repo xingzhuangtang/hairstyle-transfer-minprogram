@@ -1,6 +1,6 @@
 // pages/balance/balance.js
 import { getUserInfo } from '../../api/user.js'
-import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey } from '../../api/payment.js'
+import { createVirtualPayOrder, getVirtualPayOrderStatus, requestVirtualPay, getSessionKey, notifyVirtualPaySuccess } from '../../api/payment.js'
 import { getVirtualGoodsKey } from '../../utils/platform.js'
 import { onLocaleChange } from '../../utils/i18n.js'
 
@@ -232,7 +232,20 @@ Page({
     wx.hideLoading()
 
     try {
-      await requestVirtualPay(payParams)
+      const payResult = await requestVirtualPay(payParams)
+      console.log('虚拟支付结果:', payResult)
+
+      // 支付成功后，通知后端
+      if (payResult && payResult.success) {
+        try {
+          const transactionId = payResult.data && payResult.data.transactionId ? payResult.data.transactionId : null
+          await notifyVirtualPaySuccess(orderNo, transactionId)
+          console.log('已通知后端支付成功')
+        } catch (notifyErr) {
+          console.error('通知后端支付成功失败:', notifyErr)
+        }
+      }
+
       this.checkVirtualPayOrderStatus(orderNo)
     } catch (err) {
       console.error('调起虚拟支付失败:', err)

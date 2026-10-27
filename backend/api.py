@@ -2570,6 +2570,60 @@ def get_virtual_pay_order_status(order_no):
         return jsonify({"error": str(e)}), 500
 
 
+@api_bp.route("/virtual-pay/notify-success", methods=["POST"])
+@login_required
+def virtual_pay_notify_success():
+    """
+    前端支付成功后通知后端
+    微信虚拟支付的回调主要通过前端 wx.requestVirtualPayment 的 success 回调获取
+    """
+    try:
+        import logging
+        from models import RechargeRecord, MemberOrder
+        from payment_service import PaymentService
+
+        user = g.current_user
+        data = request.get_json(silent=True) or {}
+
+        order_no = data.get("order_no")
+        if not order_no:
+            return jsonify({"error": "订单号缺失"}), 400
+
+        logging.info(f"前端虚拟支付成功通知: order_no={order_no}, user_id={user.id}, data={data}")
+
+        # 查找订单
+        order = RechargeRecord.query.filter_by(order_no=order_no, user_id=user.id).first()
+        if not order:
+            order = MemberOrder.query.filter_by(order_no=order_no, user_id=user.id).first()
+
+        if not order:
+            return jsonify({"error": "订单不存在"}), 404
+
+        # 如果订单已经是 success，直接返回
+        if order.payment_status == 'success':
+            return jsonify({"success": True, "message": "订单已处理"})
+
+        # 处理订单
+        transaction_id = data.get("transaction_id") or f"FRONTEND_{order_no}"
+
+        if isinstance(order, RechargeRecord):
+            result = PaymentService().process_recharge_success(order_no, transaction_id)
+        else:
+            result = PaymentService().process_member_success(order_no, transaction_id)
+
+        if result.get('success'):
+            logging.info(f"前端虚拟支付成功通知处理成功: {order_no}")
+            return jsonify({"success": True, "message": "订单处理成功"})
+        else:
+            logging.error(f"前端虚拟支付成功通知处理失败: {order_no}, error={result.get('error')}")
+            return jsonify({"error": result.get('error', '处理失败')}), 500
+
+    except Exception as e:
+        import logging
+        logging.error(f"前端虚拟支付成功通知处理失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @api_bp.route("/virtual-pay/query/<order_no>", methods=["GET"])
 @login_required
 def query_virtual_pay_order(order_no):

@@ -182,3 +182,61 @@ class WeChatVirtualPayService:
     def is_virtual_pay_enabled(self):
         """检查虚拟支付是否已配置"""
         return bool(self.mch_id) and bool(self.config.WECHAT_VIRTUAL_PAY_NOTIFY_URL)
+
+    def query_order(self, out_trade_no, env=0):
+        """
+        查询虚拟支付订单状态
+
+        Args:
+            out_trade_no: 商户订单号
+            env: 0=正式环境, 1=沙箱环境
+
+        Returns:
+            dict: {success, status, ...}
+        """
+        import logging
+        import hmac
+
+        try:
+            # 构建查询参数
+            params = {
+                "offerId": self.config.VIRTUAL_OFFER_ID,
+                "outTradeNo": out_trade_no,
+                "env": env,
+            }
+
+            # 生成签名
+            sign_key = self._get_sign_key()
+            sign_data_str = json.dumps(params, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+            pay_sig = self._generate_pay_sig(sign_data_str, sign_key)
+
+            # 调用微信查询API
+            url = f"{self.BASE_URL}/v3/virtual-pays/orders/{out_trade_no}"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"WECHATPAY2-SHA256-RSA2048 {pay_sig}",
+            }
+
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+
+            if response.status_code == 200:
+                result = response.json()
+                logging.info(f"虚拟支付订单查询成功: {out_trade_no}, result={result}")
+                return {
+                    "success": True,
+                    "status": result.get("status"),
+                    "data": result,
+                }
+            else:
+                logging.error(f"虚拟支付订单查询失败: {out_trade_no}, status={response.status_code}, body={response.text}")
+                return {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}: {response.text}",
+                }
+
+        except Exception as e:
+            logging.error(f"虚拟支付订单查询异常: {out_trade_no}, error={e}")
+            return {
+                "success": False,
+                "error": str(e),
+            }

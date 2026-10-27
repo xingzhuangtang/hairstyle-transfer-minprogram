@@ -79,6 +79,16 @@ export function getVirtualPayOrderStatus(orderNo) {
 }
 
 /**
+ * 前端支付成功后通知后端
+ */
+export function notifyVirtualPaySuccess(orderNo, transactionId) {
+  return post('/api/virtual-pay/notify-success', {
+    order_no: orderNo,
+    transaction_id: transactionId
+  })
+}
+
+/**
  * 调起微信虚拟支付（全平台）
  * @param {Object} payParams - 后端返回的虚拟支付参数
  * 参数格式：{ signData, pay_sig, signature, mode }
